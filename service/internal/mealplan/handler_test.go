@@ -407,3 +407,60 @@ func TestToListOverHTTP(t *testing.T) {
 		t.Fatalf("ben sees %+v / %+v, unlisted %d", got.Lists, got.Entries[0].Lists, got.Unlisted)
 	}
 }
+
+// The plans week is its own route, not a plan called "week", and reads
+// with plan:read only.
+func TestPlansWeekOverHTTP(t *testing.T) {
+	a := newAPI(t)
+	owner, member := a.login(t, "anna"), a.login(t, "ben")
+	id := a.sharedPlan(t, owner, member)
+	a.call(t, owner, http.MethodPost, plans+"/"+id+"/entries"+week, map[string]any{"day": mon, "title": "Reste"}, http.StatusOK)
+	var out mealplan.PlansWeek
+	a.send(t, member, http.MethodGet, plans+"/week"+week, nil, http.StatusOK, &out)
+	if out.From != mon || out.To != sun || len(out.Plans) != 2 || out.Invitations == nil {
+		t.Fatalf("plans week = %+v", out)
+	}
+	var house mealplan.WeekPlan
+	for _, p := range out.Plans {
+		if p.ID == id {
+			house = p
+		}
+	}
+	if len(house.Entries) != 1 || house.Entries[0].Kind != "text" || house.Lists == nil {
+		t.Fatalf("household = %+v", house)
+	}
+	if rec := a.bearer(t, []string{auth.ScopePlanRead}, http.MethodGet, plans+"/week", ""); rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), `"from"`) {
+		t.Fatalf("plan:read plans week, current week: %d %s", rec.Code, rec.Body.String())
+	}
+	if rec := a.bearer(t, []string{auth.ScopeListsRead, auth.ScopeListsWrite}, http.MethodGet, plans+"/week", ""); rec.Code != http.StatusForbidden || !strings.Contains(rec.Body.String(), "plan:read") {
+		t.Fatalf("lists token reads the plans week: %d %s", rec.Code, rec.Body.String())
+	}
+	a.send(t, owner, http.MethodGet, plans+"/week?from="+mon+"&to=2027-03-01", nil, http.StatusUnprocessableEntity, nil)
+}
+
+// Over HTTP the bulk call keeps skipping an entry already on one of the
+// caller's lists; alsoListed puts it on a second one.
+func TestToListAlsoListedOverHTTP(t *testing.T) {
+	a := newAPI(t)
+	c := a.login(t, "anna")
+	r := a.dal(t)
+	p := a.call(t, c, http.MethodPost, plans, map[string]string{"name": "Familie"}, http.StatusCreated)
+	path := plans + "/" + p.ID
+	p = a.call(t, c, http.MethodPost, path+"/entries"+week, map[string]any{"day": mon, "recipeId": r.ID}, http.StatusOK)
+	pick := []map[string]any{{"entryId": p.Entries[0].ID, "ingredients": []map[string]int{{"group": 0, "index": 0}}}}
+	var out mealplan.ToListResult
+	var prev mealplan.PreviewList
+	a.send(t, c, http.MethodGet, path+"/shopping-preview"+week+"&entry="+p.Entries[0].ID, nil, http.StatusOK, &prev)
+	if len(prev.Entries) != 1 || prev.Entries[0].EntryID != p.Entries[0].ID {
+		t.Fatalf("one entry's preview = %+v", prev)
+	}
+	a.send(t, c, http.MethodPost, path+"/shopping"+week, map[string]any{"newListName": "Eins", "picks": pick}, http.StatusOK, &out)
+	a.send(t, c, http.MethodPost, path+"/shopping"+week, map[string]any{"newListName": "Zwei", "picks": pick}, http.StatusOK, &out)
+	if got := out.Plan.Entries[0].Lists; len(got) != 1 {
+		t.Fatalf("bulk put a listed entry on a second list: %+v", got)
+	}
+	a.send(t, c, http.MethodPost, path+"/shopping"+week, map[string]any{"listId": out.ListID, "alsoListed": true, "picks": pick}, http.StatusOK, &out)
+	if got := out.Plan.Entries[0].Lists; len(got) != 2 {
+		t.Fatalf("alsoListed: entry lists %+v, want two", got)
+	}
+}

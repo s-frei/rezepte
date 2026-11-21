@@ -109,6 +109,16 @@ func TestPutMealPlanOnListSkipsStaples(t *testing.T) {
 	if !slices.Equal(names, []string{"Leek"}) {
 		t.Fatalf("items = %v", names)
 	}
+	// MCP keeps the bulk rule: a recipe already on one of the owner's lists
+	// is skipped, so a second list gets nothing.
+	res = call(t, cs, "put_meal_plan_on_list", map[string]any{"planId": plan.ID, "from": "2026-11-16", "to": "2026-11-22", "newListName": "Again"})
+	if res.IsError {
+		t.Fatalf("%s", text(res))
+	}
+	again := structured[struct{ ListID string }](t, res)
+	if l, err := e.lists.Get(t.Context(), e.owner.ID, again.ListID); err != nil || len(l.Entries) != 0 {
+		t.Fatalf("second list = %+v, %v; want no entries", l.Entries, err)
+	}
 	_ = shopping.List{}
 }
 

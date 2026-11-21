@@ -7,7 +7,7 @@ A signed-in person plans recipes and free texts ("Reste") on days, or on the tra
 
 <Callout type="warn" title="Traps">
 
-- A plan entry's list blocks are visible to a viewer only for the lists they can access: every list name, id or count in a plan answer comes from `ListMealPlanEntryLists`, which carries the viewer's list predicate; reading lists any other way leaks a private list ([The list link](#the-list-link)).
+- A plan entry's list blocks are visible to a viewer only for the lists they can access: every list name, id or count in a plan answer comes from `ListMealPlanEntryLists` (the plans week: `ListMealPlanWeekEntryLists`), which carry the viewer's list predicate; reading lists any other way leaks a private list ([The list link](#the-list-link)).
 - Removing an entry is a soft delete, so every list read, count and delete must skip blocks of removed entries ([Entries](#entries)).
 - A change that alters what a linked list shows must go through `shopping.FollowPlan` and publish on the shopping hub after commit, Move included ([The list link](#the-list-link)).
 - The calendar feed's secret sits in the URL path, so `logRequests` writes it to the debug log, as it does a public share's token ([Calendar feed](#calendar-feed)).
@@ -41,6 +41,8 @@ A signed-in person plans recipes and free texts ("Reste") on days, or on the tra
 
 **`ToList` puts recipe entries on a list at their planned servings.** One transaction, through `shopping.AddPlanned`, onto an existing list the caller can access (else `shopping.ErrNotFound`, HTTP 404, and nothing written) or a new list of theirs. An entry already on a list the caller can access is skipped; one only on someone else's private list is added again, so two people shopping apart each get it (`TestToListSkipsOnlyAccessibleLinks`, `TestToListNeedsListAccess`). Free texts never go on a list (`TestFreeTextNeverGoesOnList`).
 
+**`alsoListed` lets one entry go on a second list.** With the flag, `ToList` skips an entry only when it is on the target list already; the one-entry dialog from an entry's ⋯ sends it, because picking a list for one meal is deliberate. Without it the rule above holds, so the bulk "Auf die Liste", any HTTP caller that leaves it out and MCP's `put_meal_plan_on_list` (which never sets it) put nothing twice (`TestToListAddsToASecondList`, `TestToListAlsoListedOverHTTP`, `TestPutMealPlanOnListSkipsStaples`).
+
 **Changes follow into every linked list, whoever edits the plan.** Servings, Move, Remove, Restore, the purge and deleting the plan call `shopping.FollowPlan`, which bumps every list the entries are on, sets servings when they changed, and checks no list access on purpose; `followed` publishes those ids on the shopping hub after commit. Move changes no list row but bumps and signals, since a list shows the planned day (`TestServingsFollowIntoList`, `TestMoveBumpsLinkedLists`, `TestRemoveFollowsIntoForeignList`, `TestPurgeAndDeleteFollowIntoList`).
 
 **A viewer sees only their own lists in a plan.** `Entry.Lists`, `Plan.Lists` (most entries first) and `Plan.Unlisted` (recipe entries on no list the viewer can access) all come from `ListMealPlanEntryLists`, so Ben reads Anna's plan without learning the name, id or count of her private list, while removing the entry still removes her block (`TestPlanHidesForeignLists`, `TestToListOverHTTP`). A deleted list releases its entries (`TestDeletedListReleasesEntries`).
@@ -51,7 +53,11 @@ A signed-in person plans recipes and free texts ("Reste") on days, or on the tra
 
 ### The API
 
-**The routes are in `handler.go` under the `meal-plans` tag.** The readers (list, get, events, staples, shopping preview) need `plan:read`, every other operation `plan:write`, and a token acts as its issuer (`TestPlanNeedsPlanScopes`). Every operation that answers a plan takes `from` and `to` (both left out: the current week) and answers with the whole plan for that span, as the list operations answer with the whole list. Errors map as the list's do: not found 404, a recipe gone 404, validation and the personal plan 422 with the field.
+**The routes are in `handler.go` under the `meal-plans` tag.** The readers (list, plans week, get, events, staples, shopping preview) need `plan:read`, every other operation `plan:write`, and a token acts as its issuer (`TestPlanNeedsPlanScopes`). Every operation that answers a plan takes `from` and `to` (both left out: the current week) and answers with the whole plan for that span, as the list operations answer with the whole list. Errors map as the list's do: not found 404, a recipe gone 404, validation and the personal plan 422 with the field.
+
+**`GET /meal-plans/week` is the plans page in one request.** `PlansWeek` answers the reader's plans in `Plans`' order, each with its week as the plan page would show it: entries on a day (the tray left out), and `lists` and `unlisted` as `Plan.Lists` and `Plan.Unlisted` for the same range, tray included, through the same list predicate; plus the invitations. It costs two queries beyond `Plans` however many plans there are (`ListMealPlanWeekEntries`, `ListMealPlanWeekEntryLists`). The order of the cards is the client's. Left out, the range is the current week in the server's time zone, so the client always passes its own (`getPlansWeek`), or late on a Sunday the strip shows the wrong week (`TestPlansWeekSummarizesEachPlansWeek`, `TestPlansWeekOverHTTP`).
+
+**`entry=<id>` previews one recipe entry** for the one-entry dialog: `PreviewOne` finds it on its day or the tray, whatever `from`, `to` and `tray` say; a free text is 422 (`TestPreviewOne`).
 
 **`PATCH …/entries/{entryId}` moves and changes servings in one body.** A `day` key moves the entry, `null` to the tray, and a missing key keeps its day while `position` places it ([HTTP API](/architecture/api)); `servings` changes first, as in MCP, after the move's own day and position checks, so a refused change leaves the entry where it was (`TestPlanRoundTrip`, `TestTrayMoveWithNullDay`, `TestPatchChecksServingsBeforeMoving`).
 

@@ -8,6 +8,7 @@
     "delete-calendar-feed",
     "list-meal-plans",
     "create-meal-plan",
+    "meal-plans-week",
     "get-meal-plan",
     "rename-meal-plan",
     "delete-meal-plan",

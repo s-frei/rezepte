@@ -775,7 +775,7 @@ func TestSeedMembersWriteShoppingLists(t *testing.T) {
 			t.Errorf("%s at %d servings, want 4", e.Title, e.Servings)
 		}
 	}
-	if strings.Join(titles, ", ") != "Königsberger Klopse, Rinderrouladen" {
+	if strings.Join(titles, ", ") != "Maultaschen in der Brühe" {
 		t.Errorf("entries = %v", titles)
 	}
 	free, checked := 0, map[string]bool{}
@@ -804,8 +804,20 @@ func TestSeedMembersWriteShoppingLists(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(market.Items) != 4 || len(market.Entries) != 0 {
-		t.Errorf("Markt Samstag: %d items, %d entries; want 4 free items", len(market.Items), len(market.Entries))
+	free = 0
+	for _, i := range market.Items {
+		if i.EntryID == nil {
+			free++
+		}
+	}
+	planned := 0
+	for _, e := range market.Entries {
+		if e.PlanID != nil {
+			planned++
+		}
+	}
+	if free != 4 || planned != len(market.Entries) {
+		t.Errorf("Markt Samstag: %d free items, %d of %d entries planned; want 4 free items and only planned blocks", free, planned, len(market.Entries))
 	}
 	counts, err := lists.CountsByCreator(ctx)
 	if err != nil {
@@ -850,9 +862,12 @@ func TestSeedLinksATechniquePhotoToItsStep(t *testing.T) {
 	}
 }
 
-// TestSeedPlans pins the meal plans: the admin's personal plan and the shared
-// household, Mila a member, Jonas still invited, and the weekly shop carrying
-// blocks that came from the plan.
+// TestSeedPlans pins the meal plans and their links to the lists: the
+// admin's personal plan, the shared household (Mila a member, Jonas still
+// invited), Mila's holiday plan shared with the admin, the admin's office
+// lunch with nothing this week, Jonas's barbecue invitation; the weekly
+// shop fed by two plans and a hand-added recipe, Thursday's meal on two
+// lists, the household on three, and "Geplant von Mila" on Mila's list.
 func TestSeedPlans(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
@@ -875,34 +890,58 @@ func TestSeedPlans(t *testing.T) {
 		t.Fatal(err)
 	}
 	plans := mealplan.NewService(conn, shopping.NewService(conn))
+	plans.SetClock(func() time.Time { return now })
 	id := map[string]string{}
 	for _, m := range members {
 		id[m.Username] = m.ID
 	}
 
-	mine, _, err := plans.Plans(ctx, admin.ID)
-	if err != nil || len(mine) != 2 {
-		t.Fatalf("admin plans = %+v, %v; want 2", mine, err)
+	week, invs, err := plans.PlansWeek(ctx, admin.ID, "2026-11-16", "2026-11-22")
+	if err != nil {
+		t.Fatal(err)
 	}
-	var house mealplan.PlanSummary
-	for _, p := range mine {
+	byName := map[string]mealplan.WeekPlan{}
+	for _, p := range week {
 		if p.Name != nil {
-			house = p
+			byName[*p.Name] = p
 		}
 	}
-	if house.Name == nil || *house.Name != "Haushalt" {
-		t.Fatalf("shared plan = %+v", house)
+	if len(week) != 4 || !week[0].Personal || len(byName) != 3 {
+		t.Fatalf("admin plans = %+v, want Mein Plan, Haushalt, Ferien im Tessin, Büro-Mittag", week)
+	}
+	house, holiday, office := byName["Haushalt"], byName["Ferien im Tessin"], byName["Büro-Mittag"]
+	if len(house.Members) != 1 || len(house.Entries) < 7 {
+		t.Fatalf("household = %+v", house)
+	}
+	if len(house.Lists) != 3 {
+		t.Errorf("household feeds %+v, want three lists", house.Lists)
+	}
+	if holiday.Owner.ID != id["mila"] || len(holiday.Entries) != 2 || holiday.Unlisted != 2 || len(holiday.Lists) != 0 {
+		t.Errorf("holiday plan = %+v, want Mila's with two meals on no list", holiday)
+	}
+	if len(office.Entries) != 0 {
+		t.Errorf("office lunch = %+v, want nothing this week", office)
+	}
+	if len(invs) != 1 || invs[0].Name == nil || *invs[0].Name != "Grillsaison" {
+		t.Errorf("admin invitations = %+v, want Grillsaison", invs)
 	}
 	full, err := plans.Get(ctx, admin.ID, house.ID, "2026-11-09", "2026-11-22")
-	if err != nil || len(full.Entries) < 10 || len(full.Members) != 1 {
-		t.Fatalf("household = %d entries, %d members, %v", len(full.Entries), len(full.Members), err)
+	if err != nil || len(full.Entries) < 10 {
+		t.Fatalf("household = %d entries, %v", len(full.Entries), err)
+	}
+	twice := 0
+	for _, e := range full.Entries {
+		if len(e.Lists) == 2 {
+			twice++
+		}
+	}
+	if twice != 1 {
+		t.Errorf("%d household entries on two lists, want Thursday's", twice)
 	}
 	if st, _ := plans.Staples(ctx, admin.ID, house.ID); len(st) != 3 {
 		t.Fatalf("staples = %+v", st)
 	}
-
-	milas, _, err := plans.Plans(ctx, id["mila"])
-	if err != nil || len(milas) != 2 {
+	if milas, _, err := plans.Plans(ctx, id["mila"]); err != nil || len(milas) != 3 {
 		t.Fatalf("mila plans = %+v, %v", milas, err)
 	}
 	if _, inv, err := plans.Plans(ctx, id["jonas"]); err != nil || len(inv) != 1 || inv[0].Name == nil || *inv[0].Name != "Haushalt" {
@@ -911,22 +950,47 @@ func TestSeedPlans(t *testing.T) {
 
 	lists := shopping.NewService(conn)
 	all, _ := lists.Lists(ctx, admin.ID)
-	var withDay int
-	for _, s := range all {
-		if s.Name != "Wocheneinkauf" {
-			continue
-		}
-		l, err := lists.Get(ctx, admin.ID, s.ID)
-		if err != nil {
-			t.Fatal(err)
-		}
-		for _, e := range l.Entries {
-			if e.PlanDay != nil {
-				withDay++
+	read := func(name string) shopping.List {
+		t.Helper()
+		for _, s := range all {
+			if s.Name == name {
+				l, err := lists.Get(ctx, admin.ID, s.ID)
+				if err != nil {
+					t.Fatal(err)
+				}
+				return l
 			}
 		}
+		t.Fatalf("no list %q", name)
+		return shopping.List{}
 	}
-	if withDay == 0 {
-		t.Fatal("the weekly shop has no block from the plan")
+	from := map[string]int{}
+	byHand := 0
+	for _, e := range read("Wocheneinkauf").Entries {
+		switch {
+		case e.PlanID == nil:
+			byHand++
+		case !e.PlanMember:
+			t.Errorf("Wocheneinkauf block %+v from a plan the admin is not in", e)
+		case e.PlanPersonal:
+			from["Mein Plan"]++
+		case e.PlanName != nil:
+			from[*e.PlanName]++
+		}
+	}
+	if from["Mein Plan"] == 0 || from["Haushalt"] == 0 || len(from) != 2 || byHand != 1 {
+		t.Errorf("Wocheneinkauf: %v from plans, %d by hand; want Mein Plan and Haushalt and one by hand", from, byHand)
+	}
+	foreign := 0
+	for _, e := range read("Sonntagsessen").Entries {
+		if e.PlanID != nil && !e.PlanMember {
+			if e.PlanName != nil || e.PlanPersonal || e.PlanAddedBy == nil || e.PlanAddedBy.DisplayName != "Mila Majoran" {
+				t.Errorf("foreign block %+v, want added by Mila", e)
+			}
+			foreign++
+		}
+	}
+	if foreign != 1 {
+		t.Errorf("Sonntagsessen: %d blocks from a plan the admin is not in, want Mila's own", foreign)
 	}
 }

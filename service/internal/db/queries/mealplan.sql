@@ -209,3 +209,33 @@ ORDER BY e.day, e.position, e.id;
 -- A shared plan's name, for the invitation notice.
 -- name: GetMealPlanName :one
 SELECT name FROM meal_plans WHERE id = ?;
+
+-- The live entries between two days (inclusive) and on the tray of every
+-- plan one person created or accepted, for the plans overview; ordered as
+-- ListMealPlanEntries within each plan.
+-- name: ListMealPlanWeekEntries :many
+SELECT e.plan_id, e.id, e.day, e.recipe_id, e.title, e.servings, r.cover_image_id
+FROM meal_plan_entries e
+JOIN meal_plans p ON p.id = e.plan_id
+LEFT JOIN recipes r ON r.id = e.recipe_id
+WHERE e.removed_at IS NULL
+  AND (e.day IS NULL OR (e.day >= sqlc.arg(from_day) AND e.day <= sqlc.arg(to_day)))
+  AND (p.created_by = sqlc.arg(user_id) OR EXISTS (SELECT 1 FROM meal_plan_members m WHERE m.plan_id = p.id AND m.user_id = sqlc.arg(user_id) AND m.accepted_at IS NOT NULL))
+ORDER BY e.plan_id, e.day NULLS FIRST, e.position, e.created_at, e.id;
+
+-- ListMealPlanEntryLists for the entries ListMealPlanWeekEntries returns.
+-- name: ListMealPlanWeekEntryLists :many
+SELECT se.plan_entry_id, l.id AS list_id, l.name AS list_name,
+       (SELECT COUNT(DISTINCT i.name_key) FROM shopping_list_items i
+        LEFT JOIN shopping_list_entries ie ON ie.id = i.entry_id
+        LEFT JOIN meal_plan_entries ip ON ip.id = ie.plan_entry_id
+        WHERE i.list_id = l.id AND i.checked_at IS NULL AND ip.removed_at IS NULL) AS open_count
+FROM shopping_list_entries se
+JOIN meal_plan_entries e ON e.id = se.plan_entry_id
+JOIN meal_plans p ON p.id = e.plan_id
+JOIN shopping_lists l ON l.id = se.list_id
+WHERE e.removed_at IS NULL
+  AND (e.day IS NULL OR (e.day >= sqlc.arg(from_day) AND e.day <= sqlc.arg(to_day)))
+  AND (p.created_by = sqlc.arg(user_id) OR EXISTS (SELECT 1 FROM meal_plan_members m WHERE m.plan_id = p.id AND m.user_id = sqlc.arg(user_id) AND m.accepted_at IS NOT NULL))
+  AND (l.created_by = sqlc.arg(user_id) OR EXISTS (SELECT 1 FROM shopping_list_members m WHERE m.list_id = l.id AND m.user_id = sqlc.arg(user_id) AND m.accepted_at IS NOT NULL))
+ORDER BY se.created_at, se.id;

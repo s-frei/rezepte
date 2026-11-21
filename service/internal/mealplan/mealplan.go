@@ -93,6 +93,33 @@ type PlanSummary struct {
 	UpdatedAt string   `json:"updatedAt"`
 }
 
+// WeekPlan is a plan as the plans page shows it: its summary with the
+// entries on the days of a span, usually this week.
+type WeekPlan struct {
+	PlanSummary
+	// Entries are the span's entries on a day, by day and position; the
+	// tray is left out.
+	Entries []WeekEntry `json:"entries"`
+	// Unlisted counts the recipe entries of the span and the tray on no list
+	// the caller can access, as Plan.Unlisted.
+	Unlisted int `json:"unlisted"`
+	// Lists are as Plan.Lists for the same span: the accessible lists its
+	// entries and the tray are on, most entries first.
+	Lists []LinkedList `json:"lists"`
+}
+
+// WeekEntry is a plan entry on the plans page. Kind is "recipe" or "text"; a
+// recipe whose recipe is gone keeps its kind with RecipeID and Photo nil.
+type WeekEntry struct {
+	ID       string  `json:"id"`
+	Day      string  `json:"day"`
+	Kind     string  `json:"kind" enum:"recipe,text"`
+	RecipeID *string `json:"recipeId" nullable:"true"`
+	Title    string  `json:"title"`
+	// Photo is the recipe's cover image id.
+	Photo *string `json:"photo" nullable:"true"`
+}
+
 // PlanInvitation is a plan the caller was invited to and has not accepted yet.
 type PlanInvitation struct {
 	PlanID  string  `json:"planId"`

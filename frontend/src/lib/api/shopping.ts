@@ -20,10 +20,30 @@ export type ShoppingEntry = {
 	title: string;
 	baseServings: number;
 	servings: number;
-	/** The plan the entry came from; the reader may not be in it. Null when added by hand. */
-	planId: string | null;
 	/** The planned day, `YYYY-MM-DD`; null for a tray entry or one added by hand. */
 	planDay: string | null;
+} & PlanRef;
+
+/**
+ * Where a planned list entry came from, as the reader may see it. Only a
+ * reader in the plan (`planMember`) gets its name (`planName`, or
+ * `planPersonal` for their own personal plan, which the client words) and
+ * may be linked to it; anyone else sees who put it on the list. All null or
+ * false for an entry added by hand.
+ */
+export type PlanRef = {
+	/** The plan it came from; the reader may not be in it. */
+	planId: string | null;
+	/** The plan entry it came from, which a link to the plan can mark. */
+	planEntryId: string | null;
+	/** The reader created or accepted the plan; link only then. */
+	planMember: boolean;
+	/** The shared plan's name; null for the personal plan and a plan the reader is not in. */
+	planName: string | null;
+	/** The reader's own personal plan. */
+	planPersonal: boolean;
+	/** Who put it on the list from the plan (on the list when they did); null once that account is gone. */
+	planAddedBy: ListPerson | null;
 };
 
 export type ShoppingItem = {
@@ -79,7 +99,7 @@ export type ShoppingSummary = {
 	openCount: number;
 	doneCount: number;
 	/** `recipeId` is null once the recipe is deleted. */
-	recipes: { title: string; servings: number; recipeId: string | null }[];
+	recipes: ({ title: string; servings: number; recipeId: string | null } & PlanRef)[];
 	updatedAt: string;
 	owner: ListPerson;
 	members: ListPerson[];

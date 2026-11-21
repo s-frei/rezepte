@@ -59,6 +59,29 @@ export type PlanSummary = {
 	updatedAt: string;
 };
 
+/** A plan entry on the plans page: on a day of the week asked for. */
+export type WeekEntry = {
+	id: string;
+	/** `YYYY-MM-DD`. */
+	day: string;
+	/** A recipe whose recipe is deleted stays a recipe, with `recipeId` and `photo` null. */
+	kind: 'recipe' | 'text';
+	recipeId: string | null;
+	title: string;
+	/** The recipe's cover image id. */
+	photo: string | null;
+};
+
+/** A plan with one week of it, as the plans page shows it. */
+export type WeekPlan = PlanSummary & {
+	/** The week's entries on a day, by day and position; the tray is left out. */
+	entries: WeekEntry[];
+	/** Recipe entries of the week and the tray on no list the reader can access, as `MealPlan.unlisted`. */
+	unlisted: number;
+	/** As `MealPlan.lists` for the same week, the tray included. */
+	lists: LinkedList[];
+};
+
 export type PlanInvitation = {
 	planId: string;
 	name: string | null;
@@ -95,6 +118,16 @@ const send = <T>(path: string, method: string, body?: unknown) =>
 
 export const listPlans = () =>
 	api<{ plans: PlanSummary[]; invitations: PlanInvitation[] }>('/meal-plans');
+
+/**
+ * Every plan of the reader's with `range` of it, and the invitations. Pass the
+ * reader's own week (`today(getLocalTimeZone())`): left out, the server
+ * picks the current week in its own time zone.
+ */
+export const getPlansWeek = (range: PlanRange) =>
+	api<PlanRange & { plans: WeekPlan[]; invitations: PlanInvitation[] }>(
+		`/meal-plans/week${span(range)}`
+	);
 
 export const createPlan = (name: string, range: PlanRange) =>
 	send<MealPlan>(`/meal-plans${span(range)}`, 'POST', { name });
@@ -143,6 +176,8 @@ export const putPlanOnList = (
 		listId?: string;
 		newListName?: string;
 		picks: { entryId: string; ingredients: { group: number; index: number }[] }[];
+		/** Skip an entry only when it is on this list already (one entry from its ⋯); left out, one on any list is skipped. */
+		alsoListed?: boolean;
 	},
 	range: PlanRange
 ) => send<{ plan: MealPlan; listId: string }>(`${base(id)}/shopping${span(range)}`, 'POST', input);
@@ -150,6 +185,12 @@ export const putPlanOnList = (
 export const getShoppingPreview = (id: string, range: PlanRange, tray: boolean) =>
 	api<{ entries: PreviewEntry[] }>(
 		`${base(id)}/shopping-preview?${new URLSearchParams({ ...range, tray: String(tray) })}`
+	);
+
+/** The preview of one recipe entry, on its day or the tray, for the one-entry dialog. */
+export const getEntryShoppingPreview = (id: string, entryId: string) =>
+	api<{ entries: PreviewEntry[] }>(
+		`${base(id)}/shopping-preview?${new URLSearchParams({ entry: entryId })}`
 	);
 
 export const getStaples = (id: string) => api<{ staples: Staple[] }>(`${base(id)}/staples`);

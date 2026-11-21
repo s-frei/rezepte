@@ -805,6 +805,126 @@ func (q *Queries) ListMealPlanStaples(ctx context.Context, planID string) ([]Lis
 	return items, nil
 }
 
+const listMealPlanWeekEntries = `-- name: ListMealPlanWeekEntries :many
+SELECT e.plan_id, e.id, e.day, e.recipe_id, e.title, e.servings, r.cover_image_id
+FROM meal_plan_entries e
+JOIN meal_plans p ON p.id = e.plan_id
+LEFT JOIN recipes r ON r.id = e.recipe_id
+WHERE e.removed_at IS NULL
+  AND (e.day IS NULL OR (e.day >= ?1 AND e.day <= ?2))
+  AND (p.created_by = ?3 OR EXISTS (SELECT 1 FROM meal_plan_members m WHERE m.plan_id = p.id AND m.user_id = ?3 AND m.accepted_at IS NOT NULL))
+ORDER BY e.plan_id, e.day NULLS FIRST, e.position, e.created_at, e.id
+`
+
+type ListMealPlanWeekEntriesParams struct {
+	FromDay *string
+	ToDay   *string
+	UserID  string
+}
+
+type ListMealPlanWeekEntriesRow struct {
+	PlanID       string
+	ID           string
+	Day          *string
+	RecipeID     *string
+	Title        string
+	Servings     *int64
+	CoverImageID *string
+}
+
+// The live entries between two days (inclusive) and on the tray of every
+// plan one person created or accepted, for the plans overview; ordered as
+// ListMealPlanEntries within each plan.
+func (q *Queries) ListMealPlanWeekEntries(ctx context.Context, arg ListMealPlanWeekEntriesParams) ([]ListMealPlanWeekEntriesRow, error) {
+	rows, err := q.db.QueryContext(ctx, listMealPlanWeekEntries, arg.FromDay, arg.ToDay, arg.UserID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListMealPlanWeekEntriesRow{}
+	for rows.Next() {
+		var i ListMealPlanWeekEntriesRow
+		if err := rows.Scan(
+			&i.PlanID,
+			&i.ID,
+			&i.Day,
+			&i.RecipeID,
+			&i.Title,
+			&i.Servings,
+			&i.CoverImageID,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listMealPlanWeekEntryLists = `-- name: ListMealPlanWeekEntryLists :many
+SELECT se.plan_entry_id, l.id AS list_id, l.name AS list_name,
+       (SELECT COUNT(DISTINCT i.name_key) FROM shopping_list_items i
+        LEFT JOIN shopping_list_entries ie ON ie.id = i.entry_id
+        LEFT JOIN meal_plan_entries ip ON ip.id = ie.plan_entry_id
+        WHERE i.list_id = l.id AND i.checked_at IS NULL AND ip.removed_at IS NULL) AS open_count
+FROM shopping_list_entries se
+JOIN meal_plan_entries e ON e.id = se.plan_entry_id
+JOIN meal_plans p ON p.id = e.plan_id
+JOIN shopping_lists l ON l.id = se.list_id
+WHERE e.removed_at IS NULL
+  AND (e.day IS NULL OR (e.day >= ?1 AND e.day <= ?2))
+  AND (p.created_by = ?3 OR EXISTS (SELECT 1 FROM meal_plan_members m WHERE m.plan_id = p.id AND m.user_id = ?3 AND m.accepted_at IS NOT NULL))
+  AND (l.created_by = ?3 OR EXISTS (SELECT 1 FROM shopping_list_members m WHERE m.list_id = l.id AND m.user_id = ?3 AND m.accepted_at IS NOT NULL))
+ORDER BY se.created_at, se.id
+`
+
+type ListMealPlanWeekEntryListsParams struct {
+	FromDay *string
+	ToDay   *string
+	UserID  string
+}
+
+type ListMealPlanWeekEntryListsRow struct {
+	PlanEntryID *string
+	ListID      string
+	ListName    string
+	OpenCount   int64
+}
+
+// ListMealPlanEntryLists for the entries ListMealPlanWeekEntries returns.
+func (q *Queries) ListMealPlanWeekEntryLists(ctx context.Context, arg ListMealPlanWeekEntryListsParams) ([]ListMealPlanWeekEntryListsRow, error) {
+	rows, err := q.db.QueryContext(ctx, listMealPlanWeekEntryLists, arg.FromDay, arg.ToDay, arg.UserID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListMealPlanWeekEntryListsRow{}
+	for rows.Next() {
+		var i ListMealPlanWeekEntryListsRow
+		if err := rows.Scan(
+			&i.PlanEntryID,
+			&i.ListID,
+			&i.ListName,
+			&i.OpenCount,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listMealPlans = `-- name: ListMealPlans :many
 SELECT p.id, p.name, p.personal, p.updated_at, p.created_by,
        o.display_name AS owner_name, o.color AS owner_color, o.avatar_id AS owner_avatar_id

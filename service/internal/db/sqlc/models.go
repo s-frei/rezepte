@@ -284,6 +284,7 @@ type ShoppingListEntry struct {
 	Servings     int64
 	CreatedAt    string
 	PlanEntryID  *string
+	AddedBy      *string
 }
 
 type ShoppingListItem struct {

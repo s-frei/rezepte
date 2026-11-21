@@ -20,6 +20,13 @@ type (
 		Plans       []PlanSummary    `json:"plans"`
 		Invitations []PlanInvitation `json:"invitations"`
 	}
+	// PlansWeek is the response body of the meal-plans-week operation.
+	PlansWeek struct {
+		From        string           `json:"from"`
+		To          string           `json:"to"`
+		Plans       []WeekPlan       `json:"plans"`
+		Invitations []PlanInvitation `json:"invitations"`
+	}
 	// Range is the week (or any span) a Plan answer carries entries for;
 	// exported because huma skips unexported embedded fields.
 	Range struct {
@@ -48,6 +55,7 @@ type (
 		ListID      *string        `json:"listId,omitempty" doc:"A list the caller can access; give this or newListName"`
 		NewListName *string        `json:"newListName,omitempty" maxLength:"80" doc:"The name of a new list of the caller's"`
 		Picks       []planPickBody `json:"picks" minItems:"1" maxItems:"200"`
+		AlsoListed  bool           `json:"alsoListed,omitempty" doc:"Skip an entry only when it is on this list already; left out, an entry on any list the caller can access is skipped"`
 	}
 	// ToListResult is the response body of the plan-to-shopping-list operation.
 	ToListResult struct {
@@ -111,7 +119,8 @@ type (
 	previewIn struct {
 		ID string `path:"id"`
 		Range
-		Tray bool `query:"tray" doc:"Also offer the entries on the tray"`
+		Tray  bool   `query:"tray" doc:"Also offer the entries on the tray"`
+		Entry string `query:"entry" doc:"Offer only this recipe entry, on its day or the tray, whatever from, to and tray say"`
 	}
 	inviteIn struct {
 		ID string `path:"id"`
@@ -127,6 +136,7 @@ type (
 	}
 
 	planOut     struct{ Body Plan }
+	weekOut     struct{ Body PlansWeek }
 	emptyOut    struct{}
 	overviewOut struct{ Body PlanOverview }
 	toListOut   struct{ Body ToListResult }
@@ -259,6 +269,24 @@ func Register(api huma.API, svc *Service) {
 			return &overviewOut{Body: PlanOverview{Plans: plans, Invitations: invs}}, nil
 		})
 
+	plansWeek := reader(op("meal-plans-week", http.MethodGet, "/api/v1/meal-plans/week", "Every plan of the caller's with a week of it", http.StatusOK, 422))
+	plansWeek.Description = "The plans as list-meal-plans orders them, each with the entries on the days of the range, the lists the caller can access that they and the tray are on, and how many recipe entries are on none; and the pending invitations. One request for the plans page, however many plans. Left out, the range is the current week in the server's time zone, so a client passes its own."
+	huma.Register(api, plansWeek, func(ctx context.Context, in *Range) (*weekOut, error) {
+		uid, err := caller(ctx)
+		if err != nil {
+			return nil, err
+		}
+		from, to, err := span(*in)
+		if err != nil {
+			return nil, err
+		}
+		plans, invs, err := svc.PlansWeek(ctx, uid, from, to)
+		if err != nil {
+			return nil, fail(err, "")
+		}
+		return &weekOut{Body: PlansWeek{From: from, To: to, Plans: plans, Invitations: invs}}, nil
+	})
+
 	huma.Register(api, op("create-meal-plan", http.MethodPost, "/api/v1/meal-plans", "Create a shared meal plan", http.StatusCreated, 422),
 		func(ctx context.Context, in *createIn) (*planOut, error) {
 			return mutation(ctx, in.Range, "name", func(uid, from, to string) (Plan, error) {
@@ -377,7 +405,7 @@ func Register(api huma.API, svc *Service) {
 		func(ctx context.Context, in *shoppingIn) (*toListOut, error) {
 			var listID string
 			out, err := mutation(ctx, in.Range, "picks", func(uid, from, to string) (Plan, error) {
-				t := ToList{ListID: in.Body.ListID, NewListName: in.Body.NewListName}
+				t := ToList{ListID: in.Body.ListID, NewListName: in.Body.NewListName, AlsoListed: in.Body.AlsoListed}
 				for _, p := range in.Body.Picks {
 					t.Picks = append(t.Picks, ToListPick{EntryID: p.EntryID, Include: p.Ingredients})
 				}
@@ -401,7 +429,14 @@ func Register(api huma.API, svc *Service) {
 			if err != nil {
 				return nil, err
 			}
-			entries, err := svc.Preview(ctx, uid, in.ID, from, to, in.Tray)
+			var entries []PreviewEntry
+			if in.Entry != "" {
+				var one PreviewEntry
+				one, err = svc.PreviewOne(ctx, uid, in.ID, in.Entry)
+				entries = []PreviewEntry{one}
+			} else {
+				entries, err = svc.Preview(ctx, uid, in.ID, from, to, in.Tray)
+			}
 			if err != nil {
 				return nil, fail(err, "")
 			}

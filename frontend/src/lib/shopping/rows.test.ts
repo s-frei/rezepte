@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { ShoppingItem, ShoppingList } from '#lib/api/shopping.js';
+import type { PlanRef, ShoppingItem, ShoppingList } from '#lib/api/shopping.js';
 import { DEPARTMENTS } from './departments';
 import {
 	checkedRows,
@@ -10,6 +10,16 @@ import {
 	weekHref
 } from './rows';
 
+/** The plan fields of an entry added by hand. */
+const noPlan: PlanRef = {
+	planId: null,
+	planEntryId: null,
+	planMember: false,
+	planName: null,
+	planPersonal: false,
+	planAddedBy: null
+};
+
 const entry = (id: string, title: string) => ({
 	id,
 	recipeId: 'r' + id,
@@ -18,8 +28,8 @@ const entry = (id: string, title: string) => ({
 	title,
 	baseServings: 4,
 	servings: 4,
-	planId: null as string | null,
-	planDay: null as string | null
+	planDay: null as string | null,
+	...noPlan
 });
 
 const item = (over: Partial<ShoppingItem> & { id: string }): ShoppingItem => ({

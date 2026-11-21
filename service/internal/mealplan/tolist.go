@@ -22,13 +22,18 @@ type ToList struct {
 	ListID      *string      `json:"listId,omitempty"`
 	NewListName *string      `json:"newListName,omitempty"`
 	Picks       []ToListPick `json:"picks"`
+	// AlsoListed skips an entry only when it is on this list already, so
+	// one entry can go on a second list (its ⋯ "Auf eine Liste…"); without
+	// it an entry on any list the caller can access is skipped, as bulk
+	// callers and MCP expect.
+	AlsoListed bool `json:"alsoListed,omitempty"`
 }
 
 // ToList puts recipe entries of a plan on a list at their planned servings,
 // linked so later plan changes follow. An entry already on a list the caller
-// can access is skipped; one only on lists they cannot access is added, so
-// two people shopping separately each get it. Returns the plan for from..to
-// and the list's id.
+// can access is skipped (with AlsoListed, only one already on this list);
+// one only on lists they cannot access is added, so two people shopping
+// separately each get it. Returns the plan for from..to and the list's id.
 func (s *Service) ToList(ctx context.Context, userID, planID, from, to string, in ToList) (Plan, string, error) {
 	if (in.ListID == nil) == (in.NewListName == nil) {
 		return Plan{}, "", invalid("give either a list or a new list name")
@@ -60,7 +65,7 @@ func (s *Service) ToList(ctx context.Context, userID, planID, from, to string, i
 		}
 		skip := map[string]bool{}
 		for _, l := range links {
-			if l.PlanEntryID != nil {
+			if l.PlanEntryID != nil && (!in.AlsoListed || l.ListID == listID) {
 				skip[*l.PlanEntryID] = true
 			}
 		}
@@ -163,4 +168,27 @@ func (s *Service) Preview(ctx context.Context, userID, planID, from, to string, 
 		out = append(out, pe)
 	}
 	return out, nil
+}
+
+// PreviewOne is Preview for one recipe entry, whatever its day, the tray
+// included; a free text is ErrInvalid.
+func (s *Service) PreviewOne(ctx context.Context, userID, planID, entryID string) (PreviewEntry, error) {
+	e, err := liveEntry(ctx, s.q, planID, entryID)
+	if err != nil {
+		return PreviewEntry{}, err
+	}
+	from, to := week(s.now())
+	if e.Day != nil {
+		from, to = *e.Day, *e.Day
+	}
+	all, err := s.Preview(ctx, userID, planID, from, to, e.Day == nil)
+	if err != nil {
+		return PreviewEntry{}, err
+	}
+	for _, p := range all {
+		if p.EntryID == entryID {
+			return p, nil
+		}
+	}
+	return PreviewEntry{}, invalid("only a recipe goes on a list")
 }

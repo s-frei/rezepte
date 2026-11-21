@@ -209,7 +209,7 @@ func get(ctx context.Context, q *sqlc.Queries, userID, id, from, to string) (Pla
 	}
 	p := Plan{
 		ID: row.ID, Name: row.Name, Personal: row.Personal == 1, Revision: row.Revision, From: from, To: to,
-		Owner: person(row.CreatedBy, row.OwnerName, row.OwnerColor, row.OwnerAvatarID), Entries: []PlanEntry{}, Lists: []LinkedList{},
+		Owner: person(row.CreatedBy, row.OwnerName, row.OwnerColor, row.OwnerAvatarID), Entries: []PlanEntry{},
 	}
 	members, pending, err := planMembers(ctx, q, []string{id}, userID == row.CreatedBy)
 	if err != nil {
@@ -232,12 +232,7 @@ func get(ctx context.Context, q *sqlc.Queries, userID, id, from, to string) (Pla
 	if err != nil {
 		return Plan{}, fmt.Errorf("list meal plan entries: %w", err)
 	}
-	type tally struct {
-		list    LinkedList
-		entries int
-	}
-	var lists []*tally
-	seen := map[string]*tally{}
+	var perEntry [][]LinkedList
 	for _, r := range rows {
 		e := PlanEntry{
 			ID: r.ID, Day: r.Day, Position: int(r.Position), RecipeID: r.RecipeID, RecipeSlug: r.RecipeSlug,
@@ -257,20 +252,94 @@ func get(ctx context.Context, q *sqlc.Queries, userID, id, from, to string) (Pla
 		if e.RecipeID != nil && len(e.Lists) == 0 {
 			p.Unlisted++
 		}
-		for _, l := range e.Lists {
+		perEntry = append(perEntry, e.Lists)
+		p.Entries = append(p.Entries, e)
+	}
+	p.Lists = rankLists(perEntry)
+	return p, nil
+}
+
+// rankLists returns the distinct lists the entries are on, the one with the
+// most entries first, ties in the order they first appear.
+func rankLists(perEntry [][]LinkedList) []LinkedList {
+	type tally struct {
+		list    LinkedList
+		entries int
+	}
+	var lists []*tally
+	seen := map[string]*tally{}
+	for _, ls := range perEntry {
+		for _, l := range ls {
 			if seen[l.ID] == nil {
 				seen[l.ID] = &tally{list: l}
 				lists = append(lists, seen[l.ID])
 			}
 			seen[l.ID].entries++
 		}
-		p.Entries = append(p.Entries, e)
 	}
 	slices.SortStableFunc(lists, func(a, b *tally) int { return cmp.Compare(b.entries, a.entries) })
+	out := make([]LinkedList, 0, len(lists))
 	for _, l := range lists {
-		p.Lists = append(p.Lists, l.list)
+		out = append(out, l.list)
 	}
-	return p, nil
+	return out
+}
+
+// PlansWeek returns the caller's plans as Plans orders them, each with its
+// entries from from to to (inclusive, at most 62 days apart) and the lists
+// those and the tray are on, and the pending invitations: the plans page in
+// two queries more than Plans, however many plans there are.
+func (s *Service) PlansWeek(ctx context.Context, userID, from, to string) ([]WeekPlan, []PlanInvitation, error) {
+	if err := checkRange(from, to); err != nil {
+		return nil, nil, err
+	}
+	plans, invitations, err := s.Plans(ctx, userID)
+	if err != nil {
+		return nil, nil, err
+	}
+	entries, err := s.q.ListMealPlanWeekEntries(ctx, sqlc.ListMealPlanWeekEntriesParams{UserID: userID, FromDay: &from, ToDay: &to})
+	if err != nil {
+		return nil, nil, fmt.Errorf("list meal plan week entries: %w", err)
+	}
+	links, err := s.q.ListMealPlanWeekEntryLists(ctx, sqlc.ListMealPlanWeekEntryListsParams{UserID: userID, FromDay: &from, ToDay: &to})
+	if err != nil {
+		return nil, nil, fmt.Errorf("list meal plan week entry lists: %w", err)
+	}
+	byEntry := map[string][]LinkedList{}
+	for _, l := range links {
+		if l.PlanEntryID != nil {
+			byEntry[*l.PlanEntryID] = append(byEntry[*l.PlanEntryID], LinkedList{ID: l.ListID, Name: l.ListName, OpenCount: int(l.OpenCount)})
+		}
+	}
+	byPlan := map[string]*WeekPlan{}
+	out := make([]WeekPlan, len(plans))
+	for i, p := range plans {
+		out[i] = WeekPlan{PlanSummary: p, Entries: []WeekEntry{}}
+		byPlan[p.ID] = &out[i]
+	}
+	perEntry := map[string][][]LinkedList{}
+	for _, r := range entries {
+		w := byPlan[r.PlanID]
+		if w == nil { // made between the two reads
+			continue
+		}
+		perEntry[r.PlanID] = append(perEntry[r.PlanID], byEntry[r.ID])
+		if r.RecipeID != nil && len(byEntry[r.ID]) == 0 {
+			w.Unlisted++
+		}
+		if r.Day == nil {
+			continue
+		}
+		kind := "text"
+		if r.Servings != nil {
+			kind = "recipe"
+		}
+		w.Entries = append(w.Entries, WeekEntry{ID: r.ID, Day: *r.Day, Kind: kind, RecipeID: r.RecipeID, Title: r.Title, Photo: r.CoverImageID})
+	}
+	for i := range out {
+		out[i].Lists = rankLists(perEntry[out[i].ID])
+	}
+	return out, invitations, nil
 }
 
 // planMembers returns the accepted members of the plans by plan id, and the

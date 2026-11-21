@@ -96,7 +96,10 @@ func (s *Service) Lists(ctx context.Context, userID string) ([]Summary, error) {
 	}
 	byList := map[string][]SummaryRecipe{}
 	for _, t := range titles {
-		byList[t.ListID] = append(byList[t.ListID], SummaryRecipe{Title: t.Title, Servings: int(t.Servings), RecipeID: t.RecipeID})
+		byList[t.ListID] = append(byList[t.ListID], SummaryRecipe{
+			Title: t.Title, Servings: int(t.Servings), RecipeID: t.RecipeID,
+			PlanRef: planRef(planRow{t.PlanID, t.PlanEntryID, t.ReaderPlanID, t.PlanName, t.PlanPersonal, t.AddedBy, t.AddedByName, t.AddedByColor, t.AddedByAvatarID}),
+		})
 	}
 	ids := make([]string, len(rows))
 	for i, r := range rows {
@@ -171,7 +174,7 @@ func get(ctx context.Context, q *sqlc.Queries, userID, id string) (List, error) 
 	if l.UpdatedAt, err = db.ParseTime(row.UpdatedAt); err != nil {
 		return List{}, err
 	}
-	entries, err := q.ListShoppingEntries(ctx, id)
+	entries, err := q.ListShoppingEntries(ctx, sqlc.ListShoppingEntriesParams{UserID: userID, ListID: id})
 	if err != nil {
 		return List{}, fmt.Errorf("list shopping entries: %w", err)
 	}
@@ -181,7 +184,7 @@ func get(ctx context.Context, q *sqlc.Queries, userID, id string) (List, error) 
 		l.Entries = append(l.Entries, Entry{
 			ID: e.ID, RecipeID: e.RecipeID, RecipeSlug: e.RecipeSlug, CoverImageID: e.CoverImageID,
 			Title: e.Title, BaseServings: int(e.BaseServings), Servings: int(e.Servings),
-			PlanID: e.PlanID, PlanDay: e.PlanDay,
+			PlanDay: e.PlanDay, PlanRef: planRef(planRow{e.PlanID, e.PlanEntryID, e.ReaderPlanID, e.PlanName, e.PlanPersonal, e.AddedBy, e.AddedByName, e.AddedByColor, e.AddedByAvatarID}),
 		})
 		spans[e.ID] = span{float64(e.BaseServings), float64(e.Servings)}
 	}
@@ -442,7 +445,7 @@ func (s *Service) AddRecipe(ctx context.Context, userID, listID, recipeID string
 		return List{}, invalid("servings must be 1-99")
 	}
 	return s.mutate(ctx, userID, listID, func(q *sqlc.Queries) error {
-		return s.addRecipe(ctx, q, listID, recipeID, servings, include, nil)
+		return s.addRecipe(ctx, q, userID, listID, recipeID, servings, include, nil)
 	})
 }
 
@@ -469,7 +472,7 @@ func (s *Service) AddPlanned(ctx context.Context, q *sqlc.Queries, userID, listI
 		if a.Servings < 1 || a.Servings > 99 {
 			return invalid("servings must be 1-99")
 		}
-		if err := s.addRecipe(ctx, q, listID, a.RecipeID, a.Servings, a.Include, &a.PlanEntryID); err != nil {
+		if err := s.addRecipe(ctx, q, userID, listID, a.RecipeID, a.Servings, a.Include, &a.PlanEntryID); err != nil {
 			return err
 		}
 	}
@@ -507,9 +510,9 @@ func FollowPlan(ctx context.Context, q *sqlc.Queries, planEntryIDs []string, ser
 	return listIDs, nil
 }
 
-// addRecipe inserts one recipe entry with its picked items, linked to
-// planEntryID when given.
-func (s *Service) addRecipe(ctx context.Context, q *sqlc.Queries, listID, recipeID string, servings int, include []IngredientPick, planEntryID *string) error {
+// addRecipe inserts one recipe entry with its picked items as userID, linked
+// to planEntryID when given.
+func (s *Service) addRecipe(ctx context.Context, q *sqlc.Queries, userID, listID, recipeID string, servings int, include []IngredientPick, planEntryID *string) error {
 	rec, err := q.GetRecipe(ctx, recipeID)
 	if errors.Is(err, sql.ErrNoRows) {
 		return ErrRecipeNotFound
@@ -549,7 +552,7 @@ func (s *Service) addRecipe(ctx context.Context, q *sqlc.Queries, listID, recipe
 	}
 	if err := q.InsertShoppingEntry(ctx, sqlc.InsertShoppingEntryParams{
 		ID: entryID, ListID: listID, RecipeID: &recipeID, Title: rec.Title,
-		BaseServings: rec.Servings, Servings: int64(servings), CreatedAt: now, PlanEntryID: planEntryID,
+		BaseServings: rec.Servings, Servings: int64(servings), CreatedAt: now, PlanEntryID: planEntryID, AddedBy: &userID,
 	}); err != nil {
 		return fmt.Errorf("insert shopping entry: %w", err)
 	}

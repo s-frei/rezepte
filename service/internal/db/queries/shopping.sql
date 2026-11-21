@@ -46,11 +46,16 @@ ORDER BY l.updated_at DESC, l.id DESC;
 -- The recipe entries of every list one person created or accepted, for the list overview.
 -- Every read of a list's entries, items and counts hides what came from a
 -- removed plan entry (meal_plan_entries.removed_at), so Undo can bring it back.
+-- The plan columns are as ListShoppingEntries gives them.
 -- name: ListShoppingEntryTitlesForUser :many
-SELECT e.list_id, e.title, e.servings, e.recipe_id
+SELECT e.list_id, e.title, e.servings, e.recipe_id, p.plan_id, e.plan_entry_id,
+       mp.id AS reader_plan_id, mp.name AS plan_name, mp.personal AS plan_personal,
+       e.added_by, au.display_name AS added_by_name, au.color AS added_by_color, au.avatar_id AS added_by_avatar_id
 FROM shopping_list_entries e
 JOIN shopping_lists l ON l.id = e.list_id
 LEFT JOIN meal_plan_entries p ON p.id = e.plan_entry_id
+LEFT JOIN meal_plans mp ON mp.id = p.plan_id AND (mp.created_by = sqlc.arg(user_id) OR EXISTS (SELECT 1 FROM meal_plan_members pm WHERE pm.plan_id = mp.id AND pm.user_id = sqlc.arg(user_id) AND pm.accepted_at IS NOT NULL))
+LEFT JOIN users au ON au.id = e.added_by
 WHERE p.removed_at IS NULL AND (l.created_by = sqlc.arg(user_id) OR EXISTS (SELECT 1 FROM shopping_list_members m WHERE m.list_id = l.id AND m.user_id = sqlc.arg(user_id) AND m.accepted_at IS NOT NULL))
 ORDER BY e.created_at, e.id;
 
@@ -108,16 +113,24 @@ ORDER BY m.invited_at DESC, l.id DESC;
 SELECT created_by, COUNT(*) AS lists FROM shopping_lists GROUP BY created_by;
 
 -- name: InsertShoppingEntry :exec
-INSERT INTO shopping_list_entries (id, list_id, recipe_id, title, base_servings, servings, created_at, plan_entry_id)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?);
+INSERT INTO shopping_list_entries (id, list_id, recipe_id, title, base_servings, servings, created_at, plan_entry_id, added_by)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);
 
+-- A list's entries as the person reads them: reader_plan_id, plan_name and
+-- plan_personal are set only when the entry came from a plan the person
+-- created or accepted, so a plan's name never reaches anyone outside it;
+-- the added_by columns are who put the entry on the list.
 -- name: ListShoppingEntries :many
 SELECT e.id, e.recipe_id, e.title, e.base_servings, e.servings,
-       r.slug AS recipe_slug, r.cover_image_id, p.day AS plan_day, p.plan_id
+       r.slug AS recipe_slug, r.cover_image_id, p.day AS plan_day, p.plan_id, e.plan_entry_id,
+       mp.id AS reader_plan_id, mp.name AS plan_name, mp.personal AS plan_personal,
+       e.added_by, au.display_name AS added_by_name, au.color AS added_by_color, au.avatar_id AS added_by_avatar_id
 FROM shopping_list_entries e
 LEFT JOIN recipes r ON r.id = e.recipe_id
 LEFT JOIN meal_plan_entries p ON p.id = e.plan_entry_id
-WHERE e.list_id = ? AND p.removed_at IS NULL
+LEFT JOIN meal_plans mp ON mp.id = p.plan_id AND (mp.created_by = sqlc.arg(user_id) OR EXISTS (SELECT 1 FROM meal_plan_members pm WHERE pm.plan_id = mp.id AND pm.user_id = sqlc.arg(user_id) AND pm.accepted_at IS NOT NULL))
+LEFT JOIN users au ON au.id = e.added_by
+WHERE e.list_id = sqlc.arg(list_id) AND p.removed_at IS NULL
 ORDER BY e.created_at, e.id;
 
 -- name: SetShoppingEntryServings :execrows

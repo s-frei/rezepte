@@ -360,3 +360,113 @@ func TestListDayOfPlannedEntry(t *testing.T) {
 		t.Fatalf("list entry = %+v", en)
 	}
 }
+
+func TestToListAddsToASecondList(t *testing.T) {
+	ctx := context.Background()
+	e := setup(t)
+	id := e.shared(t)
+	entry := e.planned(t, e.a.ID, id, e.dal(t), 4)
+	_, first := e.toList(t, e.a.ID, id, "", entry)
+	// Without the flag an entry on any of anna's lists is skipped.
+	_, skipped := e.toList(t, e.a.ID, id, "", entry)
+	if n := len(e.list(t, e.a.ID, skipped).Entries); n != 0 {
+		t.Fatalf("bulk ToList put a listed entry on a second list: %d entries", n)
+	}
+	one := func(in mealplan.ToList) mealplan.Plan {
+		t.Helper()
+		in.AlsoListed = true
+		in.Picks = []mealplan.ToListPick{{EntryID: entry, Include: both}}
+		p, _, err := e.svc.ToList(ctx, e.a.ID, id, mon, sun, in)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return p
+	}
+	p := one(mealplan.ToList{NewListName: ptr("Zweite")})
+	if got := p.Entries[0].Lists; len(got) != 2 || got[0].ID != first || got[1].ID == first {
+		t.Fatalf("entry lists = %+v, want %s and the new one", got, first)
+	}
+	// With the flag, the list it is on already still skips it.
+	one(mealplan.ToList{ListID: &first})
+	if n := len(e.list(t, e.a.ID, first).Entries); n != 1 {
+		t.Fatalf("AlsoListed added again to the same list: %d entries", n)
+	}
+}
+
+// A list member outside the plan a block came from gets no plan name, only
+// who put it there; a member of the plan gets the name, and the personal
+// plan reads as the reader's own.
+func TestListEntriesNameThePlanOnlyToItsMembers(t *testing.T) {
+	ctx := context.Background()
+	e := setup(t)
+	house := e.plan(t).ID // anna's, ben is not in it
+	r := e.dal(t)
+	_, listID := e.toList(t, e.a.ID, house, "", e.planned(t, e.a.ID, house, r, 4))
+	own, _, err := e.svc.Plans(ctx, e.a.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var personal string
+	for _, p := range own {
+		if p.Personal {
+			personal = p.ID
+		}
+	}
+	e.toList(t, e.a.ID, personal, listID, e.planned(t, e.a.ID, personal, r, 2))
+	if _, err := e.lists.AddRecipe(ctx, e.a.ID, listID, r.ID, 4, both); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := e.lists.Invite(ctx, e.a.ID, listID, e.b.ID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := e.lists.Accept(ctx, e.b.ID, listID); err != nil {
+		t.Fatal(err)
+	}
+
+	type ref struct {
+		plan, name, adder string
+		member, personal  bool
+	}
+	str := func(s *string) string {
+		if s == nil {
+			return ""
+		}
+		return *s
+	}
+	of := func(r shopping.PlanRef) ref {
+		adder := ""
+		if r.PlanAddedBy != nil {
+			adder = r.PlanAddedBy.ID
+		}
+		return ref{str(r.PlanID), str(r.PlanName), adder, r.PlanMember, r.PlanPersonal}
+	}
+	adder := e.a.ID
+	for _, c := range []struct {
+		who  string
+		want []ref
+	}{
+		{e.a.ID, []ref{{house, "Haushalt", adder, true, false}, {personal, "", adder, true, true}, {}}},
+		{e.b.ID, []ref{{house, "", adder, false, false}, {personal, "", adder, false, false}, {}}},
+	} {
+		l := e.list(t, c.who, listID)
+		var got []ref
+		for _, en := range l.Entries {
+			got = append(got, of(en.PlanRef))
+			if (en.PlanEntryID == nil) != (en.PlanID == nil) {
+				t.Errorf("entry %+v: plan entry id and plan id disagree", en)
+			}
+		}
+		if len(got) != 3 || got[0] != c.want[0] || got[1] != c.want[1] || got[2] != c.want[2] {
+			t.Errorf("%s reads list entries %+v, want %+v", c.who, got, c.want)
+		}
+		sums, err := e.lists.Lists(ctx, c.who)
+		if err != nil || len(sums) != 1 || len(sums[0].Recipes) != 3 {
+			t.Fatalf("%s overview = %+v, %v", c.who, sums, err)
+		}
+		for i, sr := range sums[0].Recipes {
+			if of(sr.PlanRef) != c.want[i] {
+				t.Errorf("%s overview recipe %d = %+v, want %+v", c.who, i, of(sr.PlanRef), c.want[i])
+			}
+		}
+	}
+}

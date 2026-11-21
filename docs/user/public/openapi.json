@@ -1380,7 +1380,16 @@
           "id": {
             "type": "string"
           },
+          "planAddedBy": {
+            "$ref": "#/components/schemas/ListPerson"
+          },
           "planDay": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "planEntryId": {
             "type": [
               "string",
               "null"
@@ -1391,6 +1400,18 @@
               "string",
               "null"
             ]
+          },
+          "planMember": {
+            "type": "boolean"
+          },
+          "planName": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "planPersonal": {
+            "type": "boolean"
           },
           "recipeId": {
             "type": [
@@ -1420,8 +1441,13 @@
           "title",
           "baseServings",
           "servings",
+          "planDay",
           "planId",
-          "planDay"
+          "planEntryId",
+          "planMember",
+          "planName",
+          "planPersonal",
+          "planAddedBy"
         ],
         "type": "object"
       },
@@ -3809,6 +3835,10 @@
             "readOnly": true,
             "type": "string"
           },
+          "alsoListed": {
+            "description": "Skip an entry only when it is on this list already; left out, an entry on any list the caller can access is skipped",
+            "type": "boolean"
+          },
           "listId": {
             "description": "A list the caller can access; give this or newListName",
             "type": "string"
@@ -3901,6 +3931,51 @@
           "owner",
           "members",
           "updatedAt"
+        ],
+        "type": "object"
+      },
+      "PlansWeek": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/api/v1/schemas/PlansWeek.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "from": {
+            "type": "string"
+          },
+          "invitations": {
+            "items": {
+              "$ref": "#/components/schemas/PlanInvitation"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "plans": {
+            "items": {
+              "$ref": "#/components/schemas/WeekPlan"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "to": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "from",
+          "to",
+          "plans",
+          "invitations"
         ],
         "type": "object"
       },
@@ -5273,6 +5348,33 @@
       "SummaryRecipe": {
         "additionalProperties": false,
         "properties": {
+          "planAddedBy": {
+            "$ref": "#/components/schemas/ListPerson"
+          },
+          "planEntryId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "planId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "planMember": {
+            "type": "boolean"
+          },
+          "planName": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "planPersonal": {
+            "type": "boolean"
+          },
           "recipeId": {
             "type": [
               "string",
@@ -5290,7 +5392,13 @@
         "required": [
           "title",
           "servings",
-          "recipeId"
+          "recipeId",
+          "planId",
+          "planEntryId",
+          "planMember",
+          "planName",
+          "planPersonal",
+          "planAddedBy"
         ],
         "type": "object"
       },
@@ -5937,6 +6045,114 @@
           "emailVerified",
           "hasPassword",
           "emailConfirmationPending"
+        ],
+        "type": "object"
+      },
+      "WeekEntry": {
+        "additionalProperties": false,
+        "properties": {
+          "day": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "recipe",
+              "text"
+            ],
+            "type": "string"
+          },
+          "photo": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "recipeId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "title": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "day",
+          "kind",
+          "recipeId",
+          "title",
+          "photo"
+        ],
+        "type": "object"
+      },
+      "WeekPlan": {
+        "additionalProperties": false,
+        "properties": {
+          "entries": {
+            "items": {
+              "$ref": "#/components/schemas/WeekEntry"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "id": {
+            "type": "string"
+          },
+          "lists": {
+            "items": {
+              "$ref": "#/components/schemas/LinkedList"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "members": {
+            "items": {
+              "$ref": "#/components/schemas/ListPerson"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "owner": {
+            "$ref": "#/components/schemas/ListPerson"
+          },
+          "personal": {
+            "type": "boolean"
+          },
+          "unlisted": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "updatedAt": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "entries",
+          "unlisted",
+          "lists",
+          "id",
+          "name",
+          "personal",
+          "owner",
+          "members",
+          "updatedAt"
         ],
         "type": "object"
       }
@@ -8199,6 +8415,82 @@
         ]
       }
     },
+    "/api/v1/meal-plans/week": {
+      "get": {
+        "description": "The plans as list-meal-plans orders them, each with the entries on the days of the range, the lists the caller can access that they and the tray are on, and how many recipe entries are on none; and the pending invitations. One request for the plans page, however many plans. Left out, the range is the current week in the server's time zone, so a client passes its own.",
+        "operationId": "meal-plans-week",
+        "parameters": [
+          {
+            "description": "First day (YYYY-MM-DD) of the entries to answer with; with to left out too, the current week",
+            "explode": false,
+            "in": "query",
+            "name": "from",
+            "schema": {
+              "description": "First day (YYYY-MM-DD) of the entries to answer with; with to left out too, the current week",
+              "format": "date",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Last day (YYYY-MM-DD), inclusive, at most 62 days after from",
+            "explode": false,
+            "in": "query",
+            "name": "to",
+            "schema": {
+              "description": "Last day (YYYY-MM-DD), inclusive, at most 62 days after from",
+              "format": "date",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlansWeek"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "token": [
+              "plan:read"
+            ]
+          }
+        ],
+        "summary": "Every plan of the caller's with a week of it",
+        "tags": [
+          "meal-plans"
+        ]
+      }
+    },
     "/api/v1/meal-plans/{id}": {
       "delete": {
         "operationId": "delete-meal-plan",
@@ -9446,6 +9738,16 @@
             "schema": {
               "description": "Also offer the entries on the tray",
               "type": "boolean"
+            }
+          },
+          {
+            "description": "Offer only this recipe entry, on its day or the tray, whatever from, to and tray say",
+            "explode": false,
+            "in": "query",
+            "name": "entry",
+            "schema": {
+              "description": "Offer only this recipe entry, on its day or the tray, whatever from, to and tray say",
+              "type": "string"
             }
           }
         ],

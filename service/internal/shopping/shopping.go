@@ -50,10 +50,55 @@ type Entry struct {
 	Title        string  `json:"title"`
 	BaseServings int     `json:"baseServings"`
 	Servings     int     `json:"servings"`
-	// PlanID and PlanDay are set when the entry came from a meal plan; PlanDay
-	// is nil for an entry on the plan's tray.
-	PlanID  *string `json:"planId" nullable:"true"`
+	// PlanDay is set when the entry came from a meal plan's day; nil for an
+	// entry on the plan's tray or added by hand.
 	PlanDay *string `json:"planDay" nullable:"true"`
+	PlanRef
+}
+
+// PlanRef is the meal plan a list entry came from, as the reader may see it.
+// PlanMember says the reader created or accepted that plan; only then are
+// PlanName and PlanPersonal set, so a plan's name never reaches someone
+// outside it, and only then may a client link to the plan. Such a reader is
+// shown PlanAddedBy instead. All are empty for an entry added by hand.
+type PlanRef struct {
+	PlanID *string `json:"planId" nullable:"true"`
+	// PlanEntryID is the plan entry it came from, which a link to the plan can mark.
+	PlanEntryID *string `json:"planEntryId" nullable:"true"`
+	PlanMember  bool    `json:"planMember"`
+	// PlanName is the shared plan's name, nil for the reader's personal plan
+	// (the client words it, as for Plan.Name) and for a plan they are not in.
+	PlanName *string `json:"planName" nullable:"true"`
+	// PlanPersonal marks the reader's own personal plan.
+	PlanPersonal bool `json:"planPersonal"`
+	// PlanAddedBy is who put the entry on the list from the plan, a list
+	// member at the time; nil once that account is gone or for a row from
+	// before it was recorded.
+	PlanAddedBy *ListPerson `json:"planAddedBy"`
+}
+
+// planRow is what a list entry read gives planRef; readerPlanID is set only
+// when the reader is in the plan.
+type planRow struct {
+	planID, planEntryID, readerPlanID, name     *string
+	personal                                    *int64
+	adderID, adderName, adderColor, adderAvatar *string
+}
+
+func planRef(r planRow) PlanRef {
+	if r.planEntryID == nil {
+		return PlanRef{}
+	}
+	ref := PlanRef{PlanID: r.planID, PlanEntryID: r.planEntryID}
+	if r.adderID != nil && r.adderName != nil && r.adderColor != nil {
+		ref.PlanAddedBy = &ListPerson{ID: *r.adderID, DisplayName: *r.adderName, Color: *r.adderColor, AvatarID: r.adderAvatar}
+	}
+	if r.readerPlanID != nil {
+		ref.PlanMember = true
+		ref.PlanName = r.name
+		ref.PlanPersonal = r.personal != nil && *r.personal == 1
+	}
+	return ref
 }
 
 // Item is one line of a list. Quantity is already scaled to the entry's
@@ -113,6 +158,7 @@ type SummaryRecipe struct {
 	Servings int    `json:"servings"`
 	// RecipeID is nil once the recipe is deleted; the app uses it to say a recipe is on a list already.
 	RecipeID *string `json:"recipeId"`
+	PlanRef
 }
 
 // IngredientPick points at one ingredient of a recipe by group and position.
