@@ -6,10 +6,9 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"math"
 	"slices"
-	"strings"
 	"time"
-	"unicode/utf8"
 	"uuid"
 
 	"github.com/s-frei/rezepte/service/internal/db"
@@ -61,22 +60,6 @@ func (s *Service) Week() (from, to string) { return week(s.now()) }
 func (s *Service) stamp() string { return db.FormatTime(s.now()) }
 
 func newID() string { return uuid.NewV7().String() }
-
-// clean trims text and checks its length in runes.
-func clean(field, text string, maxRunes int) (string, error) {
-	text = strings.TrimSpace(text)
-	if n := utf8.RuneCountInString(text); n == 0 || n > maxRunes {
-		return "", invalid(fmt.Sprintf("%s must be 1-%d characters", field, maxRunes))
-	}
-	return text, nil
-}
-
-func checkServings(n int) error {
-	if n < 1 || n > 99 {
-		return invalid("servings must be 1-99")
-	}
-	return nil
-}
 
 func person(id, name, color string, avatar *string) Person {
 	return Person{ID: id, DisplayName: name, Color: color, AvatarID: avatar}
@@ -130,7 +113,7 @@ func (s *Service) plans(ctx context.Context, userID string) ([]PlanSummary, map[
 
 // Create makes an empty shared plan and returns it for the current week.
 func (s *Service) Create(ctx context.Context, userID, name string) (Plan, error) {
-	name, err := clean("name", name, 80)
+	name, err := shopping.Clean("name", name, 80)
 	if err != nil {
 		return Plan{}, err
 	}
@@ -144,7 +127,7 @@ func (s *Service) Create(ctx context.Context, userID, name string) (Plan, error)
 
 // Rename changes a shared plan's name and returns it for the current week.
 func (s *Service) Rename(ctx context.Context, userID, id, name string) (Plan, error) {
-	name, err := clean("name", name, 80)
+	name, err := shopping.Clean("name", name, 80)
 	if err != nil {
 		return Plan{}, err
 	}
@@ -423,11 +406,11 @@ func (s *Service) Add(ctx context.Context, userID, planID, from, to string, in A
 			return Plan{}, invalid("a free text has no servings")
 		}
 		var err error
-		if title, err = clean("title", *in.Title, 120); err != nil {
+		if title, err = shopping.Clean("title", *in.Title, 120); err != nil {
 			return Plan{}, err
 		}
 	} else if in.Servings != nil {
-		if err := checkServings(*in.Servings); err != nil {
+		if err := shopping.CheckServings(*in.Servings); err != nil {
 			return Plan{}, err
 		}
 	}
@@ -459,6 +442,53 @@ func (s *Service) Add(ctx context.Context, userID, planID, from, to string, in A
 		}
 		return nil
 	})
+}
+
+// EntryChange is one update of an entry: its servings, a move, or both.
+// Moved moves it to Day (nil: the tray); a Position without Moved keeps its
+// day. A move without a Position puts it last.
+type EntryChange struct {
+	Moved    bool
+	Day      *string
+	Position *int
+	Servings *int
+}
+
+// Update applies c: servings first, so a refused change leaves the entry
+// where it was, after the move's own checks. Nothing to change reads the plan.
+func (s *Service) Update(ctx context.Context, userID, planID, entryID, from, to string, c EntryChange) (Plan, error) {
+	if err := checkDay(c.Day); err != nil {
+		return Plan{}, err
+	}
+	if c.Position != nil && *c.Position < 0 {
+		return Plan{}, invalid("position must not be negative")
+	}
+	var p Plan
+	if c.Servings != nil {
+		var err error
+		if p, err = s.SetServings(ctx, userID, planID, entryID, from, to, *c.Servings); err != nil {
+			return Plan{}, err
+		}
+	}
+	if !c.Moved && c.Position == nil {
+		if p.ID == "" {
+			return s.Get(ctx, userID, planID, from, to)
+		}
+		return p, nil
+	}
+	day := c.Day
+	if !c.Moved {
+		e, err := liveEntry(ctx, s.q, planID, entryID)
+		if err != nil {
+			return Plan{}, err
+		}
+		day = e.Day
+	}
+	position := math.MaxInt32
+	if c.Position != nil {
+		position = *c.Position
+	}
+	return s.Move(ctx, userID, planID, entryID, from, to, day, position)
 }
 
 // Move puts an entry on day (nil: the tray) at position, clamped to the end
@@ -515,7 +545,7 @@ func insertAt(ctx context.Context, q *sqlc.Queries, planID string, day *string, 
 // SetServings changes a recipe entry's servings; a free text has none and
 // reports ErrNotFound.
 func (s *Service) SetServings(ctx context.Context, userID, planID, entryID, from, to string, servings int) (Plan, error) {
-	if err := checkServings(servings); err != nil {
+	if err := shopping.CheckServings(servings); err != nil {
 		return Plan{}, err
 	}
 	var lists []string

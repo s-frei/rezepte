@@ -140,16 +140,9 @@ func Register(api huma.API, svc *Service) {
 		}
 		return err
 	}
-	caller := func(ctx context.Context) (string, error) {
-		u, ok := auth.UserFrom(ctx)
-		if !ok {
-			return "", huma.Error401Unauthorized("authentication required")
-		}
-		return u.ID, nil
-	}
 	// mutation wraps the common shape: authenticate, call, map errors.
 	mutation := func(ctx context.Context, field string, f func(uid string) (List, error)) (*listOut, error) {
-		uid, err := caller(ctx)
+		uid, err := auth.CurrentUserID(ctx)
 		if err != nil {
 			return nil, err
 		}
@@ -161,7 +154,7 @@ func Register(api huma.API, svc *Service) {
 	}
 	// command is mutation for the operations that answer with no body.
 	command := func(ctx context.Context, field string, f func(uid string) error) (*emptyOut, error) {
-		uid, err := caller(ctx)
+		uid, err := auth.CurrentUserID(ctx)
 		if err != nil {
 			return nil, err
 		}
@@ -173,7 +166,7 @@ func Register(api huma.API, svc *Service) {
 
 	huma.Register(api, reader(op("list-shopping-lists", http.MethodGet, "/api/v1/shopping-lists", "List the caller's shopping lists", http.StatusOK)),
 		func(ctx context.Context, _ *struct{}) (*summaries, error) {
-			uid, err := caller(ctx)
+			uid, err := auth.CurrentUserID(ctx)
 			if err != nil {
 				return nil, err
 			}
@@ -213,7 +206,7 @@ func Register(api huma.API, svc *Service) {
 		Content:     map[string]*huma.MediaType{"text/event-stream": {Schema: &huma.Schema{Type: "string"}}},
 	}}
 	huma.Register(api, stream, func(ctx context.Context, in *listID) (*huma.StreamResponse, error) {
-		uid, err := caller(ctx)
+		uid, err := auth.CurrentUserID(ctx)
 		if err != nil {
 			return nil, err
 		}

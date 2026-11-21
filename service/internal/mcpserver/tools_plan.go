@@ -47,7 +47,7 @@ func planError(ctx context.Context, err error) error {
 		return errors.New("meal plan not found")
 	case errors.Is(err, shopping.ErrNotFound):
 		return errors.New("shopping list not found")
-	case errors.Is(err, mealplan.ErrInvalid), errors.Is(err, mealplan.ErrRecipeNotFound), errors.Is(err, shopping.ErrInvalid):
+	case errors.Is(err, mealplan.ErrInvalid), errors.Is(err, mealplan.ErrRecipeNotFound):
 		return err
 	}
 	return toolError(ctx, err)
@@ -186,25 +186,13 @@ func addUpdateMealPlanEntry(s *mcp.Server, c caller) {
 		if in.Day == "" && !in.Tray && in.Servings == nil {
 			return nil, nil, errors.New("pass day, tray or servings")
 		}
-		var p mealplan.Plan
-		// Servings first: it is the step that can refuse (a free text has none),
-		// so a refusal leaves the entry where it was.
-		if in.Servings != nil {
-			p, err = c.plans.SetServings(ctx, c.user.ID, in.PlanID, in.EntryID, from, to, *in.Servings)
-			if err != nil {
-				return nil, nil, planError(ctx, err)
-			}
+		ch := mealplan.EntryChange{Moved: in.Day != "" || in.Tray, Servings: in.Servings}
+		if in.Day != "" {
+			ch.Day = &in.Day
 		}
-		if in.Day != "" || in.Tray {
-			var day *string
-			if in.Day != "" {
-				day = &in.Day
-			}
-			// A position past the end puts it last.
-			p, err = c.plans.Move(ctx, c.user.ID, in.PlanID, in.EntryID, from, to, day, 1<<30)
-			if err != nil {
-				return nil, nil, planError(ctx, err)
-			}
+		p, err := c.plans.Update(ctx, c.user.ID, in.PlanID, in.EntryID, from, to, ch)
+		if err != nil {
+			return nil, nil, planError(ctx, err)
 		}
 		return nil, p, nil
 	})

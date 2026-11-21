@@ -147,20 +147,13 @@ type (
 // RegisterFeed installs the calendar feed: creating and revoking the secret
 // with a session only, and the feed itself for anyone holding it.
 func RegisterFeed(api huma.API, feeds *Feeds) {
-	caller := func(ctx context.Context) (string, error) {
-		u, ok := auth.UserFrom(ctx)
-		if !ok {
-			return "", huma.Error401Unauthorized("authentication required")
-		}
-		return u.ID, nil
-	}
 	huma.Register(api, huma.Operation{
 		OperationID: "get-calendar-feed-state", Method: http.MethodGet, Path: "/api/v1/calendar-feed",
 		Summary:     "Tell whether the caller has a calendar feed",
 		Description: "Whether the caller's feed address works and since when; the address itself is shown only once, by create-calendar-feed. Session only.",
 		Tags:        []string{"meal-plans"}, Security: auth.SessionSecurity,
 	}, func(ctx context.Context, _ *struct{}) (*feedStateOut, error) {
-		uid, err := caller(ctx)
+		uid, err := auth.CurrentUserID(ctx)
 		if err != nil {
 			return nil, err
 		}
@@ -177,7 +170,7 @@ func RegisterFeed(api huma.API, feeds *Feeds) {
 		Description: "A new secret address for the caller's meal plans as an iCalendar feed; the address before stops working. Session only.",
 		Tags:        []string{"meal-plans"}, Security: auth.SessionSecurity,
 	}, func(ctx context.Context, _ *struct{}) (*feedOut, error) {
-		uid, err := caller(ctx)
+		uid, err := auth.CurrentUserID(ctx)
 		if err != nil {
 			return nil, err
 		}
@@ -193,7 +186,7 @@ func RegisterFeed(api huma.API, feeds *Feeds) {
 		Summary: "Revoke the caller's calendar feed", Tags: []string{"meal-plans"}, Security: auth.SessionSecurity,
 		DefaultStatus: http.StatusNoContent,
 	}, func(ctx context.Context, _ *struct{}) (*struct{}, error) {
-		uid, err := caller(ctx)
+		uid, err := auth.CurrentUserID(ctx)
 		if err != nil {
 			return nil, err
 		}

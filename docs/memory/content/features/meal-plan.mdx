@@ -64,7 +64,7 @@ A signed-in person plans recipes and free texts ("Reste") on days, or on the tra
 
 **`entry=<id>` previews one recipe entry** for the one-entry dialog: `PreviewOne` finds it on its day or the tray, whatever `from`, `to` and `tray` say; a free text is 422 (`TestPreviewOne`).
 
-**`PATCH …/entries/{entryId}` moves and changes servings in one body.** A `day` key moves the entry, `null` to the tray, and a missing key keeps its day while `position` places it ([HTTP API](/architecture/api)); `servings` changes first, as in MCP, after the move's own day and position checks, so a refused change leaves the entry where it was (`TestPlanRoundTrip`, `TestTrayMoveWithNullDay`, `TestPatchChecksServingsBeforeMoving`).
+**`PATCH …/entries/{entryId}` moves and changes servings in one body.** A `day` key moves the entry, `null` to the tray, and a missing key keeps its day while `position` places it ([HTTP API](/architecture/api)); `servings` changes first, after the move's own day and position checks, in `Service.Update`, which MCP's `update_meal_plan_entry` calls too, so a refused change leaves the entry where it was (`TestPlanRoundTrip`, `TestTrayMoveWithNullDay`, `TestPatchChecksServingsBeforeMoving`).
 
 **The shopping preview is what the "Auf die Liste" dialog offers.** `GET …/shopping-preview?from&to&tray` lists the recipe entries of the range (and the tray when asked) with their `day` (null on the tray), each ingredient by `(group, index)` with its quantity scaled to the planned servings through the lists' rounding, `alreadyListed` by the caller's accessible lists and `staple` by this plan's staples (`TestShoppingPreviewMarksStaplesAndListed`).
 

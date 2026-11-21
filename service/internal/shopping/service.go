@@ -74,8 +74,17 @@ func newID() string { return uuid.NewV7().String() }
 
 func invalid(msg string) error { return fmt.Errorf("%w: %s", ErrInvalid, msg) }
 
-// clean trims text and checks its length in runes.
-func clean(field, text string, maxRunes int) (string, error) {
+// CheckServings refuses servings outside 1-99, on a list as on a plan.
+func CheckServings(n int) error {
+	if n < 1 || n > 99 {
+		return invalid("servings must be 1-99")
+	}
+	return nil
+}
+
+// Clean trims text and checks its length in runes; the meal plan's fields
+// use it too.
+func Clean(field, text string, maxRunes int) (string, error) {
 	text = strings.TrimSpace(text)
 	if n := utf8.RuneCountInString(text); n == 0 || n > maxRunes {
 		return "", invalid(fmt.Sprintf("%s must be 1-%d characters", field, maxRunes))
@@ -134,7 +143,7 @@ func (s *Service) Lists(ctx context.Context, userID string) ([]Summary, error) {
 
 // Create makes an empty list.
 func (s *Service) Create(ctx context.Context, userID, name string) (List, error) {
-	name, err := clean("name", name, 80)
+	name, err := Clean("name", name, 80)
 	if err != nil {
 		return List{}, err
 	}
@@ -271,7 +280,7 @@ func deref(s *string) string {
 
 // Rename changes a list's name.
 func (s *Service) Rename(ctx context.Context, userID, id, name string) (List, error) {
-	name, err := clean("name", name, 80)
+	name, err := Clean("name", name, 80)
 	if err != nil {
 		return List{}, err
 	}
@@ -441,8 +450,8 @@ func (s *Service) mutate(ctx context.Context, userID, listID string, fn func(q *
 // entry at the given servings. The copy keeps the recipe's amounts; later
 // edits to the recipe do not reach it.
 func (s *Service) AddRecipe(ctx context.Context, userID, listID, recipeID string, servings int, include []IngredientPick) (List, error) {
-	if servings < 1 || servings > 99 {
-		return List{}, invalid("servings must be 1-99")
+	if err := CheckServings(servings); err != nil {
+		return List{}, err
 	}
 	return s.mutate(ctx, userID, listID, func(q *sqlc.Queries) error {
 		return s.addRecipe(ctx, q, userID, listID, recipeID, servings, include, nil)
@@ -469,8 +478,8 @@ func (s *Service) AddPlanned(ctx context.Context, q *sqlc.Queries, userID, listI
 		return ErrNotFound
 	}
 	for _, a := range adds {
-		if a.Servings < 1 || a.Servings > 99 {
-			return invalid("servings must be 1-99")
+		if err := CheckServings(a.Servings); err != nil {
+			return err
 		}
 		if err := s.addRecipe(ctx, q, userID, listID, a.RecipeID, a.Servings, a.Include, &a.PlanEntryID); err != nil {
 			return err
@@ -571,8 +580,8 @@ func (s *Service) addRecipe(ctx context.Context, q *sqlc.Queries, userID, listID
 
 // SetServings changes an entry's servings; its items rescale and keep ticks.
 func (s *Service) SetServings(ctx context.Context, userID, listID, entryID string, servings int) (List, error) {
-	if servings < 1 || servings > 99 {
-		return List{}, invalid("servings must be 1-99")
+	if err := CheckServings(servings); err != nil {
+		return List{}, err
 	}
 	return s.mutate(ctx, userID, listID, func(q *sqlc.Queries) error {
 		n, err := q.SetShoppingEntryServings(ctx, sqlc.SetShoppingEntryServingsParams{Servings: int64(servings), ID: entryID, ListID: listID})
@@ -608,7 +617,7 @@ func (s *Service) AddFree(ctx context.Context, userID, listID, text string) (Lis
 // AddItem adds one item from text parsed as AddFree does; a given quantity or
 // unit (the app's own fields) replaces the parsed one.
 func (s *Service) AddItem(ctx context.Context, userID, listID, text string, quantity *float64, unitIn *string) (List, error) {
-	text, err := clean("text", text, 200)
+	text, err := Clean("text", text, 200)
 	if err != nil {
 		return List{}, err
 	}
@@ -645,7 +654,7 @@ func (s *Service) ImportList(ctx context.Context, userID, text, name, defaultNam
 		name = strings.TrimSpace(defaultName)
 	}
 	name, _ = recipeimport.Cut(name, 80)
-	name, err = clean("name", name, 80)
+	name, err = Clean("name", name, 80)
 	if err != nil {
 		return List{}, err
 	}

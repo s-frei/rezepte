@@ -8,6 +8,7 @@ import (
 
 	"github.com/s-frei/rezepte/service/internal/db/sqlc"
 	"github.com/s-frei/rezepte/service/internal/ingredient"
+	"github.com/s-frei/rezepte/service/internal/shopping"
 )
 
 // Staple is a name a plan's people always have at home ("Haben wir immer"),
@@ -28,7 +29,7 @@ func (s *Service) Staples(ctx context.Context, userID, planID string) ([]Staple,
 // SetStaple marks name as a staple of the plan or unmarks it, and returns the
 // plan's staples. Marking a key that is a staple already keeps its first name.
 func (s *Service) SetStaple(ctx context.Context, userID, planID, name string, staple bool) ([]Staple, error) {
-	name, err := clean("name", name, 200)
+	name, err := shopping.Clean("name", name, 200)
 	if err != nil {
 		return nil, err
 	}

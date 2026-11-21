@@ -44,7 +44,7 @@ func (s *Service) ToList(ctx context.Context, userID, planID, from, to string, i
 	var name string
 	if in.NewListName != nil {
 		var err error
-		if name, err = clean("name", *in.NewListName, 80); err != nil {
+		if name, err = shopping.Clean("name", *in.NewListName, 80); err != nil {
 			return Plan{}, "", err
 		}
 	}

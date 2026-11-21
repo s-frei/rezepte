@@ -14,8 +14,8 @@ import (
 var ErrNotFound = errors.New("meal plan not found")
 
 // ErrInvalid is returned, wrapped with a field message, for input that fails
-// validation.
-var ErrInvalid = errors.New("invalid input")
+// validation. It is the shopping list's: a plan checks its fields as a list does.
+var ErrInvalid = shopping.ErrInvalid
 
 // ErrRecipeNotFound is returned when the recipe to plan does not exist.
 var ErrRecipeNotFound = errors.New("recipe not found")

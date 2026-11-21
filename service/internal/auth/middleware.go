@@ -130,6 +130,12 @@ func CurrentUser(ctx context.Context) (user.User, error) {
 	return u, nil
 }
 
+// CurrentUserID is CurrentUser's ID, for a handler that needs no more.
+func CurrentUserID(ctx context.Context) (string, error) {
+	u, err := CurrentUser(ctx)
+	return u.ID, err
+}
+
 // RequireRole is CurrentUser for an operation that needs at least the role
 // min: RoleAdmin lets in every admin, the superadmin included, and
 // RoleSuperadmin only the owner. Anyone else gets a 403 naming min.

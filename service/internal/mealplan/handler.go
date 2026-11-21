@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"math"
 	"net/http"
 	"strings"
 
@@ -196,17 +195,8 @@ func Register(api huma.API, svc *Service) {
 			return huma.Error404NotFound("recipe not found")
 		case errors.Is(err, ErrInvalid):
 			return invalidField(strings.TrimPrefix(err.Error(), ErrInvalid.Error()+": "), field)
-		case errors.Is(err, shopping.ErrInvalid):
-			return invalidField(strings.TrimPrefix(err.Error(), shopping.ErrInvalid.Error()+": "), field)
 		}
 		return err
-	}
-	caller := func(ctx context.Context) (string, error) {
-		u, ok := auth.UserFrom(ctx)
-		if !ok {
-			return "", huma.Error401Unauthorized("authentication required")
-		}
-		return u.ID, nil
 	}
 	// span is the range asked for, the current week when both ends are left
 	// out; checked here so its error names the query, not the body.
@@ -224,7 +214,7 @@ func Register(api huma.API, svc *Service) {
 	// mutation wraps the common shape: authenticate, resolve the range, call,
 	// map errors.
 	mutation := func(ctx context.Context, r Range, field string, f func(uid, from, to string) (Plan, error)) (*planOut, error) {
-		uid, err := caller(ctx)
+		uid, err := auth.CurrentUserID(ctx)
 		if err != nil {
 			return nil, err
 		}
@@ -247,7 +237,7 @@ func Register(api huma.API, svc *Service) {
 		return svc.Get(ctx, uid, p.ID, from, to)
 	}
 	command := func(ctx context.Context, f func(uid string) error) (*emptyOut, error) {
-		uid, err := caller(ctx)
+		uid, err := auth.CurrentUserID(ctx)
 		if err != nil {
 			return nil, err
 		}
@@ -259,7 +249,7 @@ func Register(api huma.API, svc *Service) {
 
 	huma.Register(api, reader(op("list-meal-plans", http.MethodGet, "/api/v1/meal-plans", "List the caller's meal plans and invitations", http.StatusOK)),
 		func(ctx context.Context, _ *struct{}) (*overviewOut, error) {
-			uid, err := caller(ctx)
+			uid, err := auth.CurrentUserID(ctx)
 			if err != nil {
 				return nil, err
 			}
@@ -273,7 +263,7 @@ func Register(api huma.API, svc *Service) {
 	plansWeek := reader(op("meal-plans-week", http.MethodGet, "/api/v1/meal-plans/week", "Every plan of the caller's with a week of it", http.StatusOK, 422))
 	plansWeek.Description = "The plans as list-meal-plans orders them, each with the entries on the days of the range, the lists the caller can access that they and the tray are on, and how many recipe entries are on none; and the pending invitations. One request for the plans page, however many plans. Left out, the range is the current week in the server's time zone, so a client passes its own."
 	huma.Register(api, plansWeek, func(ctx context.Context, in *Range) (*weekOut, error) {
-		uid, err := caller(ctx)
+		uid, err := auth.CurrentUserID(ctx)
 		if err != nil {
 			return nil, err
 		}
@@ -309,7 +299,7 @@ func Register(api huma.API, svc *Service) {
 		Content:     map[string]*huma.MediaType{"text/event-stream": {Schema: &huma.Schema{Type: "string"}}},
 	}}
 	huma.Register(api, stream, func(ctx context.Context, in *planID) (*huma.StreamResponse, error) {
-		uid, err := caller(ctx)
+		uid, err := auth.CurrentUserID(ctx)
 		if err != nil {
 			return nil, err
 		}
@@ -345,45 +335,7 @@ func Register(api huma.API, svc *Service) {
 		func(ctx context.Context, in *patchEntryIn) (*planOut, error) {
 			return mutation(ctx, in.Range, "", func(uid, from, to string) (Plan, error) {
 				b := in.Body
-				var p Plan
-				// Servings first, as MCP does: a refused change leaves the entry
-				// where it was. The move's own checks run before either.
-				if b.Day.Sent {
-					if err := checkDay(b.Day.Value); err != nil {
-						return Plan{}, err
-					}
-				}
-				if b.Position != nil && *b.Position < 0 {
-					return Plan{}, invalid("position must not be negative")
-				}
-				if b.Servings != nil {
-					var err error
-					if p, err = svc.SetServings(ctx, uid, in.ID, in.EntryID, from, to, *b.Servings); err != nil {
-						return Plan{}, err
-					}
-				}
-				if b.Day.Sent || b.Position != nil {
-					day := b.Day.Value
-					if !b.Day.Sent {
-						e, err := liveEntry(ctx, svc.q, in.ID, in.EntryID)
-						if err != nil {
-							return Plan{}, err
-						}
-						day = e.Day
-					}
-					position := math.MaxInt32
-					if b.Position != nil {
-						position = *b.Position
-					}
-					var err error
-					if p, err = svc.Move(ctx, uid, in.ID, in.EntryID, from, to, day, position); err != nil {
-						return Plan{}, err
-					}
-				}
-				if p.ID == "" {
-					return svc.Get(ctx, uid, in.ID, from, to)
-				}
-				return p, nil
+				return svc.Update(ctx, uid, in.ID, in.EntryID, from, to, EntryChange{Moved: b.Day.Sent, Day: b.Day.Value, Position: b.Position, Servings: b.Servings})
 			})
 		})
 
@@ -424,7 +376,7 @@ func Register(api huma.API, svc *Service) {
 
 	huma.Register(api, reader(op("meal-plan-shopping-preview", http.MethodGet, "/api/v1/meal-plans/{id}/shopping-preview", "Preview what a range puts on a list", http.StatusOK, 404, 422)),
 		func(ctx context.Context, in *previewIn) (*previewOut, error) {
-			uid, err := caller(ctx)
+			uid, err := auth.CurrentUserID(ctx)
 			if err != nil {
 				return nil, err
 			}
@@ -448,7 +400,7 @@ func Register(api huma.API, svc *Service) {
 
 	huma.Register(api, reader(op("list-meal-plan-staples", http.MethodGet, "/api/v1/meal-plans/{id}/staples", "List a plan's staples", http.StatusOK, 404)),
 		func(ctx context.Context, in *planID) (*staplesOut, error) {
-			uid, err := caller(ctx)
+			uid, err := auth.CurrentUserID(ctx)
 			if err != nil {
 				return nil, err
 			}
@@ -461,7 +413,7 @@ func Register(api huma.API, svc *Service) {
 
 	huma.Register(api, op("set-meal-plan-staple", http.MethodPut, "/api/v1/meal-plans/{id}/staples", "Mark or unmark a staple", http.StatusOK, 404, 422),
 		func(ctx context.Context, in *stapleIn) (*staplesOut, error) {
-			uid, err := caller(ctx)
+			uid, err := auth.CurrentUserID(ctx)
 			if err != nil {
 				return nil, err
 			}

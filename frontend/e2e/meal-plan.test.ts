@@ -118,18 +118,25 @@ test('the switch swaps the sides in place, without a reload or a fade', async ({
 	});
 });
 
-test('the pager moves by weeks and Today comes back', async ({ page }) => {
+test('the pager moves by weeks, and Today comes back marked', async ({ page }) => {
 	await page.clock.setFixedTime(new Date('2026-11-20T10:00:00'));
 	await loginFresh(page);
+	await plan(page, { day: '2026-11-21', title: 'Pizza bestellen' });
 	await page.goto('/lists');
 	const id = await openOwn(page);
 	const label = page.getByRole('heading', { level: 2 }).first();
-	await expect(label).toContainText(/November 16–22|Nov 16–22/);
+	await expect(label).toContainText(/Week 47 · November 16–22|Nov 16–22/);
+	const friday = day(page, 'Friday, November 20');
+	await expect(friday).toHaveAttribute('aria-current', 'date');
+	await expect(friday.getByText('Today')).toBeVisible();
 	await page.getByRole('button', { name: 'Next week' }).click();
 	await expect(page).toHaveURL(new RegExp(`/plans/${id}\\?from=2026-11-23$`));
-	await expect(label).toContainText(/November 23–29|Nov 23–29/);
+	await expect(label).toContainText(/Week 48|Nov 23–29/);
+	await expect(page.locator('[aria-current="date"]')).toHaveCount(0);
 	await page.getByRole('button', { name: 'Today' }).click();
 	await expect(page).toHaveURL(new RegExp(`/plans/${id}$`));
+	await expect(friday).toHaveAttribute('aria-current', 'date');
+	await expect(day(page, 'Saturday, November 21').getByText('Pizza bestellen')).toBeVisible();
 	await page.getByRole('button', { name: 'Previous week' }).click();
 	await expect(page).toHaveURL(new RegExp(`/plans/${id}\\?from=2026-11-09$`));
 	await expect(
@@ -644,23 +651,6 @@ test('collapses past days on a phone', async ({ page, isMobile }) => {
 	// Another week shows all its days.
 	await page.getByRole('button', { name: 'Previous week' }).click();
 	await expect(page.getByRole('button', { name: /^Mon–Thu/ })).toHaveCount(0);
-});
-
-test('pages weeks and keeps today marked', async ({ page }) => {
-	await page.clock.setFixedTime(new Date('2026-11-20T10:00:00'));
-	await loginFresh(page);
-	await plan(page, { day: '2026-11-21', title: 'Pizza bestellen' });
-	await openOwn(page);
-	const friday = day(page, 'Friday, November 20');
-	await expect(friday).toHaveAttribute('aria-current', 'date');
-	await expect(friday.getByText('Today')).toBeVisible();
-
-	await page.getByRole('button', { name: 'Next week' }).click();
-	await expect(page).toHaveURL(/from=2026-11-23/);
-	await expect(page.locator('[aria-current="date"]')).toHaveCount(0);
-	await page.getByRole('button', { name: 'Today' }).click();
-	await expect(day(page, 'Friday, November 20')).toHaveAttribute('aria-current', 'date');
-	await expect(day(page, 'Saturday, November 21').getByText('Pizza bestellen')).toBeVisible();
 });
 
 // "Put on the list": the dialog over the shown week's rest.
