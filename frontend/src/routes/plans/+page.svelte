@@ -35,7 +35,13 @@
 	// Only "My plan": a light nudge to plan together.
 	const alone = $derived(data.plans.length === 1 && data.invitations.length === 0);
 
-	let answered = $state<string[]>([]);
+	// Answered here: gone at once, before the next read. Each read starts
+	// afresh: the server knows the answers then, and a new invitation to
+	// the same list or plan counts again.
+	let answered = $derived.by(() => {
+		void data;
+		return [] as string[];
+	});
 	const invited = $derived(data.invitations.filter((i) => !answered.includes(i.planId)));
 	$effect(() => {
 		invitations.plans = invited.length;

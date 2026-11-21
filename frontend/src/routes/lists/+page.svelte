@@ -21,8 +21,13 @@
 
 	let { data }: PageProps = $props();
 
-	// Answered here: gone at once, before the next read.
-	let answered = $state<string[]>([]);
+	// Answered here: gone at once, before the next read. Each read starts
+	// afresh: the server knows the answers then, and a new invitation to
+	// the same list or plan counts again.
+	let answered = $derived.by(() => {
+		void data;
+		return [] as string[];
+	});
 	const lists = $derived(data.items);
 	const invited = $derived(data.invitations.filter((i) => !answered.includes(i.listId)));
 	const mine = $derived(lists.filter((l) => l.owner.id === session.user?.id));
