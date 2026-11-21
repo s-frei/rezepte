@@ -40,7 +40,7 @@
 	id={today ? 'today' : undefined}
 	class="rounded-2xl bg-surface shadow-card {today
 		? 'outline-2 outline-primary'
-		: 'outline-none focus-visible:outline-2 focus-visible:outline-primary/60'} {empty
+		: 'outline-none focus-visible:outline-2 focus-visible:outline-primary/60 focus-visible:outline-solid'} {empty
 		? 'flex items-center gap-3 py-1.5 pr-3 pl-4 md:gap-4 md:py-2.5 md:pl-4.5'
 		: 'pt-1.5 pr-3 pb-3 pl-4 md:grid md:grid-cols-[152px_minmax(0,1fr)] md:items-start md:gap-4 md:py-2.5 md:pl-4.5'}"
 >

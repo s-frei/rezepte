@@ -118,7 +118,7 @@
 	 * of the number pill `StepEditor` sets on the top border.
 	 */
 	const EDITABLE =
-		'step-editable min-h-16 w-full rounded-md border border-border bg-surface-elevated px-3.5 pt-4 pb-2.5 text-input transition outline-none focus:border-primary aria-[invalid=true]:border-[1.5px] aria-[invalid=true]:border-destructive aria-[invalid=true]:focus:border-destructive aria-[invalid=true]:focus:outline-2 aria-[invalid=true]:focus:outline-offset-2 aria-[invalid=true]:focus:outline-destructive';
+		'step-editable min-h-16 w-full rounded-md border border-border bg-surface-elevated px-3.5 pt-4 pb-2.5 text-input transition outline-none focus:border-primary aria-[invalid=true]:border-[1.5px] aria-[invalid=true]:border-destructive aria-[invalid=true]:focus:border-destructive aria-[invalid=true]:focus:outline-2 aria-[invalid=true]:focus:outline-solid aria-[invalid=true]:focus:outline-offset-2 aria-[invalid=true]:focus:outline-destructive';
 
 	/**
 	 * The popup's own size, which has to be known before it exists: the side it

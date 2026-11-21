@@ -1045,11 +1045,17 @@ test('a planned block wears its plan stamp, which jumps to the meal', async ({ p
 	await expect(page).toHaveURL(`/plans/${planId}?from=2026-11-23`);
 	await expect(page.locator('[data-entry-id]', { hasText: `Mash ${t}` })).toBeInViewport();
 
-	// The head's stamp lands on the plan's first day, which takes the focus.
+	// The head's stamp, by keyboard, lands on the plan's first day, which takes
+	// the focus and shows it: `toBeFocused` alone passes with no ring drawn.
 	await page.goBack();
-	await head.click();
+	await head.focus();
+	await page.keyboard.press('Enter');
 	await expect(page).toHaveURL(`/plans/${planId}`);
-	await expect(page.locator('[data-day="2026-11-16"]')).toBeFocused();
+	const monday = page.locator('[data-day="2026-11-16"]');
+	await expect(monday).toBeFocused();
+	expect(
+		await monday.evaluate((el) => el.matches(':focus-visible') && getComputedStyle(el).outlineStyle)
+	).not.toMatch(/^(none|false)$/);
 
 	// Monday is gone by: a phone folds it, and the jump opens the fold.
 	await page.goBack();

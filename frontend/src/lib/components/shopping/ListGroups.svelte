@@ -111,7 +111,7 @@
 						{@const plan = stamps ? planStamp(group.entry, session.user?.id, thisMonday) : null}
 						<h2
 							tabindex="-1"
-							class="col-start-2 row-start-1 self-end font-display text-card font-medium text-pretty hyphens-auto outline-none focus-visible:rounded-sm focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-primary"
+							class="col-start-2 row-start-1 self-end font-display text-card font-medium text-pretty hyphens-auto outline-none focus-visible:rounded-sm focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-primary focus-visible:outline-solid"
 						>
 							<!-- "Mi ·" stays one piece; with a stamp, the stamp names the day. -->
 							{#if group.day && !stamps}<span class="text-text-muted">{group.day}&nbsp;·</span>{/if}

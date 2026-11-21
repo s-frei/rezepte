@@ -24,8 +24,9 @@ describe('fitStamps', () => {
 	});
 
 	it('takes a free line before it drops a detail', () => {
-		// Whole, the second stamp starts line 2 and both show; no detail goes.
-		expect(fitStamps([s(150, 100), s(150, 100)], 200, 2, GAP, MORE)).toEqual({
+		// Bare, both would share line 1 (40 + 6 + 40); whole, the second starts
+		// line 2 and both still show, so no detail goes.
+		expect(fitStamps([s(150, 40), s(150, 40)], 200, 2, GAP, MORE)).toEqual({
 			shown: 2,
 			bare: false,
 			summary: false
