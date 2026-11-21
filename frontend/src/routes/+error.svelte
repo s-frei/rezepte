@@ -20,8 +20,10 @@
 
 <!-- The error page carries no bottom nav (`navPlace` in `#lib/shell.svelte`),
      so it offers its own way back. Without a session the page renders bare
-     (+layout.svelte) and centers itself in the window. -->
-<main
+     (+layout.svelte) and centers itself in the window: then it is the page's
+     main landmark, else the shell's <main> is. -->
+<svelte:element
+	this={session.user ? 'div' : 'main'}
 	class="mx-auto grid max-w-4xl items-center justify-items-center gap-10 px-6 py-10 text-center md:grid-cols-[300px_25rem] md:justify-center md:justify-items-start md:gap-14 md:py-16 md:text-left {session.user
 		? ''
 		: 'min-h-dvh content-center'}"
@@ -67,7 +69,7 @@
 			{/if}
 		</div>
 	</div>
-</main>
+</svelte:element>
 
 <style>
 	.page {
