@@ -1,3 +1,4 @@
+import { planHref } from '#lib/mealplan/href.js';
 import type {
 	Department,
 	ListPerson,
@@ -81,13 +82,11 @@ export function entryTitle(entry: ShoppingEntry, at: Now = now()): string {
  * the reader is in (`plans`); null when none is. Another member's plan would
  * answer 404, so it is never linked.
  */
-export function weekHref(entries: ShoppingEntry[], plans: Set<string>): `/week?${string}` | null {
+export function weekHref(entries: ShoppingEntry[], plans: Set<string>): string | null {
 	const mine = entries.filter((e) => e.planId && plans.has(e.planId));
 	const entry = mine.find((e) => e.planDay) ?? mine[0];
 	if (!entry?.planId) return null;
-	const query = new URLSearchParams({ plan: entry.planId });
-	if (entry.planDay) query.set('from', mondayOf(entry.planDay));
-	return `/week?${query.toString()}`;
+	return planHref(entry.planId, entry.planDay ? mondayOf(entry.planDay) : undefined);
 }
 
 const amountText = (quantity: number | null, unit: string) =>

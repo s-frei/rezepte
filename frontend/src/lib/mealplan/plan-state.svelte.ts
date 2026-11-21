@@ -7,8 +7,9 @@ import { follow } from '#lib/live.js';
  * `ListState`'s for a list. Every change takes the next local turn and only
  * the newest one's answer replaces the plan; an older answer is dropped, as
  * is one with a lower server `revision`, one for another plan, or one for
- * another week: the page stays mounted while the pager or the picker moves
- * on, and an answer still in flight carries the range it was sent for.
+ * another week: the page stays mounted while the pager moves on, or a link
+ * opens another plan, and an answer still in flight carries the range it was
+ * sent for.
  */
 export class PlanState {
 	plan = $state<MealPlan>() as MealPlan;

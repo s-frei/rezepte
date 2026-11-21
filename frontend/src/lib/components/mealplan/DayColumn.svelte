@@ -28,6 +28,7 @@
 <section
 	aria-label={names.full}
 	aria-current={today ? 'date' : undefined}
+	id={today ? 'today' : undefined}
 	class="flex min-w-0 flex-col gap-2 rounded-2xl pb-2 {today ? 'outline-2 outline-primary' : ''}"
 >
 	<header

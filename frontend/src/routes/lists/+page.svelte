@@ -100,6 +100,7 @@
 		</NoteEmptyState>
 	{:else}
 		{#if invited.length > 0}
+			<h2 class="sr-only">{m.invitations_heading()}</h2>
 			<div class="flex flex-col gap-3">
 				{#each invited as invitation (invitation.listId)}
 					<InvitationCard

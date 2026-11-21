@@ -6132,8 +6132,21 @@
           "owner": {
             "$ref": "#/components/schemas/ListPerson"
           },
+          "pending": {
+            "items": {
+              "$ref": "#/components/schemas/ListPerson"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
           "personal": {
             "type": "boolean"
+          },
+          "tray": {
+            "format": "int64",
+            "type": "integer"
           },
           "unlisted": {
             "format": "int64",
@@ -6147,6 +6160,8 @@
           "entries",
           "unlisted",
           "lists",
+          "tray",
+          "pending",
           "id",
           "name",
           "personal",

@@ -106,6 +106,11 @@ type WeekPlan struct {
 	// Lists are as Plan.Lists for the same span: the accessible lists its
 	// entries and the tray are on, most entries first.
 	Lists []LinkedList `json:"lists"`
+	// Tray counts the entries on the tray.
+	Tray int `json:"tray"`
+	// Pending are invitees still waiting and is empty unless the caller is
+	// the creator, as Plan.Pending.
+	Pending []Person `json:"pending"`
 }
 
 // WeekEntry is a plan entry on the plans page. Kind is "recipe" or "text"; a

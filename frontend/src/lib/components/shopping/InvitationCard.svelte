@@ -60,14 +60,27 @@
 >
 	<PersonMark person={from} size="md" />
 	<div class="min-w-0 flex-1 basis-0">
-		<p class="font-semibold">{title}</p>
+		<h3 class="font-semibold wrap-break-word">{title}</h3>
 		<p class="mt-0.5 text-caption text-text-muted">{hint}</p>
 	</div>
 	<div class="flex w-full flex-wrap gap-2 md:ml-auto md:w-auto">
-		<Button variant="ghost" disabled={busy} onclick={() => answer(false)} class="max-md:flex-1">
+		<!-- Named with the invitation, so two cards' buttons tell apart. -->
+		<Button
+			variant="ghost"
+			disabled={busy}
+			label={m.lists_invite_decline_named({ title })}
+			onclick={() => answer(false)}
+			class="max-md:h-11 max-md:flex-1"
+		>
 			{m.lists_invite_decline()}
 		</Button>
-		<Button variant="primary" {busy} onclick={() => answer(true)} class="max-md:flex-1">
+		<Button
+			variant="primary"
+			{busy}
+			label={m.lists_invite_accept_named({ title })}
+			onclick={() => answer(true)}
+			class="max-md:h-11 max-md:flex-1"
+		>
 			<Check class="size-4" aria-hidden="true" />
 			{m.lists_invite_accept()}
 		</Button>

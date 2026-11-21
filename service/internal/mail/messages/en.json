@@ -72,7 +72,7 @@
 	"mail_password_set_heading": "A password was set",
 	"mail_password_set_subject": "A password was set for your Rezepte account",
 	"mail_plan_invite_body": "Accept it under “Shopping \u0026 week” to plan your meals together.",
-	"mail_plan_invite_button": "Open week",
+	"mail_plan_invite_button": "Open plan",
 	"mail_plan_invite_heading": "{name} invites you to the meal plan “{plan}”",
 	"mail_plan_invite_reason": "You get this mail because someone invited you to a meal plan.",
 	"mail_plan_invite_subject": "{name} invites you to the meal plan “{plan}”",

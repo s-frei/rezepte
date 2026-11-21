@@ -370,7 +370,7 @@ func TestBuildPlanInviteGerman(t *testing.T) {
 	if got, _ := new(mime.WordDecoder).DecodeHeader(msg.Header.Get("Subject")); got != "Dattel lädt dich zum Wochenplan „Familienwoche“ ein" {
 		t.Errorf("Subject = %q", got)
 	}
-	if !strings.Contains(p["text/html"], `href="https://r.example.org/week?plan=p1"`) || !strings.Contains(p["text/plain"], "„Familienwoche“") {
+	if !strings.Contains(p["text/html"], `href="https://r.example.org/plans/p1"`) || !strings.Contains(p["text/plain"], "„Familienwoche“") {
 		t.Errorf("html lacks the button URL: %s", p["text/html"])
 	}
 }

@@ -1,17 +1,17 @@
 <script lang="ts">
+	import ArrowLeft from '@lucide/svelte/icons/arrow-left';
 	import ChevronLeft from '@lucide/svelte/icons/chevron-left';
 	import ChevronRight from '@lucide/svelte/icons/chevron-right';
 	import Plus from '@lucide/svelte/icons/plus';
 	import Share2 from '@lucide/svelte/icons/share-2';
 	import ShoppingBasket from '@lucide/svelte/icons/shopping-basket';
-	import { onMount, tick, untrack } from 'svelte';
+	import { onMount } from 'svelte';
 	import { toast } from 'svelte-sonner';
-	import { goto, invalidateAll } from '$app/navigation';
+	import { afterNavigate, goto, replaceState } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { page } from '$app/state';
 	import { ApiError, isSignedOut } from '#lib/api/client.js';
 	import {
-		acceptPlan,
 		addPlanEntry,
 		deletePlan,
 		invitePlan,
@@ -22,14 +22,11 @@
 	import { session } from '#lib/auth.svelte.js';
 	import AddEntrySheet from '#lib/components/mealplan/AddEntrySheet.svelte';
 	import PlanMenu from '#lib/components/mealplan/PlanMenu.svelte';
-	import PlanPicker from '#lib/components/mealplan/PlanPicker.svelte';
-	import InvitationCard from '#lib/components/shopping/InvitationCard.svelte';
 	import PeopleSheet from '#lib/components/shopping/PeopleSheet.svelte';
 	import PeopleStack from '#lib/components/shopping/PeopleStack.svelte';
 	import ShareDialog from '#lib/components/shopping/ShareDialog.svelte';
 	import ToListDialog from '#lib/components/mealplan/ToListDialog.svelte';
 	import WeekView from '#lib/components/mealplan/WeekView.svelte';
-	import PlaceSwitch from '#lib/components/shell/PlaceSwitch.svelte';
 	import Button from '#lib/components/ui/Button.svelte';
 	import IconButton, { iconCircle } from '#lib/components/ui/IconButton.svelte';
 	import NoteEmptyState from '#lib/components/ui/NoteEmptyState.svelte';
@@ -37,31 +34,60 @@
 	import { mondayOf, pastDays, shiftWeek, weekDays, weekRange } from '#lib/mealplan/week.js';
 	import { m } from '#lib/paraglide/messages.js';
 	import { getLocale } from '#lib/paraglide/runtime.js';
-	import { holdKeyboard } from '#lib/keyboard.js';
-	import { lastPlan, rememberPlan, shell } from '#lib/shell.svelte.js';
+	import { planHref } from '#lib/mealplan/href.js';
+	import { arrival } from '#lib/mealplan/overview.svelte.js';
+	import { rememberPlan, shell } from '#lib/shell.svelte.js';
 	import { listHref } from '#lib/shopping/href.js';
-	import { invitations } from '#lib/shopping/invitations.svelte.js';
 	import planArt from '$brand/lockups/rezepte-mascot-shopping.webp?url';
 	import type { PageProps } from './$types';
 
 	let { data }: PageProps = $props();
 
-	let picker = $state<HTMLElement | null>(null);
+	/**
+	 * Whether the entry before this plan in the history is the overview (the
+	 * plan was opened from it), so going back to it is a step back, not a
+	 * new entry. Paging weeks keeps it.
+	 */
+	let fromOverview = false;
+	afterNavigate(({ from, to }) => {
+		// "Plan today" on the overview's card: the add sheet on today, once
+		// (after the navigation: the router takes no `replaceState` before).
+		if (page.url.searchParams.has('add')) {
+			const url = new URL(page.url.href);
+			url.searchParams.delete('add');
+			replaceState(url, page.state);
+			openAdd();
+		}
+		if (from?.route.id === '/plans/[id]' && from.params?.id === to?.params?.id) return;
+		fromOverview = from?.route.id === '/plans';
+		// Arriving, the keyboard starts at the plan, not at the logo; the
+		// share button keeps it on a plan just made.
+		if (from && !page.state.created)
+			document.querySelector<HTMLElement>('[data-plan-title]')?.focus({ preventScroll: true });
+	});
+
+	/** Back to the overview the plan was opened from, else to it in the plan's place. */
+	function back(event?: MouseEvent) {
+		if (!fromOverview) return false;
+		event?.preventDefault();
+		history.back();
+		return true;
+	}
 
 	/**
-	 * Back to the personal plan once the shown one is gone for the reader
-	 * (deleted, left, removed): the load falls back to it, since the plan
-	 * remembered last is no longer among the reader's. The focus goes to the
-	 * picker, which names the plan now shown; the control it was on is gone.
+	 * To the overview once the shown plan is gone for the reader (deleted,
+	 * left, removed): Back must never reopen a plan that is no longer there,
+	 * so the plan's entry is left (back) or replaced. The overview puts the
+	 * focus on its heading, where the toast talks.
 	 */
 	async function home() {
-		await goto(resolve('/week'), { invalidateAll: true });
-		await tick();
-		picker?.focus();
+		arrival.overview = true;
+		if (back()) return;
+		await goto(resolve('/plans'), { invalidateAll: true, replaceState: true });
 	}
 
 	// The plan went away under the page (deleted, or the reader removed):
-	// the week says so and reopens on the personal plan.
+	// the page says so and goes to the overview.
 	function fail(error: unknown, message = m.week_load_error()) {
 		if (isSignedOut(error)) return;
 		if (error instanceof ApiError && error.status === 404) {
@@ -93,41 +119,25 @@
 	const owner = $derived(plan.owner.id === session.user?.id);
 	const people = $derived([plan.owner, ...plan.members]);
 	const planName = $derived(plan.name ?? '');
-	// The picker names the shown plan as it is now: a rename lands here first.
-	const plans = $derived(data.plans.map((p) => (p.id === plan.id ? { ...p, name: plan.name } : p)));
+	const title = $derived(plan.personal ? m.plan_personal() : planName);
+
+	$effect(() => {
+		shell.breadcrumb = title;
+		shell.parent = { href: resolve('/plans'), label: m.plans_title() };
+		return () => {
+			shell.breadcrumb = undefined;
+			shell.parent = undefined;
+		};
+	});
 	let shareOpen = $state(false);
 	let peopleOpen = $state(false);
 
-	// Invitations to plans wait above the week, as the lists' do above the lists.
-	let answered = $state<string[]>([]);
-	const invited = $derived(data.invitations.filter((i) => !answered.includes(i.planId)));
-	$effect(() => {
-		invitations.plans = invited.length;
-	});
-	// The shell's count moved on its own (the tab came back, an invitation
-	// arrived or was withdrawn meanwhile): load the cards it counts.
-	$effect(() => {
-		if (invitations.plans !== untrack(() => invited.length)) void invalidateAll();
-	});
-
-	// A plan just made (`/week/new`) offers its sharing first, once on
+	// A plan just made (`/plans/new`) offers its sharing first, once on
 	// arrival: the plan itself changes with every edit and refetch.
 	onMount(() => {
 		if (page.state.created && !plan.personal)
 			document.querySelector<HTMLElement>('[data-plan-share]')?.focus();
 	});
-
-	async function accept(planId: string) {
-		await acceptPlan(planId, week.range);
-		rememberPlan(planId);
-		show(monday, planId, true);
-	}
-
-	function newPlan() {
-		// Inside the pick: the draft's name field takes the keyboard over.
-		holdKeyboard();
-		void goto(resolve('/week/new'));
-	}
 
 	async function removePlan() {
 		const name = planName;
@@ -152,16 +162,14 @@
 	}
 
 	/**
-	 * Another week or plan. `plan` is left out only for the plan the page
-	 * would reopen on anyway, the one remembered last (the shown one); a pick
-	 * of another plan always names it, the personal one too.
+	 * Another week of this plan; this week's address carries no `from`. It
+	 * replaces the shown week in the history, so Back leaves the plan.
 	 */
-	function show(from: string, id = plan.id, invalidateAll = false) {
-		const query: [string, string][] = [];
-		if (id !== lastPlan()) query.push(['plan', id]);
-		if (from !== thisWeek) query.push(['from', from]);
-		const qs = new URLSearchParams(query).toString();
-		void goto(resolve(qs ? `/week?${qs}` : '/week'), { reset: false, invalidateAll });
+	function show(from: string) {
+		void goto(planHref(plan.id, from === thisWeek ? undefined : from), {
+			reset: false,
+			replaceState: true
+		});
 	}
 
 	/** A phone's days gone by are folded; the week they were opened for. */
@@ -210,35 +218,74 @@
 	</Button>
 {/snippet}
 
-<svelte:head><title>{weekRange(monday, locale)} · {m.app_name()}</title></svelte:head>
+<svelte:head><title>{title} · {weekRange(monday, locale)} · {m.app_name()}</title></svelte:head>
 
 <div class="pt-6 pb-8 md:pt-4">
-	<PlaceSwitch side="week" />
-
-	{#if invited.length > 0}
-		<div class="mb-6 flex flex-col gap-3">
-			{#each invited as invitation (invitation.planId)}
-				{@const name = invitation.name ?? ''}
-				<InvitationCard
-					from={invitation.inviter}
-					title={m.plan_invite_title({ name: invitation.inviter.displayName, plan: name })}
-					hint={m.plan_invite_hint()}
-					gone={m.plan_gone()}
-					accept={() => accept(invitation.planId)}
-					decline={() => leavePlan(invitation.planId)}
-					ondone={() => (answered = [...answered, invitation.planId])}
-				/>
-			{/each}
+	<!-- Like a list's head: phone back and the plan's controls above the
+	     name; on a desktop the controls beside it, the top bar's breadcrumb
+	     naming the way back. -->
+	<header class="mb-5 grid grid-cols-[minmax(0,1fr)_auto] items-end gap-x-4">
+		<IconButton
+			href={resolve('/plans')}
+			onclick={back}
+			label={m.detail_back()}
+			class="justify-self-start max-md:size-11 lg:hidden"
+		>
+			<ArrowLeft class="size-5" aria-hidden="true" />
+		</IconButton>
+		<h1
+			tabindex="-1"
+			data-plan-title
+			class="col-span-2 row-start-2 mt-5 min-w-0 font-display text-display-md font-medium wrap-break-word outline-none md:text-display-lg lg:col-span-1 lg:row-start-1 lg:mt-0"
+		>
+			{title}
+		</h1>
+		<div class="col-start-2 row-start-1 flex items-center gap-2 lg:mb-1">
+			{#if !plan.personal}
+				{#if people.length > 1}
+					<button
+						type="button"
+						aria-haspopup="dialog"
+						aria-label={m.plan_people_show({ count: people.length })}
+						onclick={() => (peopleOpen = true)}
+						class="relative rounded-pill focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary max-md:after:absolute max-md:after:inset-x-0 max-md:after:-inset-y-2"
+					>
+						<PeopleStack {people} />
+					</button>
+				{/if}
+				{#if owner}
+					<button
+						type="button"
+						aria-haspopup="dialog"
+						aria-label={m.plan_share()}
+						data-plan-share
+						onclick={() => (shareOpen = true)}
+						class="{iconCircle} bg-surface text-text max-md:size-11"
+					>
+						<Share2 class="size-5 -translate-x-px" aria-hidden="true" />
+					</button>
+				{/if}
+			{/if}
+			<PlanMenu
+				personal={plan.personal}
+				name={planName}
+				{owner}
+				onrename={(name) =>
+					week.apply(renamePlan(plan.id, name, week.range), undefined, failChange)}
+				onshare={() => (shareOpen = true)}
+				ondelete={removePlan}
+				onleave={leave}
+			/>
 		</div>
-	{/if}
+	</header>
 
-	<!-- The week bar: the week and its pager, then the plan, the list it went
-	     to and "Put on the list". One row on a desktop; on a phone stacked,
-	     the button over the full width. -->
-	<div
-		class="mb-4 flex flex-col gap-2.5 md:flex-row md:flex-wrap md:items-center md:gap-x-3 md:gap-y-2"
-	>
-		<div class="flex items-center justify-between gap-2 md:mr-1 md:justify-start md:gap-4">
+	<!-- The week bar: the week and its pager, then the list it went to and
+	     "Put on the list". One row from md, where the list's name gives way
+	     first; on a phone stacked, the button over the full width. -->
+	<div class="mb-4 flex flex-col gap-2.5 md:flex-row md:items-center md:gap-x-3">
+		<div
+			class="flex items-center justify-between gap-2 md:mr-1 md:shrink-0 md:justify-start md:gap-4"
+		>
 			<h2
 				class="min-w-0 font-display text-card-sm font-medium whitespace-nowrap min-[360px]:text-card md:text-heading"
 			>
@@ -269,60 +316,12 @@
 				</IconButton>
 			</div>
 		</div>
-		<!-- Which plan, for a named one who is on it, and its ⋯ (the calendar for every plan). -->
-		<div class="flex min-w-0 items-center gap-2 max-md:order-first">
-			<PlanPicker
-				{plans}
-				value={plan.id}
-				bind:ref={picker}
-				onchange={(id) => show(monday, id)}
-				onnew={newPlan}
-			/>
-			<div class="flex shrink-0 items-center gap-2 max-md:ml-auto">
-				{#if !plan.personal}
-					{#if people.length > 1}
-						<button
-							type="button"
-							aria-haspopup="dialog"
-							aria-label={m.plan_people_show({ count: people.length })}
-							onclick={() => (peopleOpen = true)}
-							class="relative rounded-pill focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary max-md:after:absolute max-md:after:inset-x-0 max-md:after:-inset-y-2"
-						>
-							<PeopleStack {people} />
-						</button>
-					{/if}
-					{#if owner}
-						<!-- Round like the ⋯ beside it, so the week bar keeps to one line on a desktop. -->
-						<button
-							type="button"
-							aria-haspopup="dialog"
-							aria-label={m.plan_share()}
-							data-plan-share
-							onclick={() => (shareOpen = true)}
-							class="{iconCircle} bg-surface text-text max-md:size-11"
-						>
-							<Share2 class="size-5 -translate-x-px" aria-hidden="true" />
-						</button>
-					{/if}
-				{/if}
-				<PlanMenu
-					personal={plan.personal}
-					name={planName}
-					{owner}
-					onrename={(name) =>
-						week.apply(renamePlan(plan.id, name, week.range), undefined, failChange)}
-					onshare={() => (shareOpen = true)}
-					ondelete={removePlan}
-					onleave={leave}
-				/>
-			</div>
-		</div>
 		{#if !empty}
-			<div class="flex flex-col gap-1 md:ml-auto md:flex-row md:items-center md:gap-3">
+			<div class="flex min-w-0 flex-col gap-1 md:ml-auto md:flex-row md:items-center md:gap-3">
 				{#if list}
 					<a
 						href={listHref(list.id)}
-						class="flex min-h-11 items-center gap-1.5 px-0.5 text-body-sm whitespace-nowrap max-md:order-2 md:min-h-10"
+						class="flex min-h-11 min-w-0 items-center gap-1.5 px-0.5 text-body-sm whitespace-nowrap max-md:order-2 md:min-h-10"
 					>
 						<span class="flex min-w-0 items-center gap-1.5 font-semibold text-success-foreground">
 							<ShoppingBasket
@@ -331,7 +330,9 @@
 							/>
 							<span class="truncate">{list.name}</span>
 						</span>
-						<span class="text-text-muted">· {m.list_open({ open: list.openCount })}</span>
+						<span class="text-text-muted md:max-lg:hidden"
+							>· {m.list_open({ open: list.openCount })}</span
+						>
 						<ChevronRight
 							class="size-4 shrink-0 text-text-muted max-md:ml-auto"
 							aria-hidden="true"
@@ -347,7 +348,7 @@
 						? `${m.plan_to_list()}, ${plan.unlisted === 1 ? m.plan_to_list_count_one() : m.plan_to_list_count({ count: plan.unlisted })}`
 						: undefined}
 					onclick={() => (listing = true)}
-					class="shadow-cta max-md:h-11 max-md:w-full md:px-4.5"
+					class="shrink-0 shadow-cta max-md:h-11 max-md:w-full md:px-4.5"
 				>
 					<ShoppingBasket class="size-4" aria-hidden="true" />
 					{m.plan_to_list()}

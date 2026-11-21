@@ -24,10 +24,13 @@ import { load, save } from '#lib/storage.js';
  */
 export const shell = $state<{
 	breadcrumb?: string;
+	/** The breadcrumb's parent, a link before it ("Wochenpläne · Haushalt"). Reset like `breadcrumb`. */
+	parent?: { href: string; label: string };
 	actions?: Snippet;
 	add?: { label: string; open: () => void; readonly expanded: boolean };
 }>({
 	breadcrumb: undefined,
+	parent: undefined,
 	actions: undefined,
 	/**
 	 * What a phone's "+" does on this page instead of opening the new-things
@@ -68,8 +71,9 @@ export const NAV_PLACES: Record<string, NavPlace | null> = {
 	'/lists/new': 'lists',
 	'/lists/[id]': 'lists',
 	'/lists/[id]/shop': null,
-	'/week': 'lists',
-	'/week/new': 'lists',
+	'/plans': 'lists',
+	'/plans/new': 'lists',
+	'/plans/[id]': 'lists',
 	'/settings': 'you',
 	'/settings/api': 'you',
 	'/settings/mail': 'you',
@@ -121,7 +125,7 @@ export function setPlaceSide(side: PlaceSide): void {
 }
 
 /** Where the place's nav link goes: the side last used. */
-export const placeHref = (): string => resolve(placeSide.current === 'week' ? '/week' : '/lists');
+export const placeHref = (): string => resolve(placeSide.current === 'week' ? '/plans' : '/lists');
 
 const PLAN_KEY = 'rezepte:last-plan';
 

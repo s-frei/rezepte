@@ -16,6 +16,7 @@
 	import { mondayOf, weekDays } from '#lib/mealplan/week.js';
 	import { m } from '#lib/paraglide/messages.js';
 	import { rememberPlan, shell } from '#lib/shell.svelte.js';
+	import { planHref } from '#lib/mealplan/href.js';
 
 	// A plan before it exists, as /lists/new is a list: the name as a field
 	// at the top, the empty week it will be dimmed below. Only "Create" makes
@@ -62,7 +63,7 @@
 			const plan = await createPlan(trimmed, range);
 			rememberPlan(plan.id);
 			// Back from the new plan goes where "New plan" was picked, not to the draft.
-			await goto(resolve(`/week?plan=${encodeURIComponent(plan.id)}`), {
+			await goto(planHref(plan.id), {
 				replaceState: true,
 				state: { created: true }
 			});
@@ -75,7 +76,7 @@
 	}
 
 	function cancelOnEscape(event: KeyboardEvent) {
-		if (event.key === 'Escape') void goto(resolve('/week'));
+		if (event.key === 'Escape') void goto(resolve('/plans'));
 	}
 </script>
 
@@ -89,7 +90,7 @@
 	<form onsubmit={create} class="mb-6">
 		<header class="grid grid-cols-[minmax(0,1fr)_auto] items-end gap-x-4">
 			<IconButton
-				href={resolve('/week')}
+				href={resolve('/plans')}
 				label={m.common_cancel()}
 				class="justify-self-start md:hidden"
 			>
@@ -109,7 +110,7 @@
 				/>
 			</div>
 			<div class="col-start-2 row-start-1 flex items-center gap-2 md:mb-1">
-				<Button variant="secondary" href={resolve('/week')} class="max-md:hidden">
+				<Button variant="secondary" href={resolve('/plans')} class="max-md:hidden">
 					<X class="size-4" aria-hidden="true" />
 					{m.common_cancel()}
 				</Button>

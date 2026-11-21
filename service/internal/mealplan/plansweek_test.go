@@ -106,6 +106,9 @@ func TestPlansWeekSummarizesEachPlansWeek(t *testing.T) {
 	if w.Unlisted != 1 || full.Unlisted != 1 {
 		t.Fatalf("unlisted = %d (plan %d), want Friday's", w.Unlisted, full.Unlisted)
 	}
+	if w.Tray != 1 || len(w.Pending) != 0 {
+		t.Fatalf("tray = %d, pending = %+v; want the one tray entry and nobody waiting", w.Tray, w.Pending)
+	}
 
 	// Ben is in the household but on none of anna's lists.
 	bens, _, err := e.svc.PlansWeek(ctx, e.b.ID, mon, sun)
@@ -114,8 +117,14 @@ func TestPlansWeekSummarizesEachPlansWeek(t *testing.T) {
 	}
 	found := false
 	for _, p := range bens {
+		if p.ID == pending.ID && (len(p.Pending) != 1 || p.Pending[0].ID != e.a.ID) {
+			t.Fatalf("ben's invitation plan pending = %+v, want anna", p.Pending)
+		}
 		if p.ID != house {
 			continue
+		}
+		if len(p.Pending) != 0 {
+			t.Fatalf("ben sees anna's pending invitees: %+v", p.Pending)
 		}
 		found = true
 		if len(p.Entries) != 4 || len(p.Lists) != 0 || p.Unlisted != 3 {

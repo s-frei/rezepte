@@ -80,8 +80,12 @@
 	);
 
 	$effect(() => {
-		shell.breadcrumb = m.list_breadcrumb({ lists: m.lists_title(), name: list.name });
-		return () => (shell.breadcrumb = undefined);
+		shell.breadcrumb = list.name;
+		shell.parent = { href: resolve('/lists'), label: m.lists_title() };
+		return () => {
+			shell.breadcrumb = undefined;
+			shell.parent = undefined;
+		};
 	});
 
 	const owner = $derived(list.owner.id === session.user?.id);
@@ -187,18 +191,18 @@
 		<IconButton
 			href={resolve('/lists')}
 			label={m.detail_back()}
-			class="justify-self-start md:hidden"
+			class="justify-self-start max-md:size-11 lg:hidden"
 		>
 			<ArrowLeft class="size-5" aria-hidden="true" />
 		</IconButton>
-		<div class="col-span-2 row-start-2 mt-5 min-w-0 md:col-span-1 md:row-start-1 md:mt-0">
+		<div class="col-span-2 row-start-2 mt-5 min-w-0 lg:col-span-1 lg:row-start-1 lg:mt-0">
 			<h1 class="font-display text-display-md font-medium wrap-break-word md:text-display-lg">
 				{list.name}
 			</h1>
 			{#if week}
 				<!-- A 44px target that keeps the line's height: padding out, margin back. -->
 				<a
-					href={resolve(week)}
+					href={week}
 					class="-my-3 -ml-1 inline-flex min-h-11 items-center gap-0.5 rounded-md px-1 py-3 text-body-sm font-semibold text-primary hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
 				>
 					{m.list_from_week()}
@@ -235,7 +239,7 @@
 				>{m.list_counts({ open: openRows, done: doneRows })}</span
 			>
 		</div>
-		<div class="col-start-2 row-start-1 flex items-center gap-2 md:mb-1 {arrive}">
+		<div class="col-start-2 row-start-1 flex items-center gap-2 lg:mb-1 {arrive}">
 			<Button href={shopHref(list.id)} class="shrink-0 max-md:hidden">
 				<ShoppingBasket class="size-4" aria-hidden="true" />
 				{m.list_shop()}

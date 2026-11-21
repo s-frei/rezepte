@@ -1,5 +1,5 @@
 import { getDayOfWeek, parseDate, type CalendarDate } from '@internationalized/date';
-import type { Locale } from '#lib/paraglide/runtime.js';
+import { getLocale, type Locale } from '#lib/paraglide/runtime.js';
 
 /**
  * Plan days are dates (`YYYY-MM-DD`), never instants: a week is the same
@@ -95,4 +95,13 @@ export function dayNames(day: string, locale: Locale) {
 		number: parts[at].value + dot,
 		full: format({ weekday: 'long', day: 'numeric', month: 'long' })
 	};
+}
+
+/** "16.11." / "11/16": a stamp's date beside its weekday. */
+export function stampDate(day: string): string {
+	return new Intl.DateTimeFormat(getLocale(), {
+		day: 'numeric',
+		month: 'numeric',
+		timeZone: 'UTC'
+	}).format(parseDate(day).toDate('UTC'));
 }

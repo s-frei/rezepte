@@ -80,7 +80,7 @@
 			? '-mb-[60vh] flex flex-col gap-2 pb-[60vh]'
 			: layout === 'chip'
 				? 'flex flex-col gap-1 md:flex-row md:flex-wrap md:gap-2'
-				: 'flex flex-col gap-1.5 md:grid md:grid-cols-2 md:gap-x-5'}"
+				: 'flex flex-col gap-1.5 md:grid md:grid-cols-2 md:gap-x-5 md:[&>li:last-child:nth-child(odd)]:col-span-2'}"
 	>
 		{#each items as entry (entry.id)}
 			<!-- Picked up, the copy that follows the pointer is a lifted card. -->

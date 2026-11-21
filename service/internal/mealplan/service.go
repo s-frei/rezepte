@@ -85,23 +85,33 @@ func person(id, name, color string, avatar *string) Person {
 // Plans returns the caller's plans, the personal one first (made here on
 // first use), then the most recently changed, and their pending invitations.
 func (s *Service) Plans(ctx context.Context, userID string) ([]PlanSummary, []PlanInvitation, error) {
+	plans, _, invitations, err := s.plans(ctx, userID)
+	return plans, invitations, err
+}
+
+// plans is Plans plus the pending invitees by plan id, of the plans the
+// caller created only.
+func (s *Service) plans(ctx context.Context, userID string) ([]PlanSummary, map[string][]Person, []PlanInvitation, error) {
 	if err := s.q.InsertPersonalMealPlan(ctx, sqlc.InsertPersonalMealPlanParams{ID: newID(), UserID: userID, Now: s.stamp()}); err != nil {
-		return nil, nil, fmt.Errorf("insert personal meal plan: %w", err)
+		return nil, nil, nil, fmt.Errorf("insert personal meal plan: %w", err)
 	}
 	rows, err := s.q.ListMealPlans(ctx, userID)
 	if err != nil {
-		return nil, nil, fmt.Errorf("list meal plans: %w", err)
+		return nil, nil, nil, fmt.Errorf("list meal plans: %w", err)
 	}
 	ids := make([]string, len(rows))
 	for i, r := range rows {
 		ids[i] = r.ID
 	}
-	members, _, err := planMembers(ctx, s.q, ids, false)
+	members, pending, err := planMembers(ctx, s.q, ids, true)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 	plans := make([]PlanSummary, 0, len(rows))
 	for _, r := range rows {
+		if r.CreatedBy != userID {
+			pending[r.ID] = []Person{}
+		}
 		plans = append(plans, PlanSummary{
 			ID: r.ID, Name: r.Name, Personal: r.Personal == 1, UpdatedAt: r.UpdatedAt,
 			Owner: person(r.CreatedBy, r.OwnerName, r.OwnerColor, r.OwnerAvatarID), Members: members[r.ID],
@@ -109,13 +119,13 @@ func (s *Service) Plans(ctx context.Context, userID string) ([]PlanSummary, []Pl
 	}
 	inv, err := s.q.ListMealPlanInvitations(ctx, userID)
 	if err != nil {
-		return nil, nil, fmt.Errorf("list meal plan invitations: %w", err)
+		return nil, nil, nil, fmt.Errorf("list meal plan invitations: %w", err)
 	}
 	invitations := make([]PlanInvitation, 0, len(inv))
 	for _, r := range inv {
 		invitations = append(invitations, PlanInvitation{PlanID: r.ID, Name: r.Name, Inviter: person(r.CreatedBy, r.OwnerName, r.OwnerColor, r.OwnerAvatarID)})
 	}
-	return plans, invitations, nil
+	return plans, pending, invitations, nil
 }
 
 // Create makes an empty shared plan and returns it for the current week.
@@ -293,7 +303,7 @@ func (s *Service) PlansWeek(ctx context.Context, userID, from, to string) ([]Wee
 	if err := checkRange(from, to); err != nil {
 		return nil, nil, err
 	}
-	plans, invitations, err := s.Plans(ctx, userID)
+	plans, pending, invitations, err := s.plans(ctx, userID)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -314,7 +324,7 @@ func (s *Service) PlansWeek(ctx context.Context, userID, from, to string) ([]Wee
 	byPlan := map[string]*WeekPlan{}
 	out := make([]WeekPlan, len(plans))
 	for i, p := range plans {
-		out[i] = WeekPlan{PlanSummary: p, Entries: []WeekEntry{}}
+		out[i] = WeekPlan{PlanSummary: p, Entries: []WeekEntry{}, Pending: pending[p.ID]}
 		byPlan[p.ID] = &out[i]
 	}
 	perEntry := map[string][][]LinkedList{}
@@ -328,6 +338,7 @@ func (s *Service) PlansWeek(ctx context.Context, userID, from, to string) ([]Wee
 			w.Unlisted++
 		}
 		if r.Day == nil {
+			w.Tray++
 			continue
 		}
 		kind := "text"

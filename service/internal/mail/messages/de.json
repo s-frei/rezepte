@@ -72,7 +72,7 @@
 	"mail_password_set_heading": "Ein Passwort wurde festgelegt",
 	"mail_password_set_subject": "Für dein Rezepte-Konto wurde ein Passwort festgelegt",
 	"mail_plan_invite_body": "Nimm die Einladung unter „Einkauf \u0026 Woche“ an, dann plant ihr eure Mahlzeiten gemeinsam.",
-	"mail_plan_invite_button": "Woche öffnen",
+	"mail_plan_invite_button": "Plan öffnen",
 	"mail_plan_invite_heading": "{name} lädt dich zum Wochenplan „{plan}“ ein",
 	"mail_plan_invite_reason": "Du bekommst diese Mail, weil dich jemand zu einem Wochenplan eingeladen hat.",
 	"mail_plan_invite_subject": "{name} lädt dich zum Wochenplan „{plan}“ ein",

@@ -5,7 +5,6 @@
 	import { untrack } from 'svelte';
 	import { toast } from 'svelte-sonner';
 	import { goto } from '$app/navigation';
-	import { resolve } from '$app/paths';
 	import { isSignedOut } from '#lib/api/client.js';
 	import { addPlanEntry, listPlans, type PlanSummary } from '#lib/api/mealplan.js';
 	import ServingsStepper from '#lib/components/recipe/ServingsStepper.svelte';
@@ -18,6 +17,7 @@
 	import { getLocale } from '#lib/paraglide/runtime.js';
 	import { clampServings } from '#lib/recipe/servings.js';
 	import { lastPlan, rememberPlan } from '#lib/shell.svelte.js';
+	import { planHref } from '#lib/mealplan/href.js';
 
 	/**
 	 * "Add to plan" from a recipe page: a day of this or next week (today
@@ -102,13 +102,13 @@
 			);
 			rememberPlan(id);
 			open = false;
-			const href = `/week?${new URLSearchParams({ plan: id, from: monday })}` as const;
+			const href = planHref(id, monday);
 			toast.success(
 				day ? m.plan_added({ title, day: dayName(day) }) : m.plan_added_tray({ title }),
 				{
 					action: {
 						label: m.plan_add_open_week(),
-						onClick: () => goto(resolve(href))
+						onClick: () => goto(href)
 					}
 				}
 			);

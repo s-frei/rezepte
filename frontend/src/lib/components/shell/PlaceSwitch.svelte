@@ -29,7 +29,7 @@
 	function pick(next: PlaceSide) {
 		setPlaceSide(next);
 		handoff = true;
-		void goto(resolve(next === 'week' ? '/week' : '/lists'), { reset: false });
+		void goto(resolve(next === 'week' ? '/plans' : '/lists'), { reset: false });
 	}
 
 	function takeFocus(box: HTMLElement) {

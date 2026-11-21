@@ -216,7 +216,7 @@ func BuildPlanInvite(cfg Config, in PlanInvite, publicURL string, now time.Time)
 		Data: struct {
 			Name, Plan, Initial, Bg, Fg, URL string
 			Avatar                           htmltemplate.URL
-		}{in.InviterName, in.PlanName, initial, bg, fg, publicURL + "/week?plan=" + url.QueryEscape(in.PlanID), htmltemplate.URL(avatar)}, //nolint:gosec // G203: avatar is empty or a cid: URL built above from hex and the sender domain.
+		}{in.InviterName, in.PlanName, initial, bg, fg, publicURL + "/plans/" + url.PathEscape(in.PlanID), htmltemplate.URL(avatar)}, //nolint:gosec // G203: avatar is empty or a cid: URL built above from hex and the sender domain.
 	}, now)
 }
 

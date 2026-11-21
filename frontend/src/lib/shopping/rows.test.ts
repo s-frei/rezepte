@@ -401,11 +401,11 @@ describe('planned entries', () => {
 
 	it('links back only to a plan the reader is in', () => {
 		const entries = planned([]).entries;
-		expect(weekHref(entries, new Set(['p']))).toBe('/week?plan=p&from=2026-11-16');
+		expect(weekHref(entries, new Set(['p']))).toBe('/plans/p?from=2026-11-16');
 		expect(weekHref(entries, new Set(['other']))).toBeNull();
 		expect(weekHref(list([]).entries, new Set(['p']))).toBeNull();
 		// A tray entry links to the plan's current week.
 		const tray = [{ ...entry('e3', 'Soup'), planId: 'p', planDay: null }];
-		expect(weekHref(tray, new Set(['p']))).toBe('/week?plan=p');
+		expect(weekHref(tray, new Set(['p']))).toBe('/plans/p');
 	});
 });

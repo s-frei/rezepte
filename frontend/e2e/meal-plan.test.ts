@@ -42,22 +42,23 @@ test('place switch remembers the side', async ({ page }) => {
 	await expect(side(page, 'Lists')).toBeChecked();
 
 	await side(page, 'Week').click();
-	await expect(page).toHaveURL(/\/week$/);
+	await expect(page).toHaveURL(/\/plans$/);
 	await expect(page.getByRole('heading', { level: 1, name: 'Shopping & week' })).toBeVisible();
 	await expect(side(page, 'Week')).toBeChecked();
-	await expect(page.getByRole('heading', { level: 2, name: /Week \d+ · |\d/ })).toBeVisible();
+	// The week side opens on the plans overview.
+	await expect(page.getByRole('heading', { level: 2, name: 'Your plans' })).toBeVisible();
 	if (!phone(page)) {
-		// The week's own action replaces New list.
+		// The overview's own action replaces New list.
 		const bar = page.getByRole('banner');
-		await expect(bar.getByRole('button', { name: 'Plan a meal' })).toBeVisible();
+		await expect(bar.getByRole('button', { name: 'New plan' })).toBeVisible();
 		await expect(bar.getByRole('button', { name: 'New list' })).toHaveCount(0);
 	}
 
 	// The place reopens on the week, also after a reload.
 	await page.goto('/');
-	await expect(placeLink(page)).toHaveAttribute('href', '/week');
+	await expect(placeLink(page)).toHaveAttribute('href', '/plans');
 	await placeLink(page).click();
-	await expect(page).toHaveURL(/\/week$/);
+	await expect(page).toHaveURL(/\/plans$/);
 	await expect(side(page, 'Week')).toBeChecked();
 
 	await side(page, 'Lists').click();
@@ -68,19 +69,23 @@ test('place switch remembers the side', async ({ page }) => {
 test('the pager moves by weeks and Today comes back', async ({ page }) => {
 	await page.clock.setFixedTime(new Date('2026-11-20T10:00:00'));
 	await loginFresh(page);
-	await page.goto('/week');
+	await page.goto('/lists');
+	const id = await openOwn(page);
 	const label = page.getByRole('heading', { level: 2 }).first();
 	await expect(label).toContainText(/November 16–22|Nov 16–22/);
 	await page.getByRole('button', { name: 'Next week' }).click();
-	await expect(page).toHaveURL(/\/week\?from=2026-11-23$/);
+	await expect(page).toHaveURL(new RegExp(`/plans/${id}\\?from=2026-11-23$`));
 	await expect(label).toContainText(/November 23–29|Nov 23–29/);
 	await page.getByRole('button', { name: 'Today' }).click();
-	await expect(page).toHaveURL(/\/week$/);
+	await expect(page).toHaveURL(new RegExp(`/plans/${id}$`));
 	await page.getByRole('button', { name: 'Previous week' }).click();
-	await expect(page).toHaveURL(/\/week\?from=2026-11-09$/);
+	await expect(page).toHaveURL(new RegExp(`/plans/${id}\\?from=2026-11-09$`));
 	await expect(
 		page.getByRole('heading', { level: 2, name: 'Nothing planned this week' })
 	).toBeVisible();
+	// Paging replaced the plan's entry: one Back leaves the plan.
+	await page.goBack();
+	await expect(page).toHaveURL(/\/lists$/);
 });
 
 // The pick lands on another page; the keyboard stays in the switch.
@@ -93,7 +98,7 @@ test('an arrow key in the switch keeps the focus on the side it picked', async (
 	await page.goto('/lists');
 	await side(page, 'Lists').focus();
 	await page.keyboard.press('ArrowRight');
-	await expect(page).toHaveURL(/\/week$/);
+	await expect(page).toHaveURL(/\/plans$/);
 	await expect(side(page, 'Week')).toBeChecked();
 	await expect(side(page, 'Week')).toBeFocused();
 	await page.keyboard.press('ArrowLeft');
@@ -101,37 +106,108 @@ test('an arrow key in the switch keeps the focus on the side it picked', async (
 	await expect(side(page, 'Lists')).toBeFocused();
 });
 
-test('the picker switches to a shared plan and back to the own one', async ({ page }) => {
+test('the overview opens a plan, and the way back leads to it', async ({ page }) => {
 	await loginFresh(page);
-	const name = `Familie ${uniqueToken()}`;
-	const made = await page.request.post('/api/v1/meal-plans', { data: { name } });
-	expect(made.ok()).toBe(true);
-	const shared = (await made.json()) as { id: string };
-	const overview = (await (await page.request.get('/api/v1/meal-plans')).json()) as {
-		plans: { id: string; personal: boolean }[];
-	};
-	const own = overview.plans.find((p) => p.personal)!.id;
-	await page.goto('/week');
-	const picker = page.getByRole('button', { name: 'Plan', exact: true });
-	await expect(picker).toHaveText('My plan');
+	const idle = `Idle ${uniqueToken()}`;
+	const busy = `Busy ${uniqueToken()}`;
+	await namedPlan(page, idle);
+	const busyId = await namedPlan(page, busy);
+	const added = await page.request.post(`/api/v1/meal-plans/${busyId}/entries`, {
+		data: { day: today(), title: 'Pizza bestellen' }
+	});
+	expect(added.ok()).toBe(true);
+	await page.goto('/plans');
 
-	await picker.click();
-	await page.getByRole('option', { name }).click();
-	await expect(page).toHaveURL(new RegExp(`/week\\?plan=${shared.id}$`));
-	await expect(picker).toHaveText(name);
+	// My plan first, then the plan with meals this week; the idle one is a chip.
+	await expect(page.getByRole('article').getByRole('heading', { level: 3 })).toHaveText([
+		'My plan',
+		busy
+	]);
+	const card = page.getByRole('article', { name: busy });
+	await expect(card.getByText('1 meal', { exact: true })).toBeVisible();
+	await expect(card.getByRole('list', { name: 'This week' }).getByRole('listitem')).toHaveCount(7);
+	const chips = page.getByRole('list', { name: 'Empty this week' });
+	await expect(chips.getByRole('link')).toHaveText([idle]);
 
-	await picker.click();
-	await page.getByRole('option', { name: 'My plan' }).click();
-	await expect(page).toHaveURL(new RegExp(`/week\\?plan=${own}$`));
-	await expect(picker).toHaveText('My plan');
-	// And the week reopens on the plan picked last.
-	await page.goto('/week');
-	await expect(picker).toHaveText('My plan');
+	await card.getByRole('link', { name: busy }).click();
+	await expect(page).toHaveURL(new RegExp(`/plans/${busyId}$`));
+	await expect(page.getByRole('heading', { level: 1, name: busy })).toBeVisible();
+	if (phone(page)) {
+		await page.getByRole('main').getByRole('link', { name: 'Back' }).click();
+	} else {
+		await page.getByRole('banner').getByRole('link', { name: 'Meal plans' }).click();
+	}
+	await expect(page).toHaveURL(/\/plans$/);
+
+	// "Today …" on the card opens the plan at today.
+	await page
+		.getByRole('article', { name: busy })
+		.getByRole('link', { name: /^Today/ })
+		.click();
+	await expect(page).toHaveURL(new RegExp(`/plans/${busyId}#today$`));
+	await expect(page.locator('#today')).toBeInViewport();
+
+	// An empty today offers to plan it: the plan opens with the add sheet on today.
+	await page.goto('/plans');
+	await page
+		.getByRole('article', { name: 'My plan' })
+		.getByRole('link', { name: 'Plan today' })
+		.click();
+	await expect(page.getByRole('dialog', { name: 'Plan a meal' })).toBeVisible();
+	await expect(page).toHaveURL(/\/plans\/[^?]+#today$/);
+});
+
+test('unknown and invited-only plan links land on the overview', async ({ page }) => {
+	const { token, owner, guest, guestId } = await twoPeople(page);
+	const name = `Invited ${token}`;
+	const invited = await namedPlan(page, name, guestId);
+
+	// A plan the reader cannot see (here deleted): the overview, saying so, never a 404.
+	const gone = await namedPlan(page, `Gone ${token}`);
+	expect((await page.request.delete(`/api/v1/meal-plans/${gone}`)).ok()).toBe(true);
+	await page.goto(`/plans/${gone}`);
+	await expect(page).toHaveURL(/\/plans$/);
+	await expect(page.getByText('You no longer have access to this plan.')).toBeVisible();
+	await expect(page.getByRole('heading', { level: 2, name: 'Your plans' })).toBeVisible();
+
+	// A card gone stale under the open overview: one toast, and the card goes.
+	const stale = `Stale ${token}`;
+	const staleId = await namedPlan(page, stale);
+	await page.request.post(`/api/v1/meal-plans/${staleId}/entries`, { data: { title: 'Suppe' } });
+	await page.goto('/lists');
+	await page.goto('/plans');
+	const toast = page.getByText('You no longer have access to this plan.');
+	await expect(toast).toHaveCount(0);
+	expect((await page.request.delete(`/api/v1/meal-plans/${staleId}`)).ok()).toBe(true);
+	await page.getByRole('article', { name: stale }).getByRole('link', { name: stale }).click();
+	await expect(page).toHaveURL(/\/plans$/);
+	await expect(toast).toHaveCount(1);
+	await expect(page.getByRole('article', { name: stale })).toHaveCount(0);
+	// The tap left no second overview entry: one Back leaves the overview.
+	await page.goBack();
+	await expect(page).toHaveURL(/\/lists$/);
+
+	// Only invited: the overview under the invitation's card.
+	await switchTo(page, guest);
+	await page.goto(`/plans/${invited}`);
+	await expect(page).toHaveURL(/\/plans$/);
+	await expect(page.getByText(`${owner} invites you to the plan “${name}”`)).toBeVisible();
+	await expect(page.getByText('You no longer have access to this plan.')).toHaveCount(0);
 });
 
 // The week view. Entries are arranged through the API; what is tested is the page.
 
 type Plan = { id: string; entries: { id: string; title: string; day: string | null }[] };
+
+/** `YYYY-MM-DD` of the browser's today. */
+const today = () => new Date().toLocaleDateString('sv');
+
+/** Opens the signed-in person's own plan, and gives its id. */
+async function openOwn(page: Page): Promise<string> {
+	const id = await ownPlan(page);
+	await page.goto(`/plans/${id}`);
+	return id;
+}
 
 async function ownPlan(page: Page): Promise<string> {
 	const overview = (await (await page.request.get('/api/v1/meal-plans')).json()) as {
@@ -181,7 +257,7 @@ test('plans a recipe and a note on a day', async ({ page }) => {
 	await loginFresh(page);
 	const title = `Curry ${uniqueToken()}`;
 	await createRecipe(page, { ...loadFixture(1), title });
-	await page.goto('/week');
+	await openOwn(page);
 
 	// The empty week's button opens the sheet; the day is picked in it.
 	const sheet = await openDialog(
@@ -215,7 +291,7 @@ test('moves an entry to another day by menu', async ({ page }) => {
 	const title = `Klopse ${uniqueToken()}`;
 	const recipe = await createRecipe(page, { ...loadFixture(1), title });
 	await plan(page, { day: '2026-11-17', recipeId: recipe.id, servings: 7 });
-	await page.goto('/week');
+	await openOwn(page);
 
 	await day(page, 'Tuesday, November 17')
 		.getByRole('button', { name: `Actions for ${title}` })
@@ -249,7 +325,7 @@ test('a note typed fast and taken with Enter is the note, never a recipe', async
 	await page.clock.setFixedTime(new Date('2026-11-16T10:00:00'));
 	await loginFresh(page);
 	await createRecipe(page, { ...loadFixture(1), title: `Curry ${uniqueToken()}` });
-	await page.goto('/week');
+	await openOwn(page);
 	const sheet = await openDialog(
 		page,
 		page.getByRole('main').getByRole('button', { name: 'Plan a meal' }),
@@ -284,7 +360,7 @@ test('the keyboard stays on the week after a move or a removal', async ({ page, 
 	await plan(page, { day: '2026-11-17', title: 'Reste' });
 	await plan(page, { day: '2026-11-18', title: 'Suppe' });
 	await plan(page, { day: '2026-11-18', title: 'Brot' });
-	await page.goto('/week');
+	await openOwn(page);
 
 	// Moved: the focus is on the card's ⋯ in its new day.
 	await day(page, 'Tuesday, November 17')
@@ -317,7 +393,7 @@ test('the keyboard stays on the week after a move or a removal', async ({ page, 
 test('the phone’s "+" plans a meal on the week', async ({ page, isMobile }) => {
 	test.skip(!isMobile, 'the bottom nav');
 	await loginFresh(page);
-	await page.goto('/week');
+	await openOwn(page);
 	// The nav's "+", named by its label (the empty week's button has the words).
 	const plus = page.locator('button[aria-label="Plan a meal"]');
 	await expect(plus).toHaveAttribute('aria-expanded', 'false');
@@ -331,7 +407,7 @@ test('drags an entry from the tray to a day', async ({ page, isMobile }) => {
 	await loginFresh(page);
 	await plan(page, { title: 'Flammkuchen' });
 	await plan(page, { day: '2026-11-20', title: 'Pizza bestellen' });
-	await page.goto('/week');
+	await openOwn(page);
 
 	const card = tray(page).getByText('Flammkuchen');
 	const friday = day(page, 'Friday, November 20');
@@ -362,7 +438,7 @@ test('removes and undoes', async ({ page }) => {
 	await page.clock.setFixedTime(new Date('2026-11-16T10:00:00'));
 	await loginFresh(page);
 	await plan(page, { day: '2026-11-18', title: 'Reste vom Sonntag' });
-	await page.goto('/week');
+	await openOwn(page);
 	const wednesday = day(page, 'Wednesday, November 18');
 	await wednesday.getByRole('button', { name: 'Actions for Reste vom Sonntag' }).click();
 	await page.getByRole('menuitem', { name: 'Remove' }).click();
@@ -380,7 +456,7 @@ test('removing a listed recipe says the list lost it too', async ({ page }) => {
 	const pie = await createRecipe(page, { ...loadFixture(0), title: `Pie ${t}` });
 	await plan(page, { day: '2026-11-18', recipeId: pie.id });
 	await planOnList(page, await ownPlan(page), '2026-11-16', '2026-11-22', `Week ${t}`);
-	await page.goto('/week');
+	await openOwn(page);
 	const wednesday = day(page, 'Wednesday, November 18');
 	await wednesday.getByRole('button', { name: `Actions for Pie ${t}` }).click();
 	await page.getByRole('menuitem', { name: 'Remove' }).click();
@@ -394,7 +470,7 @@ test('collapses past days on a phone', async ({ page, isMobile }) => {
 	await plan(page, { day: '2026-11-16', title: 'Klopse' });
 	await plan(page, { day: '2026-11-17', title: 'Rouladen' });
 	await plan(page, { day: '2026-11-20', title: 'Spätzle' });
-	await page.goto('/week');
+	await openOwn(page);
 
 	const fold = page.getByRole('button', { name: /^Mon–Thu/ });
 	await expect(fold).toHaveAccessibleName('Mon–Thu · 2 entries');
@@ -414,7 +490,7 @@ test('pages weeks and keeps today marked', async ({ page }) => {
 	await page.clock.setFixedTime(new Date('2026-11-20T10:00:00'));
 	await loginFresh(page);
 	await plan(page, { day: '2026-11-21', title: 'Pizza bestellen' });
-	await page.goto('/week');
+	await openOwn(page);
 	const friday = day(page, 'Friday, November 20');
 	await expect(friday).toHaveAttribute('aria-current', 'date');
 	await expect(friday.getByText('Today')).toBeVisible();
@@ -459,7 +535,7 @@ test('puts the rest of the week on a new list without staples', async ({ page })
 		data: { name: 'salt', staple: true }
 	});
 	expect(staple.ok()).toBe(true);
-	await page.goto('/week');
+	await openOwn(page);
 
 	const dialog = await openDialog(page, toListButton(page), 'Put on the list');
 	// Today to Sunday; Monday is behind us.
@@ -512,7 +588,7 @@ test('second time adds only new entries', async ({ page }) => {
 	const pie = await createRecipe(page, { ...loadFixture(0), title: `Pie ${t}` });
 	const mash = await createRecipe(page, { ...loadFixture(2), title: `Mash ${t}` });
 	await plan(page, { day: '2026-11-17', recipeId: pie.id });
-	await page.goto('/week');
+	await openOwn(page);
 
 	let dialog = await openDialog(page, toListButton(page), 'Put on the list');
 	await dialog.getByRole('button', { name: 'Add 1 recipe' }).click();
@@ -544,7 +620,7 @@ test('a changed range waits for its recipes before it goes on a list', async ({ 
 	const mash = await createRecipe(page, { ...loadFixture(2), title: `Mash ${t}` });
 	await plan(page, { day: '2026-11-18', recipeId: pie.id });
 	await plan(page, { day: '2026-11-23', recipeId: mash.id, servings: 4 });
-	await page.goto('/week');
+	await openOwn(page);
 
 	const dialog = await openDialog(page, toListButton(page), 'Put on the list');
 	const submit = dialog.getByRole('button', { name: 'Add 1 recipe' });
@@ -625,7 +701,7 @@ test('plans a recipe from its page for Wednesday at 6 servings', async ({ page }
 	await expect(dialog).toBeHidden();
 
 	await page.getByRole('button', { name: 'Open week' }).click();
-	await expect(page).toHaveURL(/\/week\?plan=[^&]+&from=2026-11-16$/);
+	await expect(page).toHaveURL(/\/plans\/[^?]+$/);
 	await expect(
 		day(page, 'Wednesday, November 18').getByRole('link', { name: title })
 	).toHaveAttribute('href', `/recipes/${recipe.slug}?servings=6`);
@@ -633,7 +709,16 @@ test('plans a recipe from its page for Wednesday at 6 servings', async ({ page }
 
 // Named plans: made, shared, renamed, deleted and left like lists.
 
-const picker = (page: Page) => page.getByRole('button', { name: 'Plan', exact: true });
+/** The shown plan's name, the plan page's h1. */
+const planTitle = (page: Page) => page.getByRole('main').getByRole('heading', { level: 1 });
+
+/** A plan's card or chip on the overview, by the link that opens it. */
+const planLink = (page: Page, name: string) =>
+	page.getByRole('main').getByRole('link', { name: new RegExp(`^${name}`) });
+
+/** The plans overview, where a plan gone for the reader leads. */
+const overview = (page: Page) =>
+	page.getByRole('main').getByRole('heading', { level: 2, name: 'Your plans' });
 
 /** Two fresh people, `owner` signed in on `page`; the admin makes them. */
 async function twoPeople(page: Page) {
@@ -672,18 +757,17 @@ test('creates a named plan and invites someone', async ({ page, browser }, testI
 	test.skip(testInfo.project.name.startsWith('mobile'), 'two browsers; runs once, on desktop');
 	const { token, owner, guest } = await twoPeople(page);
 	const name = `Household ${token}`;
-	await page.goto('/week');
+	await page.goto('/plans');
 
-	// "New plan" is the picker's last row; the draft names it, Enter makes it.
-	await picker(page).click();
-	await page.getByRole('option', { name: 'Create a new plan' }).click();
-	await expect(page).toHaveURL(/\/week\/new$/);
+	// "New plan" is the overview's action; the draft names it, Enter makes it.
+	await page.getByRole('banner').getByRole('button', { name: 'New plan' }).click();
+	await expect(page).toHaveURL(/\/plans\/new$/);
 	const field = page.getByRole('textbox', { name: 'Name' });
 	await expect(field).toBeFocused();
 	await field.fill(name);
 	await field.press('Enter');
-	await expect(page).toHaveURL(/\/week\?plan=[^&]+$/);
-	await expect(picker(page)).toHaveText(name);
+	await expect(page).toHaveURL(/\/plans\/[^/?]+$/);
+	await expect(planTitle(page)).toHaveText(name);
 	// Created, the plan offers its sharing right away.
 	await expect(page.getByRole('button', { name: 'Share', exact: true })).toBeFocused();
 
@@ -691,8 +775,8 @@ test('creates a named plan and invites someone', async ({ page, browser }, testI
 	const other = await signedInAs(browser, guest);
 	try {
 		const them = other.page;
-		await them.goto('/week');
-		await expect(picker(them)).toHaveText('My plan');
+		await them.goto('/plans');
+		await expect(overview(them)).toBeVisible();
 		await expect(them.getByText(/invites you to the plan/)).toHaveCount(0);
 
 		await page.getByRole('button', { name: 'Share', exact: true }).click();
@@ -707,13 +791,13 @@ test('creates a named plan and invites someone', async ({ page, browser }, testI
 		await dialog.getByRole('button', { name: 'Done' }).filter({ visible: true }).first().click();
 		await expect(dialog).toBeHidden();
 
-		// Back on the tab, the open week shows the new invitation's card.
+		// Back on the tab, the open overview shows the new invitation's card.
 		await them.evaluate(() => document.dispatchEvent(new Event('visibilitychange')));
 		await expect(side(them, 'Week')).toHaveAccessibleName(/1 invitation/);
 		await expect(them.getByText(`${owner} invites you to the plan “${name}”`)).toBeVisible();
 		await them.getByRole('button', { name: 'Accept' }).click();
-		await expect(picker(them)).toHaveText(name);
-		await expect(side(them, 'Week')).not.toHaveAccessibleName(/invitation/);
+		await expect(planTitle(them)).toHaveText(name);
+		await expect(placeLink(them)).not.toHaveAccessibleName(/invitation/);
 		await expect(them.getByRole('button', { name: 'Share', exact: true })).toHaveCount(0);
 
 		// One plans, the other sees it without a reload.
@@ -730,15 +814,16 @@ test('creates a named plan and invites someone', async ({ page, browser }, testI
 
 		// The share button took the focus once, on arrival: a change arriving
 		// later (here the guest's, over the stream) leaves the focus where it is.
-		await picker(page).focus();
-		const id = new URL(page.url()).searchParams.get('plan');
+		const menu = page.getByRole('main').getByRole('button', { name: 'More actions' });
+		await menu.focus();
+		const id = new URL(page.url()).pathname.split('/').pop();
 		const added = await them.request.post(`/api/v1/meal-plans/${id}/entries`, {
 			data: { title: 'Suppe' }
 		});
 		expect(added.ok()).toBe(true);
 		await expect(page.getByRole('main').getByText('Suppe')).toBeVisible();
 		await page.waitForTimeout(300);
-		await expect(picker(page)).toBeFocused();
+		await expect(menu).toBeFocused();
 
 		// The faces show who is on it.
 		await them.getByRole('button', { name: '2 people on this plan' }).click();
@@ -746,7 +831,7 @@ test('creates a named plan and invites someone', async ({ page, browser }, testI
 		await expect(people.getByText('You · can plan and change')).toBeVisible();
 		await people.getByRole('button', { name: 'Done' }).last().click();
 
-		// Removed by the owner, the open week says so and falls back to My plan.
+		// Removed by the owner, the open plan says so and goes to the overview.
 		await page.getByRole('button', { name: 'Share', exact: true }).click();
 		await page
 			.getByRole('dialog')
@@ -754,7 +839,8 @@ test('creates a named plan and invites someone', async ({ page, browser }, testI
 			.click();
 		await expect(page.getByRole('dialog').getByText(guest)).toHaveCount(0);
 		await expect(them.getByText('You no longer have access to this plan.')).toBeVisible();
-		await expect(picker(them)).toHaveText('My plan');
+		await expect(them).toHaveURL(/\/plans$/);
+		await expect(overview(them)).toBeVisible();
 	} finally {
 		await other.context.close();
 	}
@@ -762,8 +848,8 @@ test('creates a named plan and invites someone', async ({ page, browser }, testI
 
 test('personal plan has no share or rename', async ({ page }) => {
 	await loginFresh(page);
-	await page.goto('/week');
-	await expect(picker(page)).toHaveText('My plan');
+	await openOwn(page);
+	await expect(planTitle(page)).toHaveText('My plan');
 	const main = page.getByRole('main');
 	await expect(main.getByRole('button', { name: 'Share', exact: true })).toHaveCount(0);
 	// Its ⋯ holds only the calendar, the same feed every plan offers.
@@ -780,7 +866,10 @@ test('the owner renames and deletes a plan', async ({ page }) => {
 	await loginFresh(page);
 	const name = `Holiday ${uniqueToken()}`;
 	const id = await namedPlan(page, name);
-	await page.goto(`/week?plan=${id}`);
+	// Opened from the overview, so Back after the delete has somewhere to go.
+	await page.goto('/plans');
+	await planLink(page, name).click();
+	await expect(page).toHaveURL(new RegExp(`/plans/${id}$`));
 
 	await page.getByRole('main').getByRole('button', { name: 'More actions' }).click();
 	await expect(page.getByRole('menuitem')).toHaveText([
@@ -793,19 +882,38 @@ test('the owner renames and deletes a plan', async ({ page }) => {
 	const rename = page.getByRole('dialog', { name: 'Rename' });
 	await rename.getByLabel('Name').fill(`${name} 2`);
 	await rename.getByRole('button', { name: 'Save' }).click();
-	await expect(picker(page)).toHaveText(`${name} 2`);
-	await picker(page).click();
-	await expect(page.getByRole('option', { name: `${name} 2` })).toBeVisible();
-	await page.keyboard.press('Escape');
+	await expect(planTitle(page)).toHaveText(`${name} 2`);
 
 	await page.getByRole('main').getByRole('button', { name: 'More actions' }).click();
 	await page.getByRole('menuitem', { name: 'Delete plan' }).click();
 	await page.getByRole('dialog').getByRole('button', { name: 'Delete' }).click();
 	await expect(page.getByText(`“${name} 2” deleted`)).toBeVisible();
-	await expect(picker(page)).toHaveText('My plan');
-	await expect(picker(page)).toBeFocused();
-	await picker(page).click();
-	await expect(page.getByRole('option', { name: `${name} 2` })).toHaveCount(0);
+	// Opened from the overview, the plan goes back to it, focus on its heading.
+	await expect(page).toHaveURL(/\/plans$/);
+	await expect(overview(page)).toBeFocused();
+	await expect(planLink(page, `${name} 2`)).toHaveCount(0);
+	// The deleted plan left the history: Back never reopens it.
+	await page.goBack();
+	await expect(page).not.toHaveURL(new RegExp(id));
+	await page.waitForTimeout(300);
+	await expect(page.getByText('You no longer have access to this plan.')).toHaveCount(0);
+});
+
+test('a plan deleted when opened directly replaces itself with the overview', async ({ page }) => {
+	await loginFresh(page);
+	const name = `Direct ${uniqueToken()}`;
+	const id = await namedPlan(page, name);
+	await page.goto('/lists');
+	await page.goto(`/plans/${id}`);
+	await page.getByRole('main').getByRole('button', { name: 'More actions' }).click();
+	await page.getByRole('menuitem', { name: 'Delete plan' }).click();
+	await page.getByRole('dialog').getByRole('button', { name: 'Delete' }).click();
+	await expect(page).toHaveURL(/\/plans$/);
+	await expect(overview(page)).toBeFocused();
+	await page.goBack();
+	await expect(page).toHaveURL(/\/lists$/);
+	await page.waitForTimeout(300);
+	await expect(page.getByText('You no longer have access to this plan.')).toHaveCount(0);
 });
 
 test('member leaves a plan', async ({ page }) => {
@@ -815,8 +923,9 @@ test('member leaves a plan', async ({ page }) => {
 	await switchTo(page, guest);
 	const accepted = await page.request.post(`/api/v1/meal-plans/${id}/membership`);
 	expect(accepted.ok()).toBe(true);
-	await page.goto(`/week?plan=${id}`);
-	await expect(picker(page)).toHaveText(name);
+	await page.goto('/plans');
+	await planLink(page, name).click();
+	await expect(planTitle(page)).toHaveText(name);
 
 	// A member renames and leaves; sharing and deleting are the owner's.
 	await expect(page.getByRole('main').getByRole('button', { name: 'Share' })).toHaveCount(0);
@@ -830,11 +939,12 @@ test('member leaves a plan', async ({ page }) => {
 	const confirm = page.getByRole('dialog', { name: `Leave the plan “${name}”?` });
 	await confirm.getByRole('button', { name: 'Leave plan' }).click();
 	await expect(page.getByText(`You left “${name}”`)).toBeVisible();
-	await expect(picker(page)).toHaveText('My plan');
-	await expect(picker(page)).toBeFocused();
-	await picker(page).click();
-	await expect(page.getByRole('option', { name })).toHaveCount(0);
-	await page.keyboard.press('Escape');
+	await expect(page).toHaveURL(/\/plans$/);
+	await expect(planLink(page, name)).toHaveCount(0);
+	await page.goBack();
+	await expect(page).not.toHaveURL(new RegExp(id));
+	await page.waitForTimeout(300);
+	await expect(page.getByText('You no longer have access to this plan.')).toHaveCount(0);
 });
 
 test('invitation dot shows on the place and the Woche segment', async ({ page }) => {
@@ -899,7 +1009,7 @@ test('list shows the planned day and links back to the week', async ({ page }) =
 	await expect(main.getByRole('heading', { level: 2, name: `Wed 25 · Mash ${t}` })).toBeVisible();
 
 	await main.getByRole('link', { name: 'from the week' }).click();
-	await expect(page).toHaveURL(`/week?plan=${planId}&from=2026-11-16`);
+	await expect(page).toHaveURL(`/plans/${planId}`);
 	await expect(page.getByText(`Pie ${t}`).first()).toBeVisible();
 });
 
@@ -949,7 +1059,7 @@ test('creates and replaces the calendar link', async ({ page }) => {
 		.context()
 		.grantPermissions(['clipboard-read', 'clipboard-write'])
 		.catch(() => {});
-	await page.goto('/week');
+	await openOwn(page);
 
 	const open = async () => {
 		await page.getByRole('main').getByRole('button', { name: 'More actions' }).click();

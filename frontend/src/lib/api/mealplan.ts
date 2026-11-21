@@ -80,6 +80,10 @@ export type WeekPlan = PlanSummary & {
 	unlisted: number;
 	/** As `MealPlan.lists` for the same week, the tray included. */
 	lists: LinkedList[];
+	/** Entries on the tray. */
+	tray: number;
+	/** Invitees still waiting; empty unless the reader made the plan. */
+	pending: ListPerson[];
 };
 
 export type PlanInvitation = {

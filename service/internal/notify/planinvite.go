@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"log/slog"
+	"net/url"
 
 	"github.com/s-frei/rezepte/service/internal/mail"
 	"github.com/s-frei/rezepte/service/internal/push"
@@ -68,6 +69,6 @@ func (s *Service) pushPlanInvite(ctx context.Context, planID, name string, invit
 		return
 	}
 	s.pusher.SendToUser(ctx, invitee.ID, push.Message{
-		Kind: string(KindPlanInvite), Title: title, Body: body, URL: "/week?plan=" + planID, Tag: "plan-invite:" + planID, Icon: s.markURL(inviter),
+		Kind: string(KindPlanInvite), Title: title, Body: body, URL: "/plans/" + url.PathEscape(planID), Tag: "plan-invite:" + planID, Icon: s.markURL(inviter),
 	})
 }

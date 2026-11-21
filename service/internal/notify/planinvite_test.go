@@ -34,7 +34,7 @@ func TestPlanInviteNotifiesInvitee(t *testing.T) {
 	case got := <-p.ch:
 		f.face(t, &got.m, olga)
 		want := push.Message{Kind: "plan_invite", Title: "Wochenplan", Body: olga.DisplayName + " lädt dich zu „Familienwoche“ ein",
-			URL: "/week?plan=" + id, Tag: "plan-invite:" + id}
+			URL: "/plans/" + id, Tag: "plan-invite:" + id}
 		if got.to != mia.ID || got.m != want {
 			t.Errorf("pushed %+v, want %+v to mia", got, want)
 		}

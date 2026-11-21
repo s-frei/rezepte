@@ -16,7 +16,7 @@ describe('navPlace', () => {
 	});
 
 	it('marks the week as the same place as the lists', () => {
-		expect(navPlace('/week', false)).toBe('lists');
+		expect(navPlace('/plans', false)).toBe('lists');
 	});
 
 	it('marks every settings page as You', () => {

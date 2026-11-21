@@ -1,4 +1,5 @@
 <script lang="ts">
+	import ChevronLeft from '@lucide/svelte/icons/chevron-left';
 	import Import from '@lucide/svelte/icons/import';
 	import Plus from '@lucide/svelte/icons/plus';
 	import { flushSync } from 'svelte';
@@ -21,7 +22,7 @@
 	const showNav = $derived(place !== null);
 	// The lists and the week are named by their own segment already.
 	const breadcrumb = $derived(
-		page.route.id === '/lists' || page.route.id === '/week' ? undefined : shell.breadcrumb
+		page.route.id === '/lists' || page.route.id === '/plans' ? undefined : shell.breadcrumb
 	);
 	// The actions make something new where the segments say you are: a
 	// recipe, or on the lists a list - as the phone's "+" does. The week
@@ -84,7 +85,16 @@
 		{#if breadcrumb}
 			<!-- Beside the segments it only fits from lg. -->
 			<span class="truncate text-body-sm text-text-muted {showNav ? 'max-lg:hidden' : ''}">
-				{breadcrumb}
+				{#if shell.parent}
+					<!-- Narrower than xl the parent alone, as a way back: the page's
+					     heading names the rest, and a cut name would only repeat it. -->
+					<a
+						href={shell.parent.href}
+						class="inline-flex items-center gap-0.5 rounded-sm underline-offset-2 hover:text-text hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+						><ChevronLeft class="size-4 shrink-0 xl:hidden" aria-hidden="true" />{shell.parent
+							.label}</a
+					><span class="max-xl:hidden"><span class="px-1">·</span>{breadcrumb}</span>
+				{:else}{breadcrumb}{/if}
 			</span>
 		{/if}
 	</div>
