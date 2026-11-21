@@ -1,3 +1,4 @@
+import { getLocalTimeZone, today } from '@internationalized/date';
 import { api } from './client';
 import type { ListPerson } from './shopping';
 
@@ -46,7 +47,7 @@ export type MealPlan = {
 	to: string;
 	/** The tray first, then by day and position. */
 	entries: PlanEntry[];
-	/** Recipe entries on no list the reader can access. */
+	/** Recipe entries on no list the reader can access, on the tray or on the reader's today or later (`span` sends it). */
 	unlisted: number;
 	/** The accessible lists the entries are on, most entries first. */
 	lists: LinkedList[];
@@ -78,7 +79,7 @@ export type WeekEntry = {
 export type WeekPlan = PlanSummary & {
 	/** The week's entries on a day, by day and position; the tray is left out. */
 	entries: WeekEntry[];
-	/** Recipe entries of the week and the tray on no list the reader can access, as `MealPlan.unlisted`. */
+	/** Recipe entries of the week from today on and the tray on no list the reader can access, as `MealPlan.unlisted`. */
 	unlisted: number;
 	/** As `MealPlan.lists` for the same week, the tray included. */
 	lists: LinkedList[];
@@ -118,7 +119,9 @@ export type PlanRange = { from: string; to: string };
 
 const base = (id: string) => `/meal-plans/${encodeURIComponent(id)}`;
 const entry = (id: string, entryId: string) => `${base(id)}/entries/${encodeURIComponent(entryId)}`;
-const span = ({ from, to }: PlanRange) => `?${new URLSearchParams({ from, to })}`;
+/** The range and the reader's today, which decides the past days `unlisted` leaves out. */
+const span = ({ from, to }: PlanRange) =>
+	`?${new URLSearchParams({ from, to, today: today(getLocalTimeZone()).toString() })}`;
 const send = <T>(path: string, method: string, body?: unknown) =>
 	api<T>(path, { method, body: body === undefined ? undefined : JSON.stringify(body) });
 
@@ -128,7 +131,7 @@ export const listPlans = () =>
 /**
  * Every plan of the reader's with `range` of it, and the invitations. Pass the
  * reader's own week (`today(getLocalTimeZone())`): left out, the server
- * picks the current week in its own time zone.
+ * picks the current week in its own time zone. `span` adds the reader's today.
  */
 /** `redirect: false` for the overview's load, whose page redirects on a 401 itself (`api`). */
 export const getPlansWeek = (range: PlanRange, options?: { redirect?: boolean }) =>

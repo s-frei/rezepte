@@ -32,6 +32,8 @@ type (
 	Range struct {
 		From string `query:"from" format:"date" doc:"First day (YYYY-MM-DD) of the entries to answer with; with to left out too, the current week"`
 		To   string `query:"to" format:"date" doc:"Last day (YYYY-MM-DD), inclusive, at most 62 days after from"`
+		// Today is the reader's date: unlisted counts no day before it.
+		Today string `query:"today" format:"date" doc:"The reader's today (YYYY-MM-DD): unlisted leaves out the days before it; left out, today in the server's time zone"`
 	}
 	planNameBody struct {
 		Name string `json:"name" minLength:"1" maxLength:"80" doc:"Plan name; surrounding whitespace is trimmed"`
@@ -213,7 +215,7 @@ func Register(api huma.API, svc *Service) {
 	}
 	// mutation wraps the common shape: authenticate, resolve the range, call,
 	// map errors.
-	mutation := func(ctx context.Context, r Range, field string, f func(uid, from, to string) (Plan, error)) (*planOut, error) {
+	mutation := func(ctx context.Context, r Range, field string, f func(ctx context.Context, uid, from, to string) (Plan, error)) (*planOut, error) {
 		uid, err := auth.CurrentUserID(ctx)
 		if err != nil {
 			return nil, err
@@ -222,7 +224,7 @@ func Register(api huma.API, svc *Service) {
 		if err != nil {
 			return nil, err
 		}
-		p, err := f(uid, from, to)
+		p, err := f(WithToday(ctx, r.Today), uid, from, to)
 		if err != nil {
 			return nil, fail(err, field)
 		}
@@ -261,7 +263,7 @@ func Register(api huma.API, svc *Service) {
 		})
 
 	plansWeek := reader(op("meal-plans-week", http.MethodGet, "/api/v1/meal-plans/week", "Every plan of the caller's with a week of it", http.StatusOK, 422))
-	plansWeek.Description = "The plans as list-meal-plans orders them, each with the entries on the days of the range, the lists the caller can access that they and the tray are on, and how many recipe entries are on none; and the pending invitations. One request for the plans page, however many plans. Left out, the range is the current week in the server's time zone, so a client passes its own."
+	plansWeek.Description = "The plans as list-meal-plans orders them, each with the entries on the days of the range, the lists the caller can access that they and the tray are on, and how many recipe entries are on none; and the pending invitations. One request for the plans page, however many plans. Left out, the range is the current week in the server's time zone, so a client passes its own; it passes its today too, since unlisted leaves out the days before it."
 	huma.Register(api, plansWeek, func(ctx context.Context, in *Range) (*weekOut, error) {
 		uid, err := auth.CurrentUserID(ctx)
 		if err != nil {
@@ -271,7 +273,7 @@ func Register(api huma.API, svc *Service) {
 		if err != nil {
 			return nil, err
 		}
-		plans, invs, err := svc.PlansWeek(ctx, uid, from, to)
+		plans, invs, err := svc.PlansWeek(WithToday(ctx, in.Today), uid, from, to)
 		if err != nil {
 			return nil, fail(err, "")
 		}
@@ -280,7 +282,7 @@ func Register(api huma.API, svc *Service) {
 
 	huma.Register(api, op("create-meal-plan", http.MethodPost, "/api/v1/meal-plans", "Create a shared meal plan", http.StatusCreated, 422),
 		func(ctx context.Context, in *createIn) (*planOut, error) {
-			return mutation(ctx, in.Range, "name", func(uid, from, to string) (Plan, error) {
+			return mutation(ctx, in.Range, "name", func(ctx context.Context, uid, from, to string) (Plan, error) {
 				p, err := svc.Create(ctx, uid, in.Body.Name)
 				return inRange(ctx, uid, from, to, p, err)
 			})
@@ -288,7 +290,9 @@ func Register(api huma.API, svc *Service) {
 
 	huma.Register(api, reader(op("get-meal-plan", http.MethodGet, "/api/v1/meal-plans/{id}", "Get a meal plan for a range of days", http.StatusOK, 404, 422)),
 		func(ctx context.Context, in *planIn) (*planOut, error) {
-			return mutation(ctx, in.Range, "", func(uid, from, to string) (Plan, error) { return svc.Get(ctx, uid, in.ID, from, to) })
+			return mutation(ctx, in.Range, "", func(ctx context.Context, uid, from, to string) (Plan, error) {
+				return svc.Get(ctx, uid, in.ID, from, to)
+			})
 		})
 
 	stream := reader(op("stream-meal-plan", http.MethodGet, "/api/v1/meal-plans/{id}/events", "Follow a meal plan's changes", http.StatusOK, 404))
@@ -313,7 +317,7 @@ func Register(api huma.API, svc *Service) {
 
 	huma.Register(api, op("rename-meal-plan", http.MethodPatch, "/api/v1/meal-plans/{id}", "Rename a shared meal plan", http.StatusOK, 404, 422),
 		func(ctx context.Context, in *renameIn) (*planOut, error) {
-			return mutation(ctx, in.Range, "name", func(uid, from, to string) (Plan, error) {
+			return mutation(ctx, in.Range, "name", func(ctx context.Context, uid, from, to string) (Plan, error) {
 				p, err := svc.Rename(ctx, uid, in.ID, in.Body.Name)
 				return inRange(ctx, uid, from, to, p, err)
 			})
@@ -326,14 +330,14 @@ func Register(api huma.API, svc *Service) {
 
 	huma.Register(api, op("add-meal-plan-entry", http.MethodPost, "/api/v1/meal-plans/{id}/entries", "Plan a recipe or a free text", http.StatusOK, 404, 422),
 		func(ctx context.Context, in *addIn) (*planOut, error) {
-			return mutation(ctx, in.Range, "", func(uid, from, to string) (Plan, error) {
+			return mutation(ctx, in.Range, "", func(ctx context.Context, uid, from, to string) (Plan, error) {
 				return svc.Add(ctx, uid, in.ID, from, to, AddEntry(in.Body))
 			})
 		})
 
 	huma.Register(api, op("update-meal-plan-entry", http.MethodPatch, "/api/v1/meal-plans/{id}/entries/{entryId}", "Move an entry or change its servings", http.StatusOK, 404, 422),
 		func(ctx context.Context, in *patchEntryIn) (*planOut, error) {
-			return mutation(ctx, in.Range, "", func(uid, from, to string) (Plan, error) {
+			return mutation(ctx, in.Range, "", func(ctx context.Context, uid, from, to string) (Plan, error) {
 				b := in.Body
 				return svc.Update(ctx, uid, in.ID, in.EntryID, from, to, EntryChange{Moved: b.Day.Sent, Day: b.Day.Value, Position: b.Position, Servings: b.Servings})
 			})
@@ -341,14 +345,14 @@ func Register(api huma.API, svc *Service) {
 
 	huma.Register(api, op("remove-meal-plan-entry", http.MethodDelete, "/api/v1/meal-plans/{id}/entries/{entryId}", "Remove an entry, restorable for a day", http.StatusOK, 404, 422),
 		func(ctx context.Context, in *entryIn) (*planOut, error) {
-			return mutation(ctx, in.Range, "", func(uid, from, to string) (Plan, error) {
+			return mutation(ctx, in.Range, "", func(ctx context.Context, uid, from, to string) (Plan, error) {
 				return svc.Remove(ctx, uid, in.ID, in.EntryID, from, to)
 			})
 		})
 
 	huma.Register(api, op("restore-meal-plan-entry", http.MethodPost, "/api/v1/meal-plans/{id}/entries/{entryId}/restore", "Bring back a removed entry", http.StatusOK, 404, 422),
 		func(ctx context.Context, in *entryIn) (*planOut, error) {
-			return mutation(ctx, in.Range, "", func(uid, from, to string) (Plan, error) {
+			return mutation(ctx, in.Range, "", func(ctx context.Context, uid, from, to string) (Plan, error) {
 				return svc.Restore(ctx, uid, in.ID, in.EntryID, from, to)
 			})
 		})
@@ -359,7 +363,7 @@ func Register(api huma.API, svc *Service) {
 	huma.Register(api, toList,
 		func(ctx context.Context, in *shoppingIn) (*toListOut, error) {
 			var listID string
-			out, err := mutation(ctx, in.Range, "picks", func(uid, from, to string) (Plan, error) {
+			out, err := mutation(ctx, in.Range, "picks", func(ctx context.Context, uid, from, to string) (Plan, error) {
 				t := ToList{ListID: in.Body.ListID, NewListName: in.Body.NewListName, AlsoListed: in.Body.AlsoListed}
 				for _, p := range in.Body.Picks {
 					t.Picks = append(t.Picks, ToListPick{EntryID: p.EntryID, Include: p.Ingredients})
@@ -426,7 +430,7 @@ func Register(api huma.API, svc *Service) {
 
 	huma.Register(api, op("invite-to-meal-plan", http.MethodPost, "/api/v1/meal-plans/{id}/invitations", "Invite a person to a plan", http.StatusOK, 404, 422),
 		func(ctx context.Context, in *inviteIn) (*planOut, error) {
-			return mutation(ctx, in.Range, "userId", func(uid, from, to string) (Plan, error) {
+			return mutation(ctx, in.Range, "userId", func(ctx context.Context, uid, from, to string) (Plan, error) {
 				p, err := svc.Invite(ctx, uid, in.ID, in.Body.UserID)
 				return inRange(ctx, uid, from, to, p, err)
 			})
@@ -434,7 +438,7 @@ func Register(api huma.API, svc *Service) {
 
 	huma.Register(api, op("remove-meal-plan-member", http.MethodDelete, "/api/v1/meal-plans/{id}/members/{userId}", "Remove a member or withdraw an invitation", http.StatusOK, 404),
 		func(ctx context.Context, in *memberIn) (*planOut, error) {
-			return mutation(ctx, in.Range, "", func(uid, from, to string) (Plan, error) {
+			return mutation(ctx, in.Range, "", func(ctx context.Context, uid, from, to string) (Plan, error) {
 				p, err := svc.RemoveMember(ctx, uid, in.ID, in.UserID)
 				return inRange(ctx, uid, from, to, p, err)
 			})
@@ -442,7 +446,7 @@ func Register(api huma.API, svc *Service) {
 
 	huma.Register(api, op("accept-meal-plan-invitation", http.MethodPost, "/api/v1/meal-plans/{id}/membership", "Accept an invitation to a plan", http.StatusOK, 404),
 		func(ctx context.Context, in *planIn) (*planOut, error) {
-			return mutation(ctx, in.Range, "", func(uid, from, to string) (Plan, error) {
+			return mutation(ctx, in.Range, "", func(ctx context.Context, uid, from, to string) (Plan, error) {
 				p, err := svc.Accept(ctx, uid, in.ID)
 				return inRange(ctx, uid, from, to, p, err)
 			})

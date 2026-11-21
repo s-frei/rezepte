@@ -403,7 +403,7 @@ func TestToListOverHTTP(t *testing.T) {
 	a.send(t, member, http.MethodPost, path+"/shopping"+week, map[string]any{"listId": out.ListID, "picks": pick}, http.StatusNotFound, nil)
 	a.send(t, member, http.MethodPost, path+"/shopping"+week, map[string]any{"listId": out.ListID, "newListName": "x", "picks": pick}, http.StatusUnprocessableEntity, nil)
 	// Ben's own plan view does not show anna's list.
-	if got := a.call(t, member, http.MethodGet, path+week, nil, http.StatusOK); len(got.Lists) != 0 || len(got.Entries[0].Lists) != 0 || got.Unlisted != 1 {
+	if got := a.call(t, member, http.MethodGet, path+week+"&today="+mon, nil, http.StatusOK); len(got.Lists) != 0 || len(got.Entries[0].Lists) != 0 || got.Unlisted != 1 {
 		t.Fatalf("ben sees %+v / %+v, unlisted %d", got.Lists, got.Entries[0].Lists, got.Unlisted)
 	}
 }
@@ -436,6 +436,22 @@ func TestPlansWeekOverHTTP(t *testing.T) {
 		t.Fatalf("lists token reads the plans week: %d %s", rec.Code, rec.Body.String())
 	}
 	a.send(t, owner, http.MethodGet, plans+"/week?from="+mon+"&to=2027-03-01", nil, http.StatusUnprocessableEntity, nil)
+
+	// The reader's today decides which days are past, in both reads.
+	r := a.dal(t)
+	a.call(t, owner, http.MethodPost, plans+"/"+id+"/entries"+week, map[string]any{"day": mon, "recipeId": r.ID}, http.StatusOK)
+	for today, want := range map[string]int{mon: 1, sun: 0} {
+		a.send(t, owner, http.MethodGet, plans+"/week"+week+"&today="+today, nil, http.StatusOK, &out)
+		for _, p := range out.Plans {
+			if p.ID == id && p.Unlisted != want {
+				t.Fatalf("plans week on %s: unlisted %d, want %d", today, p.Unlisted, want)
+			}
+		}
+		if got := a.call(t, owner, http.MethodGet, plans+"/"+id+week+"&today="+today, nil, http.StatusOK); got.Unlisted != want {
+			t.Fatalf("plan on %s: unlisted %d, want %d", today, got.Unlisted, want)
+		}
+	}
+	a.send(t, owner, http.MethodGet, plans+"/week"+week+"&today=morgen", nil, http.StatusUnprocessableEntity, nil)
 }
 
 // Over HTTP the bulk call keeps skipping an entry already on one of the

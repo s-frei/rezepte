@@ -751,6 +751,26 @@ test('the dialog takes the tray along when it holds recipes on no list', async (
 	await expect(dialog.getByRole('button', { name: 'Add 1 recipe' })).toBeEnabled();
 });
 
+test('the badge counts what the dialog picks: no past day', async ({ page }) => {
+	await page.clock.setFixedTime(new Date('2026-11-18T10:00:00'));
+	await loginFresh(page);
+	const t = uniqueToken();
+	const pie = await createRecipe(page, { ...loadFixture(0), title: `Pie ${t}` });
+	const mash = await createRecipe(page, { ...loadFixture(2), title: `Mash ${t}` });
+	await plan(page, { day: '2026-11-17', recipeId: pie.id });
+	await plan(page, { day: '2026-11-20', recipeId: mash.id });
+	await page.goto('/plans');
+	await expect(page.getByText('1 not on a list yet')).toBeVisible();
+	await openOwn(page);
+	await expect(toListButton(page)).toHaveAccessibleName('Put on the list, 1 recipe on no list');
+	// Only the coming day's card says so; yesterday's is done.
+	await expect(page.getByRole('main').getByText('On no list')).toHaveCount(1);
+	const dialog = await openDialog(page, toListButton(page), 'Put on the list');
+	await expect(dialog.getByText(`Mash ${t}`)).toBeVisible();
+	await expect(dialog.getByText(`Pie ${t}`)).toHaveCount(0);
+	await expect(dialog.getByRole('button', { name: 'Add 1 recipe' })).toBeEnabled();
+});
+
 test('second time adds only new entries', async ({ page }) => {
 	await page.clock.setFixedTime(new Date('2026-11-16T10:00:00'));
 	await loginFresh(page);

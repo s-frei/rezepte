@@ -1,6 +1,9 @@
 package mealplan
 
-import "time"
+import (
+	"context"
+	"time"
+)
 
 const (
 	dayLayout = "2006-01-02"
@@ -46,4 +49,32 @@ func checkRange(from, to string) error {
 func week(now time.Time) (from, to string) {
 	mon := now.AddDate(0, 0, -((int(now.Weekday()) + 6) % 7))
 	return mon.Format(dayLayout), mon.AddDate(0, 0, 6).Format(dayLayout)
+}
+
+type todayKey struct{}
+
+// WithToday makes day (YYYY-MM-DD) the reader's today for the plan reads
+// under ctx: the handlers take it from the client's today query, since the
+// reader's date, not the server's, decides which days are past.
+func WithToday(ctx context.Context, day string) context.Context {
+	if day == "" {
+		return ctx
+	}
+	return context.WithValue(ctx, todayKey{}, day)
+}
+
+// today is the reader's today set by WithToday, else today in the server's
+// time zone (MCP and API callers that leave it out).
+func (s *Service) today(ctx context.Context) string {
+	if day, ok := ctx.Value(todayKey{}).(string); ok {
+		return day
+	}
+	return s.now().Format(dayLayout)
+}
+
+// unlisted is the one rule behind Plan.Unlisted and WeekPlan.Unlisted: a
+// recipe entry on none of the reader's lists, on the tray (day nil) or on
+// today or later. A past day never counts; there is nothing left to shop for.
+func unlisted(day, recipeID *string, lists int, today string) bool {
+	return recipeID != nil && lists == 0 && (day == nil || *day >= today)
 }

@@ -189,10 +189,10 @@ func (s *Service) Get(ctx context.Context, userID, id, from, to string) (Plan, e
 	if err := checkRange(from, to); err != nil {
 		return Plan{}, err
 	}
-	return get(ctx, s.q, userID, id, from, to)
+	return get(ctx, s.q, userID, id, from, to, s.today(ctx))
 }
 
-func get(ctx context.Context, q *sqlc.Queries, userID, id, from, to string) (Plan, error) {
+func get(ctx context.Context, q *sqlc.Queries, userID, id, from, to, today string) (Plan, error) {
 	row, err := q.GetMealPlan(ctx, sqlc.GetMealPlanParams{ID: id, UserID: userID})
 	if errors.Is(err, sql.ErrNoRows) {
 		return Plan{}, ErrNotFound
@@ -242,7 +242,7 @@ func get(ctx context.Context, q *sqlc.Queries, userID, id, from, to string) (Pla
 			c := person(*r.CreatedBy, *r.CreatorName, *r.CreatorColor, r.CreatorAvatarID)
 			e.CreatedBy = &c
 		}
-		if e.RecipeID != nil && len(e.Lists) == 0 {
+		if unlisted(e.Day, e.RecipeID, len(e.Lists), today) {
 			p.Unlisted++
 		}
 		perEntry = append(perEntry, e.Lists)
@@ -306,6 +306,7 @@ func (s *Service) PlansWeek(ctx context.Context, userID, from, to string) ([]Wee
 			byEntry[*l.PlanEntryID] = append(byEntry[*l.PlanEntryID], LinkedList{ID: l.ListID, Name: l.ListName, OpenCount: int(l.OpenCount)})
 		}
 	}
+	today := s.today(ctx)
 	byPlan := map[string]*WeekPlan{}
 	out := make([]WeekPlan, len(plans))
 	for i, p := range plans {
@@ -319,7 +320,7 @@ func (s *Service) PlansWeek(ctx context.Context, userID, from, to string) ([]Wee
 			continue
 		}
 		perEntry[r.PlanID] = append(perEntry[r.PlanID], byEntry[r.ID])
-		if r.RecipeID != nil && len(byEntry[r.ID]) == 0 {
+		if unlisted(r.Day, r.RecipeID, len(byEntry[r.ID]), today) {
 			w.Unlisted++
 		}
 		if r.Day == nil {
@@ -382,7 +383,7 @@ func (s *Service) mutate(ctx context.Context, userID, planID, from, to string, f
 		if err := fn(q); err != nil {
 			return err
 		}
-		p, err = get(ctx, q, userID, planID, from, to)
+		p, err = get(ctx, q, userID, planID, from, to, s.today(ctx))
 		return err
 	})
 	if err != nil {

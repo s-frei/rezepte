@@ -50,7 +50,8 @@ type Plan struct {
 	To      string   `json:"to"`
 	// Entries are the tray first, then by day and position.
 	Entries []PlanEntry `json:"entries"`
-	// Unlisted counts the recipe entries on no list the caller can access.
+	// Unlisted counts the recipe entries on no list the caller can access,
+	// on the tray or on the reader's today or later (see unlisted).
 	Unlisted int `json:"unlisted"`
 	// Lists are the accessible lists the entries are on, most entries first.
 	Lists []LinkedList `json:"lists"`
@@ -102,8 +103,8 @@ type WeekPlan struct {
 	// Entries are the span's entries on a day, by day and position; the
 	// tray is left out.
 	Entries []WeekEntry `json:"entries"`
-	// Unlisted counts the recipe entries of the span and the tray on no list
-	// the caller can access, as Plan.Unlisted.
+	// Unlisted counts the recipe entries of the span from the reader's today
+	// on and the tray on no list the caller can access, as Plan.Unlisted.
 	Unlisted int `json:"unlisted"`
 	// Lists are as Plan.Lists for the same span: the accessible lists its
 	// entries and the tray are on, most entries first.
