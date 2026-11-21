@@ -201,7 +201,7 @@ test('setup-link-dialog', async ({ page }, testInfo) => {
 	// Named, not just `getByRole('dialog')`: the create dialog it replaces can
 	// still be mid-close, and the two would otherwise both match.
 	await expect(page.getByRole('dialog', { name: `Setup link for ${username}` })).toBeVisible();
-	await expect(page.getByText(`Sent to ${address}`)).toBeVisible();
+	await expect(page.getByText(`On its way to ${address}`)).toBeVisible();
 	await shot(page, 'setup-link-dialog');
 	// Gone again, so the people screenshots of the shared instance never list it.
 	const users = (await (await page.request.get('/api/v1/users')).json()) as {
