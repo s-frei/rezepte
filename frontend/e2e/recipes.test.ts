@@ -111,9 +111,11 @@ test('searches recipes and reaches the no-results state', async ({ page }) => {
 	await search(page, `Shep ${token}`);
 	await expect(cards(page)).toHaveText([`Shepherd's Pie ${token}`]);
 
-	await search(page, 'zzz');
+	// Not a run of one letter: the suite's random tokens are base36 and,
+	// across a full run's recipes, now and then hold "zzz" themselves.
+	await search(page, 'qxjvw');
 	await expect(page.getByRole('heading', { name: 'Nothing found' })).toBeVisible();
-	await expect(page.getByText('No recipes found for "zzz".')).toBeVisible();
+	await expect(page.getByText('No recipes found for "qxjvw".')).toBeVisible();
 });
 
 // German on purpose: the search spells every term both ways, with umlauts
