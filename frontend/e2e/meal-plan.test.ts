@@ -66,6 +66,42 @@ test('place switch remembers the side', async ({ page }) => {
 	await expect(placeLink(page)).toHaveAttribute('href', '/lists');
 });
 
+test('the switch swaps the sides in place, without a reload or a fade', async ({ page }) => {
+	await loginFresh(page);
+	await page.goto('/lists');
+	await expect(side(page, 'Lists')).toBeChecked();
+	const documents: string[] = [];
+	page.on('request', (r) => {
+		if (r.resourceType() === 'document') documents.push(r.url());
+	});
+	// A reload would drop the marker; a page transition sets its attribute.
+	await page.evaluate(() => {
+		Object.assign(window, { stayed: true, faded: false });
+		new MutationObserver(() => {
+			if (document.documentElement.hasAttribute('data-page-transition'))
+				Object.assign(window, { faded: true });
+		}).observe(document.documentElement, { attributes: true });
+	});
+	for (const [to, url] of [
+		['Week', /\/plans$/],
+		['Lists', /\/lists$/],
+		['Week', /\/plans$/]
+	] as const) {
+		await side(page, to).click();
+		await expect(page).toHaveURL(url);
+		await expect(side(page, to)).toBeChecked();
+	}
+	// Back on the lists, the cards are there at once: no skeleton for a page just seen.
+	await side(page, 'Lists').click();
+	await expect(page.locator('main .bg-skeleton')).toHaveCount(0);
+	expect(documents).toEqual([]);
+	const seen = await page.evaluate(() => {
+		const w = window as unknown as { stayed?: boolean; faded?: boolean };
+		return { stayed: w.stayed, faded: w.faded };
+	});
+	expect(seen).toEqual({ stayed: true, faded: false });
+});
+
 test('the pager moves by weeks and Today comes back', async ({ page }) => {
 	await page.clock.setFixedTime(new Date('2026-11-20T10:00:00'));
 	await loginFresh(page);

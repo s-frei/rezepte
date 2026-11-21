@@ -3,6 +3,9 @@ import type { OnNavigate } from '$app/navigation';
 const OVERVIEW = '/';
 const DETAIL = '/recipes/[slug]';
 
+/** The two sides of the lists place, which swap without a transition. */
+const SIDES = ['/lists', '/plans'];
+
 /** The view-transition name the overview card's photo and the detail cover share. */
 const COVER = 'recipe-cover';
 
@@ -128,6 +131,9 @@ function transitionFor(navigation: OnNavigate, tapped: boolean): Promise<void> |
 		// stay, only the card beside them changes, and the whole page fading
 		// through read as a fresh load. The pill glides on its own.
 		(from.route.id.startsWith('/settings') && to.route.id.startsWith('/settings')) ||
+		// Lists and plans are the two sides of one place under one head: a
+		// fade took the title and the switch along and read as a reload.
+		(SIDES.includes(from.route.id) && SIDES.includes(to.route.id)) ||
 		window.matchMedia('(prefers-reduced-motion: reduce)').matches ||
 		(navigation.type === 'popstate' && !tapped && window.matchMedia('(pointer: coarse)').matches)
 	) {

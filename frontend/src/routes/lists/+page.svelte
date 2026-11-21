@@ -1,3 +1,12 @@
+<script lang="ts" module>
+	import type { listShoppingLists as read } from '#lib/api/shopping.js';
+
+	// The last answer, shown at once when the page mounts again (back from
+	// the plans side, say) while it loads afresh: no skeleton for a page
+	// just seen. Kept per person: a sign-in after a sign-out needs no reload.
+	let last: { user: string | undefined; body: Awaited<ReturnType<typeof read>> } | undefined;
+</script>
+
 <script lang="ts">
 	import Plus from '@lucide/svelte/icons/plus';
 	import { onMount, untrack } from 'svelte';
@@ -26,8 +35,9 @@
 	import shoppingArt from '$brand/lockups/rezepte-mascot-shopping.webp?url';
 	import { shell } from '#lib/shell.svelte.js';
 
-	let lists = $state<ShoppingSummary[]>();
-	let invited = $state<ShoppingInvitation[]>([]);
+	const seen = last?.user === session.user?.id ? last?.body : undefined;
+	let lists = $state<ShoppingSummary[] | undefined>(seen?.items);
+	let invited = $state<ShoppingInvitation[]>(seen?.invitations ?? []);
 	const mine = $derived(lists?.filter((l) => l.owner.id === session.user?.id) ?? []);
 	const shared = $derived(lists?.filter((l) => l.owner.id !== session.user?.id) ?? []);
 	let failed = $state(false);
@@ -36,6 +46,7 @@
 		failed = false;
 		try {
 			const body = await listShoppingLists();
+			last = { user: session.user?.id, body };
 			lists = body.items;
 			invited = body.invitations;
 			nav.lists = invited.length;
