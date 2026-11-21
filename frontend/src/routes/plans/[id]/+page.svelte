@@ -123,7 +123,7 @@
 	async function home() {
 		arrival.overview = true;
 		if (back()) return;
-		await goto(resolve('/plans'), { invalidateAll: true, replaceState: true });
+		await goto(resolve('/plans'), { refreshAll: true, replaceState: true });
 	}
 
 	// The plan went away under the page (deleted, or the reader removed):

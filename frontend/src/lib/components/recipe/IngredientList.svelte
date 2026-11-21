@@ -315,8 +315,9 @@
 {/if}
 
 <style>
-	/* The ticket's hover veil (`hover-tint`'s) is on the ticket, not under it:
-	   the button behind the mask shows only at the notches. */
+	/* The ticket's hover veil is on the ticket, not under it: the button
+	   behind the mask shows only at the notches. The same veil as the
+	   `hover-tint` utility in app.css; change both together. */
 	@media (hover: hover) {
 		button:hover > .ticket {
 			background-image: linear-gradient(color-mix(in oklab, currentColor 14%, transparent) 0 0);
