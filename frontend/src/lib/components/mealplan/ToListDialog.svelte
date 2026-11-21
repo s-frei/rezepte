@@ -21,12 +21,11 @@
 		type PlanEntry,
 		type PreviewEntry
 	} from '#lib/api/mealplan.js';
-	import { listShoppingLists, type ShoppingSummary } from '#lib/api/shopping.js';
+	import type { ShoppingSummary } from '#lib/api/shopping.js';
 	import Button from '#lib/components/ui/Button.svelte';
 	import Checkbox from '#lib/components/ui/Checkbox.svelte';
-	import Input from '#lib/components/ui/Input.svelte';
 	import ResponsiveDialog from '#lib/components/ui/ResponsiveDialog.svelte';
-	import Select from '#lib/components/ui/Select.svelte';
+	import ListPicker from '#lib/components/shopping/ListPicker.svelte';
 	import Switch from '#lib/components/ui/Switch.svelte';
 	import type { PlanState } from '#lib/mealplan/plan-state.svelte.js';
 	import { dayLabel, dayNames, spanLabel } from '#lib/mealplan/week.js';
@@ -75,10 +74,9 @@
 	let tray = $state(false);
 
 	let lists = $state<ShoppingSummary[]>([]);
-	let listsLoaded = $state(false);
 	let listsFailed = $state(false);
 	let listId = $state('');
-	let creating = $state(false);
+	let showNew = $state(false);
 	let newName = $state('');
 	/** The reader typed a name; until then it follows the days ("Einkauf 23.–29. Nov."). */
 	let named = $state(false);
@@ -101,11 +99,6 @@
 	const fresh = $derived(only ? entries : entries.filter((e) => !e.alreadyListed));
 	const listed = $derived(only ? [] : entries.filter((e) => e.alreadyListed));
 	const chosen = $derived(fresh.filter((e) => (picks.get(e.entryId)?.size ?? 0) > 0));
-	/** The lists to pick from: for one entry, those it is not on yet. */
-	const choices = $derived(
-		only ? byListName(lists.filter((l) => !only.lists.some((on) => on.id === l.id))) : lists
-	);
-	const showNew = $derived(creating || (listsLoaded && !listsFailed && choices.length === 0));
 	const canSubmit = $derived(
 		chosen.length > 0 &&
 			!listsFailed &&
@@ -172,44 +165,17 @@
 		span = { from, to: sunday };
 		calendar = { start: parseDate(from), end: parseDate(sunday) };
 		picking = false;
+		listId = '';
+		showNew = false;
 		// The tray's recipes on no list count in the button's badge: they are in from the start.
 		tray = !only && trayRecipes > 0;
-		creating = false;
 		named = false;
 		newName = m.plan_new_list_name({ span: spanLabel(from, sunday, locale) });
 		picks.clear();
 		expanded.clear();
 		if (only) expanded.add(only.id);
 		entries = [];
-		void loadLists();
 		void loadPreview();
-	}
-
-	let listsReq = 0;
-	async function loadLists() {
-		const mine = ++listsReq;
-		listsLoaded = false;
-		listsFailed = false;
-		try {
-			const all = (await listShoppingLists()).items;
-			if (mine !== listsReq) return;
-			lists = all;
-			// The list the plan went to last, else the one the week went to,
-			// else the last one used at all; none of them: a new one.
-			const pool = only ? all.filter((l) => !only.lists.some((on) => on.id === l.id)) : all;
-			const known = [load(LAST_PLAN_LIST), plan.lists[0]?.id, load(LAST_LIST)].find((id) =>
-				pool.some((l) => l.id === id)
-			);
-			listId = known ?? pool[0]?.id ?? '';
-			// One entry: any list it is not on will do; a new one only when there is none.
-			creating = only ? pool.length === 0 : !known;
-		} catch (error) {
-			if (mine !== listsReq) return;
-			listsFailed = true;
-			if (!isSignedOut(error)) toast.error(m.lists_load_error());
-		} finally {
-			if (mine === listsReq) listsLoaded = true;
-		}
 	}
 
 	/** What the server would put on a list; `keep` merges into the picks made so far. */
@@ -370,8 +336,6 @@
 	}
 
 	const label = 'text-label font-bold tracking-[0.08em] text-text-muted uppercase';
-	const link =
-		'-mx-2 -mt-4 -mb-2 rounded-md px-2 pt-4 pb-2 text-caption font-semibold text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary';
 	const field =
 		'flex min-h-11 w-full items-center gap-2.5 rounded-md border border-border bg-surface-elevated px-4 py-1.5 text-left text-body-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary';
 	const navButton =
@@ -501,45 +465,33 @@
 			</div>
 		{/if}
 
-		<div>
-			<div class="mb-2 flex items-baseline justify-between">
-				<span class={label}>{m.add_to_list_list_label()}</span>
-				{#if choices.length > 0 && !listsFailed}
-					<button type="button" onclick={() => (creating = !creating)} class={link}>
-						{creating ? m.common_cancel() : m.add_to_list_new_list()}
-					</button>
-				{/if}
-			</div>
-			{#if listsFailed}
-				{@render retry(m.lists_load_error(), loadLists)}
-			{:else if showNew}
-				<Input
-					id="{uid}-name"
-					label={m.lists_new_name_label()}
-					placeholder={m.lists_new_name_placeholder()}
-					autocomplete="off"
-					maxlength={80}
-					bind:value={newName}
-					oninput={() => (named = true)}
-				/>
-				{#if only && choices.length === 0}
+		<!-- The list the plan went to last, else the one the week went to, else
+		     the last one used at all; none of them: a new one. One entry: any
+		     list it is not on will do, a new one only when there is none. -->
+		<ListPicker
+			bind:lists
+			bind:listId
+			bind:newName
+			bind:creating={showNew}
+			bind:failed={listsFailed}
+			exclude={only?.lists.map((l) => l.id)}
+			byName={!!only}
+			prefer={[load(LAST_PLAN_LIST), plan.lists[0]?.id, load(LAST_LIST)]}
+			newUnlessKnown={!only}
+			onname={() => (named = true)}
+		>
+			{#snippet none()}
+				{#if only}
 					<p class="mt-2 text-caption text-text-muted">{m.plan_to_list_one_all()}</p>
 				{/if}
-			{:else}
-				<Select
-					bind:value={listId}
-					options={choices.map((l) => ({ value: l.id, label: l.name }))}
-					label={m.add_to_list_list_label()}
-					class="w-full justify-between bg-surface-elevated"
-				/>
-			{/if}
+			{/snippet}
 			{#if only && alreadyLine}
 				<p class="mt-2 flex items-center gap-2 text-caption text-success-foreground">
 					<ShoppingBasket class="size-4 shrink-0" aria-hidden="true" />
 					{alreadyLine}
 				</p>
 			{/if}
-		</div>
+		</ListPicker>
 
 		<div>
 			{#if fresh.length > 0 && !previewFailed && !only}

@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { IngredientGroup } from '#lib/api/recipes.js';
-import type { ShoppingSummary } from '#lib/api/shopping.js';
-import { defaultList, pickedRefs, preselected } from './add';
+import { pickedRefs, preselected } from './add';
 
 const groups = [
 	{ name: 'A', ingredients: [{}, {}] },
@@ -19,12 +18,5 @@ describe('add to list', () => {
 			{ group: 0, index: 1 },
 			{ group: 1, index: 0 }
 		]);
-	});
-	it('prefers the remembered list, else the first (newest)', () => {
-		const l = (id: string, updatedAt: string) => ({ id, updatedAt }) as ShoppingSummary;
-		const lists = [l('b', '2026-02-01'), l('a', '2026-01-01')];
-		expect(defaultList(lists, 'a')).toBe('a');
-		expect(defaultList(lists, 'gone')).toBe('b');
-		expect(defaultList([], null)).toBe('');
 	});
 });

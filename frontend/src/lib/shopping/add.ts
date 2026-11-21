@@ -1,5 +1,4 @@
 import type { IngredientGroup } from '#lib/api/recipes.js';
-import type { ShoppingSummary } from '#lib/api/shopping.js';
 import { ingredientKey } from '#lib/recipe/checked.js';
 
 /** Selection keys use the same `group:index` shape as the recipe page's checks. */
@@ -25,9 +24,4 @@ export function pickedRefs(groups: IngredientGroup[], picked: Set<string>) {
 	return groups
 		.flatMap((g, group) => g.ingredients.map((_, index) => ({ group, index })))
 		.filter((r) => picked.has(pickKey(r.group, r.index)));
-}
-
-/** The remembered list if it still exists, else the first - the server sends newest first. */
-export function defaultList(lists: ShoppingSummary[], lastId: string | null): string {
-	return lists.find((l) => l.id === lastId)?.id ?? lists[0]?.id ?? '';
 }

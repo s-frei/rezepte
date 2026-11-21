@@ -7,22 +7,16 @@
 	import { goto } from '$app/navigation';
 	import { isSignedOut } from '#lib/api/client.js';
 	import type { IngredientGroup } from '#lib/api/recipes.js';
-	import {
-		addRecipeToList,
-		createShoppingList,
-		listShoppingLists,
-		type ShoppingSummary
-	} from '#lib/api/shopping.js';
+	import { addRecipeToList, createShoppingList, type ShoppingSummary } from '#lib/api/shopping.js';
 	import ResponsiveDialog from '#lib/components/ui/ResponsiveDialog.svelte';
 	import Button from '#lib/components/ui/Button.svelte';
 	import Checkbox from '#lib/components/ui/Checkbox.svelte';
-	import Input from '#lib/components/ui/Input.svelte';
-	import Select from '#lib/components/ui/Select.svelte';
 	import ServingsStepper from '#lib/components/recipe/ServingsStepper.svelte';
+	import ListPicker from '#lib/components/shopping/ListPicker.svelte';
 	import { isChecked } from '#lib/recipe/checked.svelte.js';
 	import { formatQuantityFor } from '#lib/recipe/scale.js';
 	import { clampServings } from '#lib/recipe/servings.js';
-	import { defaultList, pickKey, pickedRefs, preselected } from '#lib/shopping/add.js';
+	import { pickKey, pickedRefs, preselected } from '#lib/shopping/add.js';
 	import { listHref } from '#lib/shopping/href.js';
 	import { load, save } from '#lib/storage.js';
 	import { m } from '#lib/paraglide/messages.js';
@@ -48,18 +42,15 @@
 	const LAST_LIST = 'rezepte:last-list';
 
 	let lists = $state<ShoppingSummary[]>([]);
-	let loaded = $state(false);
 	let loadFailed = $state(false);
 	let listId = $state('');
-	let creating = $state(false);
+	let showNew = $state(false);
 	let newName = $state('');
 	let chosen = $state(1);
 	let saving = $state(false);
 	const picked = new SvelteSet<string>();
-
 	const total = $derived(groups.reduce((sum, g) => sum + g.ingredients.length, 0));
 	const count = $derived(picked.size);
-	const showNew = $derived(creating || (loaded && !loadFailed && lists.length === 0));
 	// The recipe on the picked list already: adding again adds its amounts to the ones there.
 	const already = $derived(
 		!showNew && !!lists.find((l) => l.id === listId)?.recipes.some((r) => r.recipeId === recipeId)
@@ -77,32 +68,11 @@
 
 	function start() {
 		chosen = clampServings(servings);
-		creating = false;
+		listId = '';
+		showNew = false;
 		newName = '';
 		picked.clear();
 		for (const key of preselected(recipeId, groups, isChecked)) picked.add(key);
-		void loadLists();
-	}
-
-	// Openings overlap when the dialog is closed and reopened before an answer
-	// arrives; only the newest request's answer counts.
-	let req = 0;
-	async function loadLists() {
-		const mine = ++req;
-		loaded = false;
-		loadFailed = false;
-		try {
-			const all = (await listShoppingLists()).items;
-			if (mine !== req) return;
-			lists = all;
-			listId = defaultList(all, load(LAST_LIST));
-		} catch (error) {
-			if (mine !== req) return;
-			loadFailed = true;
-			if (!isSignedOut(error)) toast.error(m.lists_load_error());
-		} finally {
-			if (mine === req) loaded = true;
-		}
 	}
 
 	function allPicked() {
@@ -143,7 +113,7 @@
 					...lists
 				];
 				listId = created.id;
-				creating = false;
+				showNew = false;
 				newName = '';
 			}
 			await addRecipeToList(target, {
@@ -174,52 +144,18 @@
 	<Dialog.Title class="font-display text-heading font-medium">{m.add_to_list_title()}</Dialog.Title>
 	{#if title}<p class="mt-1 text-caption text-text-muted">{title}</p>{/if}
 	<div class="mt-5 space-y-5">
-		<div>
-			<div class="mb-2 flex items-baseline justify-between">
-				<span class={label}>{m.add_to_list_list_label()}</span>
-				{#if lists.length > 0 && !loadFailed}
-					<!-- A 44px target that keeps the line's height: padding out, margin back. -->
-					<button
-						type="button"
-						onclick={() => (creating = !creating)}
-						class="-mx-2 -mt-4 -mb-2 rounded-md px-2 pt-4 pb-2 text-caption font-semibold text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
-					>
-						{creating ? m.common_cancel() : m.add_to_list_new_list()}
-					</button>
-				{/if}
-			</div>
-			{#if showNew}
-				<Input
-					id="add-to-list-name"
-					label={m.lists_new_name_label()}
-					placeholder={m.lists_new_name_placeholder()}
-					autocomplete="off"
-					maxlength={80}
-					bind:value={newName}
-				/>
-			{:else if loadFailed}
-				<button
-					type="button"
-					onclick={loadLists}
-					class="flex min-h-11 w-full items-center justify-between rounded-md border border-border bg-surface-elevated px-4 py-1.5 text-left text-body-sm text-text-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
-				>
-					<span class="min-w-0 text-caption leading-tight">{m.lists_load_error()}</span>
-					<span class="shrink-0 pl-3 font-semibold whitespace-nowrap text-primary"
-						>{m.add_to_list_retry()}</span
-					>
-				</button>
-			{:else}
-				<Select
-					bind:value={listId}
-					options={lists.map((l) => ({ value: l.id, label: l.name }))}
-					label={m.add_to_list_list_label()}
-					class="w-full justify-between bg-surface-elevated"
-				/>
-				{#if already}
-					<p class="mt-1.5 text-caption text-text-muted">{m.add_to_list_already()}</p>
-				{/if}
+		<ListPicker
+			bind:lists
+			bind:listId
+			bind:newName
+			bind:creating={showNew}
+			bind:failed={loadFailed}
+			prefer={[load(LAST_LIST)]}
+		>
+			{#if already}
+				<p class="mt-1.5 text-caption text-text-muted">{m.add_to_list_already()}</p>
 			{/if}
-		</div>
+		</ListPicker>
 		<div class="flex items-center justify-between">
 			<span class={label}>{m.add_to_list_servings()}</span>
 			<ServingsStepper value={chosen} onchange={(next) => (chosen = clampServings(next))} />
