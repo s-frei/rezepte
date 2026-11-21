@@ -1007,8 +1007,16 @@
 		// transition holds its scope at the old height until it ends, so the
 		// page could not scroll past the old bottom, and a phone going to one
 		// card per row (the list twice as tall) lost the reader's card.
+		// So does a long list: Chromium's picture of a scope much taller than
+		// the window drew stretched for its first frame, and the whole grid
+		// jumped down and back (seen from about twice the window's height).
 		const scoped =
-			keepPlace !== true && results && 'startViewTransition' in results ? results : null;
+			keepPlace !== true &&
+			results &&
+			'startViewTransition' in results &&
+			results.offsetHeight <= 1.5 * window.innerHeight
+				? results
+				: null;
 		const marked = scoped ?? root;
 		marked.dataset.cardTransition = '';
 		named.forEach(name);
