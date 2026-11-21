@@ -303,7 +303,7 @@ Every component wraps a Bits UI primitive where one exists and is styled by hand
 - **Save bar** (`SaveBar.svelte`) - both labels share one grid cell and the dirty dot's wrapper is always rendered, so nothing moves Save.
 - **`ServingsStepper`** - the bound buttons stay enabled and announce `aria-disabled`: a truly disabled button drops keyboard focus the moment it is pressed at the bound.
 - **Cook timers** (`frontend/src/lib/components/timer/`) - [Cook timers](/features/cook-timers) owns the behavior. The dock wears `time` with `time-foreground`, the times' own teal, and turns `primary` while ringing.
-- **Toast** (svelte-sonner, in `frontend/src/routes/+layout.svelte`) - `bg-inverse`, `rounded-toast`. Sonner's styles are unlayered and beat the utilities, so its classes carry Tailwind's `!`.
+- **Toast** (svelte-sonner, in `frontend/src/routes/+layout.svelte`) - `bg-inverse`, `rounded-toast`. Sonner's styles are unlayered and beat the utilities, so its classes carry Tailwind's `!`. Below `md`, where the phone's nav shows, the toasts stack above it (`offset`, and `mobileOffset` below Sonner's own breakpoint), by an offset in rem and the safe area like the nav's own height, so a larger root font keeps them clear, and the action's hit area grows into the toast's padding to 44px.
 - **Drag handle** - Lucide `grip-vertical` in `text-handle`.
 
 ### Motion in feature components

@@ -4040,7 +4040,26 @@ test.describe('ingredient search', () => {
 		await expect(pills.and(page.locator('[aria-pressed="true"]'))).toHaveCount(0);
 		// The button goes with the ticks; the focus stays in the row.
 		await expect(pills.first()).toBeFocused();
-		await page.getByRole('button', { name: 'Rückgängig' }).click();
+		// The undo is a finger's 44px tall, and a phone's toast clears the
+		// nav, once it has slid in.
+		const undo = page.getByRole('button', { name: 'Rückgängig' });
+		const reach = () =>
+			undo.evaluate((el) => {
+				const box = el.getBoundingClientRect();
+				const x = box.left + box.width / 2;
+				const y = box.top + box.height / 2;
+				return [y - 21, y + 21].every((at) => el.contains(document.elementFromPoint(x, at)));
+			});
+		await expect.poll(reach).toBe(true);
+		const nav = page.locator('[data-bottom-nav]');
+		if (await nav.isVisible()) {
+			const bottom = async () => {
+				const toast = (await page.locator('[data-sonner-toast]').boundingBox())!;
+				return toast.y + toast.height;
+			};
+			await expect.poll(bottom).toBeLessThanOrEqual((await nav.boundingBox())!.y);
+		}
+		await undo.click();
 		await expect.poll(pressed).toEqual(was);
 		// The undo goes with its toast; the focus goes back to the row.
 		await expect(pills.first()).toBeFocused();
@@ -4081,6 +4100,30 @@ test.describe('ingredient search', () => {
 			heading.y + heading.height / 2
 		);
 		expect(reach).toEqual({ tall: true, heading: false });
+	});
+
+	// The nav is sized in rem, so the toast's room above it must be too: at
+	// a doubled root font a px offset left the toast over the nav.
+	test('the undo toast clears the phone nav at a large font', async ({ page, isMobile }) => {
+		test.skip(!isMobile, 'the phone nav');
+		await page.addInitScript(() =>
+			document.addEventListener(
+				'DOMContentLoaded',
+				() => (document.documentElement.style.fontSize = '32px')
+			)
+		);
+		const token = await kitchen(page);
+		await page.goto(`/?tags=${token}&ingredients=Kartoffel&ingredients=Zwiebel`);
+		await general(page).getByRole('button', { name: 'Salz', exact: true }).click();
+		await page.getByRole('button', { name: 'Haken entfernen' }).filter({ visible: true }).click();
+		await expect(page.getByRole('button', { name: 'Rückgängig' })).toBeVisible();
+		const nav = (await page.locator('[data-bottom-nav]').boundingBox())!;
+		await expect
+			.poll(async () => {
+				const toast = (await page.locator('[data-sonner-toast]').boundingBox())!;
+				return toast.y + toast.height;
+			})
+			.toBeLessThanOrEqual(nav.y);
 	});
 
 	test('a re-sort the ticks started waits while a card is focused', async ({ page }) => {

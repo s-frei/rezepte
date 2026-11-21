@@ -20,6 +20,7 @@
 	import { palette } from '#lib/palette.svelte.js';
 	import { loadUpdateStatus } from '#lib/update.svelte.js';
 	import { navPlace } from '#lib/shell.svelte.js';
+	import { narrow } from '#lib/ui/narrow.js';
 	import { pageTransition } from '#lib/page-transition.js';
 	import { arrive } from '#lib/arrival.js';
 	import { listenForLaunches } from '#lib/launch.js';
@@ -49,6 +50,10 @@
 	// has no account to show a nav for.
 	const isSessionError = $derived(page.error !== null && !session.user);
 	const bare = $derived(isLoginRoute || isFullscreenRoute || isPublicShareRoute || isSessionError);
+	/** Whether the phone's bottom nav shows, which a toast must clear. */
+	const dock = $derived(!bare && narrow.current && navPlace(page.route.id, page.error !== null));
+	/** Clear of the nav, in its own units: its height (4rem and the safe area), its lift and a gap. */
+	const dockClear = 'calc(5.25rem + env(safe-area-inset-bottom))';
 
 	// app.html ships a static lang attribute; the real locale is only known
 	// once Paraglide has resolved it. Screen readers and spell checking read
@@ -171,19 +176,28 @@
 -->
 <!-- A running timer's player sits at the bottom of a phone, above the nav
      where there is one, and from `md` at the bottom right; the toasts stack
-     above it instead of on it. -->
+     above it instead of on it, and above the phone's nav without one: an
+     undo toast lay over the nav for its whole life. The action's hit area
+     grows into the toast's padding to a finger's 44px. -->
 <Toaster
-	offset={timers.list.length && !bare ? { bottom: '84px', right: '24px' } : undefined}
+	offset={timers.list.length && !bare
+		? { bottom: dock ? '140px' : '84px', right: '24px' }
+		: dock
+			? { bottom: dockClear }
+			: undefined}
 	mobileOffset={timers.list.length && !bare
-		? { bottom: navPlace(page.route.id, page.error !== null) ? '140px' : '68px' }
-		: undefined}
+		? { bottom: dock ? '140px' : '68px' }
+		: dock
+			? { bottom: dockClear }
+			: undefined}
 	richColors={false}
 	toastOptions={{
 		classes: {
 			toast:
 				'rounded-toast! border-none! bg-inverse! px-[18px]! py-3.5! text-body-sm! font-semibold! text-inverse-foreground! shadow-dialog!',
 			description: 'text-inverse-muted!',
-			actionButton: 'bg-transparent! font-medium! text-inverse-muted!',
+			actionButton:
+				'relative! bg-transparent! font-medium! text-inverse-muted! after:absolute after:-inset-x-1 after:-inset-y-2.5',
 			cancelButton: 'bg-transparent! font-medium! text-inverse-muted!',
 			closeButton: 'border-border! bg-inverse! text-inverse-foreground!'
 		}
