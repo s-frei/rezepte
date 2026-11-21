@@ -130,9 +130,12 @@ export const listPlans = () =>
  * reader's own week (`today(getLocalTimeZone())`): left out, the server
  * picks the current week in its own time zone.
  */
-export const getPlansWeek = (range: PlanRange) =>
+/** `redirect: false` for the overview's load, whose page redirects on a 401 itself (`api`). */
+export const getPlansWeek = (range: PlanRange, options?: { redirect?: boolean }) =>
 	api<PlanRange & { plans: WeekPlan[]; invitations: PlanInvitation[] }>(
-		`/meal-plans/week${span(range)}`
+		`/meal-plans/week${span(range)}`,
+		{},
+		options
 	);
 
 export const createPlan = (name: string, range: PlanRange) =>

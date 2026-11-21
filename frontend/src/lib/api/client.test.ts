@@ -156,6 +156,16 @@ describe('api central 401 handling', () => {
 		);
 	});
 
+	it('leaves a 401 to the caller when asked, as a page load does', async () => {
+		stubBrowser('/');
+		mockFetch(401, { title: 'Unauthorized' }, 'application/problem+json');
+
+		await expect(api('/shopping-lists', {}, { redirect: false })).rejects.toBeInstanceOf(ApiError);
+		await new Promise((r) => setTimeout(r, 0));
+
+		expect(mockedGoto).not.toHaveBeenCalled();
+	});
+
 	it('navigates once when several calls find the session gone together', async () => {
 		stubBrowser('/lists');
 		mockFetch(401, { title: 'Unauthorized' }, 'application/problem+json');

@@ -6,6 +6,7 @@
 	import { afterNavigate, goto, invalidateAll, replaceState } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { page } from '$app/state';
+	import { redirectSignedOut } from '#lib/api/client.js';
 	import { acceptPlan, leavePlan, type WeekPlan } from '#lib/api/mealplan.js';
 	import { session } from '#lib/auth.svelte.js';
 	import PlanCard from '#lib/components/mealplan/PlanCard.svelte';
@@ -23,6 +24,11 @@
 	import type { PageProps } from './$types';
 
 	let { data }: PageProps = $props();
+
+	// A 401 in the load: redirected here, where the address is this page.
+	$effect(() => {
+		if (data.signedOut) void redirectSignedOut();
+	});
 
 	// Each section: cards for the plans with something this week, chips for
 	// the idle ones.
@@ -141,7 +147,9 @@
 <div class="pt-6 pb-8 md:pt-4">
 	<PlaceSwitch side="week" />
 
-	{#if invited.length > 0}
+	{#if data.signedOut}
+		<!-- Leaving for the sign-in. -->
+	{:else if invited.length > 0}
 		<h2 class="sr-only">{m.invitations_heading()}</h2>
 		<div class="flex flex-col gap-3">
 			{#each invited as invitation (invitation.planId)}

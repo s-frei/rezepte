@@ -73,8 +73,17 @@ export function redirectSignedOut(): Promise<void> {
 
 let leaving: Promise<void> | null = null;
 
-/** Calls the JSON API. Resolves with the parsed body, or undefined for empty responses. */
-export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
+/**
+ * Calls the JSON API. Resolves with the parsed body, or undefined for empty responses.
+ * `redirect: false` keeps a 401 from leaving the page: for a page's `load`,
+ * which also runs as a preload (on a tap, before the click), when the address
+ * is still the page being left. Its page redirects once it renders.
+ */
+export async function api<T>(
+	path: string,
+	init: RequestInit = {},
+	{ redirect = true }: { redirect?: boolean } = {}
+): Promise<T> {
 	const headers = new Headers(init.headers);
 	headers.set('Accept', 'application/json');
 	// A FormData body must reach fetch without a Content-Type: fetch sets
@@ -111,6 +120,7 @@ export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
 		// would fail silently.
 		if (
 			res.status === 401 &&
+			redirect &&
 			url !== LOGIN_PATH &&
 			url !== LOGOUT_PATH &&
 			!(url === ME_PATH && method === 'GET') &&

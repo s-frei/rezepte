@@ -308,7 +308,16 @@ test('a 401 mid-use goes to the picker and back to the page after the switch', a
 		(url) => url.pathname.startsWith('/api/v1/') && url.pathname !== '/api/v1/auth/accounts',
 		(route) => route.fulfill({ status: 401, json: {} })
 	);
-	await page.getByRole('banner').getByRole('link', { name: 'Shopping & week' }).click();
+	// A human tap: the press preloads the page, and its 401 is back before the
+	// finger lifts. The load leaves the redirect to the page, whose address is
+	// then the place, not the page left.
+	const link = page.getByRole('banner').getByRole('link', { name: 'Shopping & week' });
+	const denied = page.waitForResponse((r) => r.url().includes('/api/v1/') && r.status() === 401);
+	await link.dispatchEvent('mousedown');
+	await denied;
+	await page.waitForTimeout(100);
+	await expect(page).not.toHaveURL(/\/switch/);
+	await link.click();
 	await expect(page).toHaveURL(/\/switch\?next=%2Flists$/);
 	await expect(page.getByRole('heading', { name: "Who's cooking?" })).toBeVisible();
 	// Nobody is active here, so there is no × that would bounce straight back.

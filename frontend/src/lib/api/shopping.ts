@@ -118,8 +118,13 @@ const base = (id: string) => `/shopping-lists/${encodeURIComponent(id)}`;
 const send = <T>(path: string, method: string, body?: unknown) =>
 	api<T>(path, { method, body: body === undefined ? undefined : JSON.stringify(body) });
 
-export const listShoppingLists = () =>
-	api<{ items: ShoppingSummary[]; invitations: ShoppingInvitation[] }>('/shopping-lists');
+/** `redirect: false` for the overview's load, whose page redirects on a 401 itself (`api`). */
+export const listShoppingLists = (options?: { redirect?: boolean }) =>
+	api<{ items: ShoppingSummary[]; invitations: ShoppingInvitation[] }>(
+		'/shopping-lists',
+		{},
+		options
+	);
 
 export const createShoppingList = (name: string) =>
 	send<ShoppingList>('/shopping-lists', 'POST', { name });

@@ -3,6 +3,7 @@
 	import { untrack } from 'svelte';
 	import { toast } from 'svelte-sonner';
 	import { goto, invalidateAll } from '$app/navigation';
+	import { redirectSignedOut } from '#lib/api/client.js';
 	import { acceptListInvitation, leaveList } from '#lib/api/shopping.js';
 	import { session } from '#lib/auth.svelte.js';
 	import PlaceSwitch from '#lib/components/shell/PlaceSwitch.svelte';
@@ -34,7 +35,8 @@
 	const shared = $derived(lists.filter((l) => l.owner.id !== session.user?.id));
 
 	$effect(() => {
-		if (data.failed && !data.signedOut) untrack(() => toast.error(m.lists_load_error()));
+		if (data.signedOut) void redirectSignedOut();
+		else if (data.failed) untrack(() => toast.error(m.lists_load_error()));
 	});
 	$effect(() => {
 		if (!data.failed) nav.lists = invited.length;
@@ -59,7 +61,9 @@
 	     the recipes; the title shares its line only with the place's switch. -->
 	<PlaceSwitch side="lists" />
 
-	{#if data.failed}
+	{#if data.signedOut}
+		<!-- Leaving for the sign-in. -->
+	{:else if data.failed}
 		<EmptyState title={m.lists_load_error()} text="">
 			<Button variant="primary" onclick={() => invalidateAll()}>{m.common_retry()}</Button>
 		</EmptyState>
