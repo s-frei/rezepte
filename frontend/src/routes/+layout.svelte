@@ -29,8 +29,11 @@
 	import { getLocale } from '#lib/paraglide/runtime.js';
 	import { startChime, stopChime, unlockAudio } from '#lib/recipe/chime.js';
 	import { timers } from '#lib/recipe/timers.svelte.js';
+	import { openDialogs } from '#lib/ui/open-dialogs.svelte.js';
 
 	let { children }: { children: Snippet } = $props();
+
+	const sheetUp = $derived(narrow.current && openDialogs.any);
 
 	// /login, /welcome (a setup or reset link's landing page), /forgot-password
 	// and /confirm-email are reachable with no session at all (see
@@ -178,18 +181,24 @@
      where there is one, and from `md` at the bottom right; the toasts stack
      above it instead of on it, and above the phone's nav without one: an
      undo toast lay over the nav for its whole life. The action's hit area
-     grows into the toast's padding to a finger's 44px. -->
+     grows into the toast's padding to a finger's 44px. While a dialog or
+     sheet is open on a phone they show at the top, below the notch: at the
+     bottom they would cover the sheet's actions, and a tap meant for
+     "Fertig" would land on one. -->
 <Toaster
+	position={sheetUp ? 'top-center' : undefined}
 	offset={timers.list.length && !bare
 		? { bottom: dock ? '140px' : '84px', right: '24px' }
 		: dock
 			? { bottom: dockClear }
 			: undefined}
-	mobileOffset={timers.list.length && !bare
-		? { bottom: dock ? '140px' : '68px' }
-		: dock
-			? { bottom: dockClear }
-			: undefined}
+	mobileOffset={sheetUp
+		? { top: 'calc(16px + env(safe-area-inset-top))' }
+		: timers.list.length && !bare
+			? { bottom: dock ? '140px' : '68px' }
+			: dock
+				? { bottom: dockClear }
+				: undefined}
 	richColors={false}
 	toastOptions={{
 		classes: {

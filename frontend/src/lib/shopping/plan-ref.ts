@@ -149,7 +149,16 @@ export function quotedList(names: string[]): string {
 	);
 }
 
-/** Lists in one order wherever they show (head, cards, popovers, menus): by name, so none moves when counts change. */
+/** Lists by name, so none moves when counts change: an entry's stamps, its popover and its ⋯. */
 export function byListName<T extends { name: string }>(lists: T[]): T[] {
 	return [...lists].sort((a, b) => a.name.localeCompare(b.name, getLocale()));
+}
+
+/**
+ * A plan's own lists (the overview card, the plan's head): the one with the
+ * most of the plan's entries first, then by name, so a one-meal list never
+ * crowds out the week's main one on a one-line row.
+ */
+export function byPlanUse<T extends { name: string; entries?: number }>(lists: T[]): T[] {
+	return byListName(lists).sort((a, b) => (b.entries ?? 0) - (a.entries ?? 0));
 }

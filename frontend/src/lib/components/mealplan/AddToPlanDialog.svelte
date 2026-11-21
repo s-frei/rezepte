@@ -102,12 +102,13 @@
 			);
 			rememberPlan(id);
 			open = false;
-			const href = planHref(id, monday);
+			// This week's plan page has no `from`: passing it would only redirect.
+			const href = planHref(id, monday === mondayOf(today) ? undefined : monday);
 			toast.success(
 				day ? m.plan_added({ title, day: dayName(day) }) : m.plan_added_tray({ title }),
 				{
 					action: {
-						label: m.plan_add_open_week(),
+						label: m.plan_add_open_plan(),
 						onClick: () => goto(href)
 					}
 				}

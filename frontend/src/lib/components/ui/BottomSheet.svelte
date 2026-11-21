@@ -89,6 +89,7 @@
 </script>
 
 <script lang="ts">
+	import { countWhileOpen, keepForToasts } from '#lib/ui/open-dialogs.svelte.js';
 	import { Dialog } from 'bits-ui';
 	import { tick, type Snippet } from 'svelte';
 	import { fly } from 'svelte/transition';
@@ -139,6 +140,8 @@
 		spotlight?: HTMLElement | null;
 		children: Snippet;
 	} = $props();
+
+	countWhileOpen(() => open);
 
 	// The sheet rests on the software keyboard ([Sheets] in the design
 	// system): on iOS, where the keyboard only shrinks the visual viewport,
@@ -327,7 +330,10 @@
 			preventScroll={false}
 			{onOpenAutoFocus}
 			{onCloseAutoFocus}
-			{onInteractOutside}
+			onInteractOutside={(event) => {
+				keepForToasts(event);
+				onInteractOutside?.(event);
+			}}
 		>
 			{#snippet child({ props, open: isOpen })}
 				{#if isOpen}

@@ -76,11 +76,13 @@ type PlanEntry struct {
 }
 
 // LinkedList is a shopping list a plan entry is on; OpenCount counts the
-// list's open rows as the list overview does.
+// list's open rows as the list overview does. Entries, set only on a plan's
+// own Lists, counts the plan's entries on the list.
 type LinkedList struct {
 	ID        string `json:"id"`
 	Name      string `json:"name"`
 	OpenCount int    `json:"openCount"`
+	Entries   int    `json:"entries,omitempty"`
 }
 
 // PlanSummary is a plan as the picker shows it.

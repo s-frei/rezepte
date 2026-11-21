@@ -729,7 +729,7 @@ test('plans a recipe from its page for Wednesday at 6 servings', async ({ page }
 	await dialog.getByRole('button', { name: 'Add to plan' }).click();
 	await expect(dialog).toBeHidden();
 
-	await page.getByRole('button', { name: 'Open week' }).click();
+	await page.getByRole('button', { name: 'Open plan' }).click();
 	await expect(page).toHaveURL(/\/plans\/[^?]+$/);
 	await expect(
 		day(page, 'Wednesday, November 18').getByRole('link', { name: title })

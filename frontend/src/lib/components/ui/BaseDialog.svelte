@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { countWhileOpen, keepForToasts } from '#lib/ui/open-dialogs.svelte.js';
 	import { Dialog } from 'bits-ui';
 	import { scale } from 'svelte/transition';
 	import { prefersReducedMotion } from 'svelte/motion';
@@ -43,6 +44,8 @@
 		children: Snippet;
 	} = $props();
 
+	countWhileOpen(() => open);
+
 	const duration = $derived(prefersReducedMotion.current ? 0 : 200);
 </script>
 
@@ -54,6 +57,7 @@
 			preventScroll={false}
 			escapeKeydownBehavior={dismissible ? 'close' : 'ignore'}
 			interactOutsideBehavior={dismissible ? 'close' : 'ignore'}
+			onInteractOutside={keepForToasts}
 			{onOpenAutoFocus}
 			{onCloseAutoFocus}
 		>

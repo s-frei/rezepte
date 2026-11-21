@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { ListPerson, PlanRef } from '#lib/api/shopping.js';
 import {
 	byListName,
+	byPlanUse,
 	groupByPlan,
 	planJumpHref,
 	planStamp,
@@ -153,5 +154,18 @@ describe('byListName', () => {
 		expect(
 			byListName([{ name: 'Vorrat' }, { name: 'Markt' }, { name: 'Ähnlich' }]).map((l) => l.name)
 		).toEqual(['Ähnlich', 'Markt', 'Vorrat']);
+	});
+});
+
+describe('byPlanUse', () => {
+	it("puts the list with most of the plan's entries first, then by name", () => {
+		expect(
+			byPlanUse([
+				{ name: 'Getränke', entries: 1 },
+				{ name: 'Vorrat', entries: 2 },
+				{ name: 'Markt', entries: 4 },
+				{ name: 'Ähnlich', entries: 2 }
+			]).map((l) => l.name)
+		).toEqual(['Markt', 'Ähnlich', 'Vorrat', 'Getränke']);
 	});
 });

@@ -269,8 +269,9 @@ func get(ctx context.Context, q *sqlc.Queries, userID, id, from, to string) (Pla
 	return p, nil
 }
 
-// rankLists returns the distinct lists the entries are on, the one with the
-// most entries first, ties in the order they first appear.
+// rankLists returns the distinct lists the entries are on, each with the
+// number of entries on it, the one with the most first, ties in the order
+// they first appear (the client breaks them by name in the reader's locale).
 func rankLists(perEntry [][]LinkedList) []LinkedList {
 	type tally struct {
 		list    LinkedList
@@ -290,6 +291,7 @@ func rankLists(perEntry [][]LinkedList) []LinkedList {
 	slices.SortStableFunc(lists, func(a, b *tally) int { return cmp.Compare(b.entries, a.entries) })
 	out := make([]LinkedList, 0, len(lists))
 	for _, l := range lists {
+		l.list.Entries = l.entries
 		out = append(out, l.list)
 	}
 	return out

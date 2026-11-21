@@ -6,6 +6,8 @@ export type LinkedList = {
 	id: string;
 	name: string;
 	openCount: number;
+	/** The plan's entries on the list; only on `MealPlan.lists` and `WeekPlan.lists`. */
+	entries?: number;
 };
 
 /** A recipe or a free text on a day, or on the tray (`day` null). */

@@ -42,7 +42,7 @@
 	import { setToList } from '#lib/mealplan/to-list.js';
 	import { rememberPlan, shell } from '#lib/shell.svelte.js';
 	import { listHref } from '#lib/shopping/href.js';
-	import { byListName } from '#lib/shopping/plan-ref.js';
+	import { byPlanUse } from '#lib/shopping/plan-ref.js';
 	import planArt from '$brand/lockups/rezepte-mascot-shopping.webp?url';
 	import type { PageProps } from './$types';
 
@@ -151,9 +151,9 @@
 	const days = $derived(weekDays(monday));
 	const thisWeek = $derived(mondayOf(data.today));
 	const empty = $derived(plan.entries.length === 0);
-	/** Every list the shown week and the tray went to, as far as the reader can open them; by name, so none moves. */
+	/** Every list the shown week and the tray went to, as far as the reader can open them; most used first (`byPlanUse`). */
 	const listStamps = $derived(
-		byListName(plan.lists).map((l) => ({
+		byPlanUse(plan.lists).map((l) => ({
 			key: l.id,
 			kind: 'list' as const,
 			label: l.name,

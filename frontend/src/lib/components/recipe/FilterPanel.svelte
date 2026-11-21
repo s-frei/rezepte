@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { countWhileOpen } from '#lib/ui/open-dialogs.svelte.js';
 	import { Dialog } from 'bits-ui';
 	import Filter from '@lucide/svelte/icons/filter';
 	import { fly, scale } from 'svelte/transition';
@@ -94,6 +95,8 @@
 		 * on the page can open it. */
 		open?: boolean;
 	} = $props();
+
+	countWhileOpen(() => open);
 
 	const uid = $props.id();
 	const timeHeadingId = `${uid}-time-heading`;
