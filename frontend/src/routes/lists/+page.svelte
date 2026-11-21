@@ -69,6 +69,7 @@
 		</EmptyState>
 	{:else if lists.length === 0 && invited.length === 0}
 		<NoteEmptyState
+			barAction
 			art={shoppingArt}
 			title={m.lists_empty_title()}
 			steps={[

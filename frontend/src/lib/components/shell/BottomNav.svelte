@@ -155,7 +155,7 @@
 	</nav>
 	<button
 		type="button"
-		aria-label={shell.add?.label ?? m.nav_new()}
+		aria-label={shell.add?.label ?? (place === 'lists' ? m.lists_new() : m.nav_new())}
 		aria-haspopup="dialog"
 		aria-expanded={shell.add ? shell.add.expanded : newOpen}
 		onclick={() => (shell.add ? shell.add.open() : (newOpen = true))}

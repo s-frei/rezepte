@@ -5,6 +5,7 @@
 		art,
 		title,
 		steps,
+		barAction = false,
 		children
 	}: {
 		/** A mascot pose from `$brand/lockups`, 640px square on the app's ground. */
@@ -12,6 +13,12 @@
 		title: string;
 		/** Each step as its line and the hint under it. */
 		steps: [string, string][];
+		/**
+		 * Below md the bottom bar's "+", right under the note, is the same
+		 * action (named alike): the note's own goes, or on a short phone it
+		 * pushed the note under the bar.
+		 */
+		barAction?: boolean;
 		/** The actions at the note's end. */
 		children: Snippet;
 	} = $props();
@@ -63,14 +70,18 @@
 					></span>
 					<span class="min-w-0 text-body text-text">
 						{step}
-						<span class="block text-body-sm text-text-muted">{hint}</span>
+						<span class="block text-body-sm text-pretty text-text-muted">{hint}</span>
 					</span>
 				</li>
 			{/each}
 		</ol>
 		<!-- Actions at a card's end, as in a dialog: content-sized at the end
 		     from md; below it they share the line and wrap when it is short. -->
-		<div class="cta mt-4.5 flex flex-wrap gap-2.5 *:max-md:flex-1 md:justify-end">
+		<div
+			class="cta mt-4.5 flex flex-wrap gap-2.5 *:max-md:flex-1 md:justify-end {barAction
+				? 'max-md:hidden'
+				: ''}"
+		>
 			{@render children()}
 		</div>
 	</div>

@@ -20,7 +20,7 @@ const phone = (page: Page) => (page.viewportSize()?.width ?? 1280) < 768;
 /** "New list" or the import: the top bar's on a desktop, the "+" sheet's on a phone. */
 async function startFromLists(page: Page, way: 'new' | 'import') {
 	if (phone(page)) {
-		await page.getByRole('button', { name: 'New', exact: true }).click();
+		await page.getByRole('button', { name: 'New list', exact: true }).click();
 		const sheet = page.getByRole('dialog', { name: 'New list' });
 		await sheet
 			.getByRole('button', { name: way === 'new' ? /Start one yourself/ : /Import/ })
@@ -62,7 +62,14 @@ test('a person without lists sees the steps, and the button starts one', async (
 		/Add recipes/,
 		/Fill in and share/
 	]);
-	await page.getByRole('main').getByRole('button', { name: 'New list' }).click();
+	// The note's own button from md; on a phone the bar's "+" right under it.
+	const startEmpty = () =>
+		phone(page)
+			? startFromLists(page, 'new')
+			: page.getByRole('main').getByRole('button', { name: 'New list' }).click();
+	if (phone(page))
+		await expect(page.getByRole('main').getByRole('button', { name: 'New list' })).toBeHidden();
+	await startEmpty();
 
 	// The draft: the name has the caret, "Create" waits for one, and the rest is not there yet.
 	await expect(page).toHaveURL(/\/lists\/new$/);
@@ -78,7 +85,7 @@ test('a person without lists sees the steps, and the button starts one', async (
 	await expect(page.getByRole('heading', { level: 2, name: 'No shopping list yet' })).toBeVisible();
 
 	// Enter creates it, its page replaces the draft, and the caret waits for the first item.
-	await page.getByRole('main').getByRole('button', { name: 'New list' }).click();
+	await startEmpty();
 	await page.getByLabel('Name').fill('Wochenmarkt');
 	await page.getByLabel('Name').press('Enter');
 	await expect(page.getByRole('heading', { level: 1, name: 'Wochenmarkt' })).toBeVisible();
@@ -657,7 +664,7 @@ test('the + on the lists starts a list; a sheet that scrolls shows its thumb', a
 	// The "+" on the lists makes a list, by the recipe's two ways; the
 	// header has no import of its own.
 	await expect(page.getByRole('button', { name: 'Import list' })).toHaveCount(0);
-	await page.getByRole('button', { name: 'New', exact: true }).click();
+	await page.getByRole('button', { name: 'New list', exact: true }).click();
 	const sheet = page.getByRole('dialog', { name: 'New list' });
 	await expect(sheet.getByRole('button', { name: /Start one yourself/ })).toBeVisible();
 	await expect(sheet.getByRole('button', { name: /Write it yourself/ })).toHaveCount(0);
@@ -680,7 +687,7 @@ test('"Start one yourself" hands the keyboard from the + sheet to the draft', as
 	test.skip(!isMobile, 'the + is the phone’s');
 	await login(page);
 	await page.goto('/lists');
-	await page.getByRole('button', { name: 'New', exact: true }).click();
+	await page.getByRole('button', { name: 'New list', exact: true }).click();
 	const start = page
 		.getByRole('dialog', { name: 'New list' })
 		.getByRole('button', { name: /Start one yourself/ });
