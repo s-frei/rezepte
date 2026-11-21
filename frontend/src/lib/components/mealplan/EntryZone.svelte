@@ -21,6 +21,7 @@
 		items,
 		layout,
 		label,
+		today,
 		class: className = '',
 		onconsider,
 		onfinalize,
@@ -33,6 +34,8 @@
 		layout: 'column' | 'row' | 'chip';
 		/** The zone's name for the drag announcements: the day, or the tray. */
 		label: string;
+		/** `YYYY-MM-DD`: the page's today, for the cards. */
+		today: string;
 		class?: string;
 		onconsider: (event: CustomEvent<DndEvent<PlanEntry>>) => void;
 		onfinalize: (event: CustomEvent<DndEvent<PlanEntry>>) => void;
@@ -79,7 +82,7 @@
 		class="min-h-11 {layout === 'column'
 			? '-mb-[60vh] flex flex-col gap-2 pb-[60vh]'
 			: layout === 'chip'
-				? 'flex flex-col gap-1 md:flex-row md:flex-wrap md:gap-2'
+				? 'flex flex-col gap-1 md:grid md:grid-cols-2 md:gap-2 lg:grid-cols-[repeat(auto-fit,minmax(16rem,1fr))] md:max-lg:[&>li:last-child:nth-child(odd)]:col-span-2'
 				: 'flex flex-col gap-1.5 md:grid md:grid-cols-2 md:gap-x-5 md:[&>li:last-child:nth-child(odd)]:col-span-2'}"
 	>
 		{#each items as entry (entry.id)}
@@ -99,6 +102,7 @@
 					<PlanEntryCard
 						{entry}
 						{layout}
+						{today}
 						onmove={() => onmove(entry)}
 						onservings={(servings) => onservings(entry, servings)}
 						onremove={() => onremove(entry)}

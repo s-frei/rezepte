@@ -14,9 +14,11 @@
 	import { goto } from '$app/navigation';
 	import { ApiError, isSignedOut } from '#lib/api/client.js';
 	import {
+		getEntryShoppingPreview,
 		getShoppingPreview,
 		putPlanOnList,
 		setStaple,
+		type PlanEntry,
 		type PreviewEntry
 	} from '#lib/api/mealplan.js';
 	import { listShoppingLists, type ShoppingSummary } from '#lib/api/shopping.js';
@@ -33,6 +35,7 @@
 	import { formatQuantity } from '#lib/recipe/format.js';
 	import { pickKey } from '#lib/shopping/add.js';
 	import { listHref } from '#lib/shopping/href.js';
+	import { byListName, quotedList } from '#lib/shopping/plan-ref.js';
 	import { load, save } from '#lib/storage.js';
 
 	/**
@@ -42,15 +45,21 @@
 	 * a list the reader can open already are left out and counted in one
 	 * line; the server skips them too. A changed range or tray refetches the
 	 * preview, and a recipe kept in it keeps the reader's picks.
+	 *
+	 * `only`: one entry, from its ⋯. No days; its ingredients open and its
+	 * recipe always picked; the lists it is on already are left out of the
+	 * choice, and the server puts it on another list too (`alsoListed`).
 	 */
 	let {
 		open = $bindable(false),
 		week,
-		today
+		today,
+		only = null
 	}: {
 		open?: boolean;
 		week: PlanState;
 		today: string;
+		only?: PlanEntry | null;
 	} = $props();
 
 	const LAST_PLAN_LIST = 'rezepte:last-plan-list';
@@ -89,10 +98,14 @@
 	const trayRecipes = $derived(
 		plan.entries.filter((e) => e.day === null && e.recipeId && e.lists.length === 0).length
 	);
-	const fresh = $derived(entries.filter((e) => !e.alreadyListed));
-	const listed = $derived(entries.filter((e) => e.alreadyListed));
+	const fresh = $derived(only ? entries : entries.filter((e) => !e.alreadyListed));
+	const listed = $derived(only ? [] : entries.filter((e) => e.alreadyListed));
 	const chosen = $derived(fresh.filter((e) => (picks.get(e.entryId)?.size ?? 0) > 0));
-	const showNew = $derived(creating || (listsLoaded && !listsFailed && lists.length === 0));
+	/** The lists to pick from: for one entry, those it is not on yet. */
+	const choices = $derived(
+		only ? byListName(lists.filter((l) => !only.lists.some((on) => on.id === l.id))) : lists
+	);
+	const showNew = $derived(creating || (listsLoaded && !listsFailed && choices.length === 0));
 	const canSubmit = $derived(
 		chosen.length > 0 &&
 			!listsFailed &&
@@ -103,18 +116,32 @@
 			!saving
 	);
 
-	/** "2 recipes are already on “Weekly shop”" - named when the shown week says they all went to one list. */
+	/** The list the one-entry button names: "Auf „Vorrat“ setzen". */
+	const target = $derived(
+		showNew ? newName.trim() : (lists.find((l) => l.id === listId)?.name ?? '')
+	);
+
+	/** "2 recipes are already on “Weekly shop” and “Market”": every list the shown week says they are on. */
 	const alreadyLine = $derived.by(() => {
+		if (only)
+			return only.lists.length > 0
+				? m.plan_to_list_one_already({
+						names: quotedList(byListName(only.lists).map((l) => l.name))
+					})
+				: '';
 		const count = listed.length;
 		if (count === 0) return '';
+		// Every list they are on, not only the first of each.
 		const names = new Set(
-			listed.map((e) => plan.entries.find((p) => p.id === e.entryId)?.lists[0]?.name)
+			listed.flatMap(
+				(e) => plan.entries.find((p) => p.id === e.entryId)?.lists.map((l) => l.name) ?? []
+			)
 		);
-		const [only] = names;
-		if (names.size === 1 && only) {
+		if (names.size > 0) {
+			const all = quotedList([...names].sort((a, b) => a.localeCompare(b, locale)));
 			return count === 1
-				? m.plan_to_list_already_named_one({ list: only })
-				: m.plan_to_list_already_named({ count, list: only });
+				? m.plan_to_list_already_named_one({ names: all })
+				: m.plan_to_list_already_named({ count, names: all });
 		}
 		return count === 1 ? m.plan_to_list_already_one() : m.plan_to_list_already({ count });
 	});
@@ -145,12 +172,14 @@
 		span = { from, to: sunday };
 		calendar = { start: parseDate(from), end: parseDate(sunday) };
 		picking = false;
-		tray = false;
+		// The tray's recipes on no list count in the button's badge: they are in from the start.
+		tray = !only && trayRecipes > 0;
 		creating = false;
 		named = false;
 		newName = m.plan_new_list_name({ span: spanLabel(from, sunday, locale) });
 		picks.clear();
 		expanded.clear();
+		if (only) expanded.add(only.id);
 		entries = [];
 		void loadLists();
 		void loadPreview();
@@ -167,11 +196,13 @@
 			lists = all;
 			// The list the plan went to last, else the one the week went to,
 			// else the last one used at all; none of them: a new one.
+			const pool = only ? all.filter((l) => !only.lists.some((on) => on.id === l.id)) : all;
 			const known = [load(LAST_PLAN_LIST), plan.lists[0]?.id, load(LAST_LIST)].find((id) =>
-				all.some((l) => l.id === id)
+				pool.some((l) => l.id === id)
 			);
-			listId = known ?? all[0]?.id ?? '';
-			creating = !known;
+			listId = known ?? pool[0]?.id ?? '';
+			// One entry: any list it is not on will do; a new one only when there is none.
+			creating = only ? pool.length === 0 : !known;
 		} catch (error) {
 			if (mine !== listsReq) return;
 			listsFailed = true;
@@ -190,7 +221,11 @@
 		previewFailed = '';
 		const before = new Map(entries.map((e) => [e.entryId, e]));
 		try {
-			const answer = (await getShoppingPreview(plan.id, span, tray)).entries;
+			const answer = (
+				await (only
+					? getEntryShoppingPreview(plan.id, only.id)
+					: getShoppingPreview(plan.id, span, tray))
+			).entries;
 			if (mine !== previewReq) return;
 			for (const entry of answer) {
 				const old = before.get(entry.entryId);
@@ -303,6 +338,7 @@
 			plan.id,
 			{
 				...(showNew ? { newListName: name } : { listId }),
+				...(only ? { alsoListed: true } : {}),
 				picks: chosen.map((e) => ({
 					entryId: e.entryId,
 					ingredients: e.ingredients
@@ -352,109 +388,123 @@
 {/snippet}
 
 {#snippet body()}
-	<Dialog.Title class="font-display text-heading font-medium">{m.plan_to_list()}</Dialog.Title>
+	<Dialog.Title class="font-display text-heading font-medium"
+		>{!only
+			? m.plan_to_list()
+			: only.lists.length > 0
+				? m.plan_to_list_one_title_another()
+				: m.plan_to_list_one_title()}</Dialog.Title
+	>
+	{#if only}
+		<!-- The recipe below names the meal; said once for assistive technology. -->
+		<Dialog.Description class="sr-only">{only.title} · {dayOf(only.day)}</Dialog.Description>
+	{/if}
 	<div class="mt-5 space-y-5">
-		<div>
-			<span id="{uid}-days-label" class="mb-2 block {label}">{m.plan_to_list_days()}</span>
-			<button
-				id="{uid}-days"
-				type="button"
-				aria-labelledby="{uid}-days-label {uid}-days-value"
-				aria-expanded={picking}
-				aria-controls="{uid}-calendar"
-				onclick={() => (picking = !picking)}
-				class={field}
-			>
-				<CalendarDays class="size-4 shrink-0 text-text-muted" aria-hidden="true" />
-				<span id="{uid}-days-value" class="min-w-0 flex-1 font-medium">{daysText}</span>
-				<ChevronDown
-					class="size-4 shrink-0 text-text-muted transition-transform {picking ? 'rotate-180' : ''}"
-					aria-hidden="true"
-				/>
-			</button>
-			{#if picking}
-				<!-- Each day is a seventh of the width: at 320px that is 40px, a
+		{#if !only}
+			<div>
+				<span id="{uid}-days-label" class="mb-2 block {label}">{m.plan_to_list_days()}</span>
+				<button
+					id="{uid}-days"
+					type="button"
+					aria-labelledby="{uid}-days-label {uid}-days-value"
+					aria-expanded={picking}
+					aria-controls="{uid}-calendar"
+					onclick={() => (picking = !picking)}
+					class={field}
+				>
+					<CalendarDays class="size-4 shrink-0 text-text-muted" aria-hidden="true" />
+					<span id="{uid}-days-value" class="min-w-0 flex-1 font-medium">{daysText}</span>
+					<ChevronDown
+						class="size-4 shrink-0 text-text-muted transition-transform {picking
+							? 'rotate-180'
+							: ''}"
+						aria-hidden="true"
+					/>
+				</button>
+				{#if picking}
+					<!-- Each day is a seventh of the width: at 320px that is 40px, a
 				     row of adjoining targets with no gap to miss into. -->
-				<div {@attach foldOnEscape}>
-					<RangeCalendar.Root
-						id="{uid}-calendar"
-						value={calendar}
-						onValueChange={pickRange}
-						isDateDisabled={tooFar}
-						weekStartsOn={1}
-						{locale}
-						fixedWeeks
-						weekdayFormat="short"
-						class="mt-2 rounded-2xl border border-border bg-surface-elevated p-2"
-					>
-						{#snippet children({ months, weekdays })}
-							<RangeCalendar.Header class="flex items-center justify-between pb-1">
-								<RangeCalendar.PrevButton class={navButton}>
-									<ChevronLeft class="size-4.5" aria-hidden="true" />
-								</RangeCalendar.PrevButton>
-								<RangeCalendar.Heading class="font-display text-body font-medium" />
-								<RangeCalendar.NextButton class={navButton}>
-									<ChevronRight class="size-4.5" aria-hidden="true" />
-								</RangeCalendar.NextButton>
-							</RangeCalendar.Header>
-							{#each months as month (month.value.toString())}
-								<RangeCalendar.Grid class="w-full border-collapse">
-									<RangeCalendar.GridHead>
-										<RangeCalendar.GridRow class="flex">
-											{#each weekdays as weekday, i (i)}
-												<RangeCalendar.HeadCell
-													class="flex-1 pb-1 text-center text-micro font-semibold text-text-muted"
-												>
-													{weekday.replace(/\.$/, '')}
-												</RangeCalendar.HeadCell>
-											{/each}
-										</RangeCalendar.GridRow>
-									</RangeCalendar.GridHead>
-									<RangeCalendar.GridBody>
-										{#each month.weeks as days, w (w)}
+					<div {@attach foldOnEscape}>
+						<RangeCalendar.Root
+							id="{uid}-calendar"
+							value={calendar}
+							onValueChange={pickRange}
+							isDateDisabled={tooFar}
+							weekStartsOn={1}
+							{locale}
+							fixedWeeks
+							weekdayFormat="short"
+							class="mt-2 rounded-2xl border border-border bg-surface-elevated p-2"
+						>
+							{#snippet children({ months, weekdays })}
+								<RangeCalendar.Header class="flex items-center justify-between pb-1">
+									<RangeCalendar.PrevButton class={navButton}>
+										<ChevronLeft class="size-4.5" aria-hidden="true" />
+									</RangeCalendar.PrevButton>
+									<RangeCalendar.Heading class="font-display text-body font-medium" />
+									<RangeCalendar.NextButton class={navButton}>
+										<ChevronRight class="size-4.5" aria-hidden="true" />
+									</RangeCalendar.NextButton>
+								</RangeCalendar.Header>
+								{#each months as month (month.value.toString())}
+									<RangeCalendar.Grid class="w-full border-collapse">
+										<RangeCalendar.GridHead>
 											<RangeCalendar.GridRow class="flex">
-												{#each days as date (date.toString())}
-													<RangeCalendar.Cell {date} month={month.value} class="flex-1 p-0">
-														<RangeCalendar.Day
-															class="flex h-11 w-full items-center justify-center text-body-sm text-text tabular-nums transition-colors focus-visible:relative focus-visible:z-10 focus-visible:outline-2 focus-visible:outline-primary data-[disabled]:cursor-not-allowed data-[disabled]:text-text-muted/40 data-[outside-month]:text-text-muted/60 data-[range-middle]:bg-accent data-[range-middle]:text-accent-foreground data-[selected]:bg-accent data-[selection-end]:rounded-r-md data-[selection-end]:bg-primary data-[selection-end]:font-semibold data-[selection-end]:text-primary-foreground data-[selection-start]:rounded-l-md data-[selection-start]:bg-primary data-[selection-start]:font-semibold data-[selection-start]:text-primary-foreground data-[today]:font-bold data-[today]:underline data-[today]:decoration-2 data-[today]:underline-offset-4 md:h-10 [&:not([data-selected])]:rounded-md [&:not([data-selected])]:hover:bg-background"
-														/>
-													</RangeCalendar.Cell>
+												{#each weekdays as weekday, i (i)}
+													<RangeCalendar.HeadCell
+														class="flex-1 pb-1 text-center text-micro font-semibold text-text-muted"
+													>
+														{weekday.replace(/\.$/, '')}
+													</RangeCalendar.HeadCell>
 												{/each}
 											</RangeCalendar.GridRow>
-										{/each}
-									</RangeCalendar.GridBody>
-								</RangeCalendar.Grid>
-							{/each}
-						{/snippet}
-					</RangeCalendar.Root>
-				</div>
-			{/if}
-			{#if trayRecipes > 0}
-				<div class="mt-3 flex items-center justify-between gap-3">
-					<span class="min-w-0">
-						<span class="block text-body-sm font-medium">{m.plan_to_list_tray()}</span>
-						<span class="block text-caption text-text-muted"
-							>{trayRecipes === 1
-								? m.plan_to_list_tray_count_one()
-								: m.plan_to_list_tray_count({ count: trayRecipes })}</span
-						>
-					</span>
-					<Switch
-						checked={tray}
-						label={m.plan_to_list_tray()}
-						onchange={(on) => {
-							tray = on;
-							void loadPreview(true);
-						}}
-					/>
-				</div>
-			{/if}
-		</div>
+										</RangeCalendar.GridHead>
+										<RangeCalendar.GridBody>
+											{#each month.weeks as days, w (w)}
+												<RangeCalendar.GridRow class="flex">
+													{#each days as date (date.toString())}
+														<RangeCalendar.Cell {date} month={month.value} class="flex-1 p-0">
+															<RangeCalendar.Day
+																class="flex h-11 w-full items-center justify-center text-body-sm text-text tabular-nums transition-colors focus-visible:relative focus-visible:z-10 focus-visible:outline-2 focus-visible:outline-primary data-[disabled]:cursor-not-allowed data-[disabled]:text-text-muted/40 data-[outside-month]:text-text-muted/60 data-[range-middle]:bg-accent data-[range-middle]:text-accent-foreground data-[selected]:bg-accent data-[selection-end]:rounded-r-md data-[selection-end]:bg-primary data-[selection-end]:font-semibold data-[selection-end]:text-primary-foreground data-[selection-start]:rounded-l-md data-[selection-start]:bg-primary data-[selection-start]:font-semibold data-[selection-start]:text-primary-foreground data-[today]:font-bold data-[today]:underline data-[today]:decoration-2 data-[today]:underline-offset-4 md:h-10 [&:not([data-selected])]:rounded-md [&:not([data-selected])]:hover:bg-background"
+															/>
+														</RangeCalendar.Cell>
+													{/each}
+												</RangeCalendar.GridRow>
+											{/each}
+										</RangeCalendar.GridBody>
+									</RangeCalendar.Grid>
+								{/each}
+							{/snippet}
+						</RangeCalendar.Root>
+					</div>
+				{/if}
+				{#if trayRecipes > 0}
+					<div class="mt-3 flex items-center justify-between gap-3">
+						<span class="min-w-0">
+							<span class="block text-body-sm font-medium">{m.plan_to_list_tray()}</span>
+							<span class="block text-caption text-text-muted"
+								>{trayRecipes === 1
+									? m.plan_to_list_tray_count_one()
+									: m.plan_to_list_tray_count({ count: trayRecipes })}</span
+							>
+						</span>
+						<Switch
+							checked={tray}
+							label={m.plan_to_list_tray()}
+							onchange={(on) => {
+								tray = on;
+								void loadPreview(true);
+							}}
+						/>
+					</div>
+				{/if}
+			</div>
+		{/if}
 
 		<div>
 			<div class="mb-2 flex items-baseline justify-between">
 				<span class={label}>{m.add_to_list_list_label()}</span>
-				{#if lists.length > 0 && !listsFailed}
+				{#if choices.length > 0 && !listsFailed}
 					<button type="button" onclick={() => (creating = !creating)} class={link}>
 						{creating ? m.common_cancel() : m.add_to_list_new_list()}
 					</button>
@@ -472,18 +522,27 @@
 					bind:value={newName}
 					oninput={() => (named = true)}
 				/>
+				{#if only && choices.length === 0}
+					<p class="mt-2 text-caption text-text-muted">{m.plan_to_list_one_all()}</p>
+				{/if}
 			{:else}
 				<Select
 					bind:value={listId}
-					options={lists.map((l) => ({ value: l.id, label: l.name }))}
+					options={choices.map((l) => ({ value: l.id, label: l.name }))}
 					label={m.add_to_list_list_label()}
 					class="w-full justify-between bg-surface-elevated"
 				/>
 			{/if}
+			{#if only && alreadyLine}
+				<p class="mt-2 flex items-center gap-2 text-caption text-success-foreground">
+					<ShoppingBasket class="size-4 shrink-0" aria-hidden="true" />
+					{alreadyLine}
+				</p>
+			{/if}
 		</div>
 
 		<div>
-			{#if fresh.length > 0 && !previewFailed}
+			{#if fresh.length > 0 && !previewFailed && !only}
 				<span class="mb-2 block {label}"
 					>{m.plan_to_list_recipes({ selected: chosen.length, total: fresh.length })}</span
 				>
@@ -519,10 +578,13 @@
 										<label
 											class="flex min-h-14 min-w-0 flex-1 cursor-pointer items-center gap-3 py-2"
 										>
-											<Checkbox
-												bind:checked={() => count > 0, (on) => toggleRecipe(entry, on)}
-												label={entry.title}
-											/>
+											<!-- One entry: its recipe stays picked, only its ingredients can go. -->
+											{#if !only}
+												<Checkbox
+													bind:checked={() => count > 0, (on) => toggleRecipe(entry, on)}
+													label={entry.title}
+												/>
+											{/if}
 											<span class="min-w-0 {count > 0 ? 'text-text' : 'text-text-muted'}">
 												<span class="block font-semibold break-words [hyphens:none]"
 													>{entry.title}</span
@@ -619,7 +681,7 @@
 						{listed.length > 0 ? m.plan_to_list_nothing_new() : m.plan_to_list_none()}
 					</p>
 				{/if}
-				{#if alreadyLine}
+				{#if alreadyLine && !only}
 					<p class="mt-3 flex items-center gap-2 text-caption text-success-foreground">
 						<ShoppingBasket class="size-4 shrink-0" aria-hidden="true" />
 						{alreadyLine}
@@ -638,14 +700,18 @@
 		type="submit"
 		busy={saving}
 		disabled={!canSubmit}
-		class="min-w-0 grow px-3 whitespace-nowrap md:grow-0 md:px-5"
+		class="min-w-0 grow px-3 md:grow-0 md:px-5 {only
+			? 'max-md:h-auto! max-md:min-h-12 max-md:py-2 max-md:text-center max-md:text-balance md:whitespace-nowrap'
+			: 'whitespace-nowrap'}"
 	>
-		<ShoppingBasket class="size-4 shrink-0 max-[340px]:hidden" aria-hidden="true" />
-		{chosen.length === 0 || previewFailed
-			? m.plan_to_list()
-			: chosen.length === 1
-				? m.plan_to_list_submit_one()
-				: m.plan_to_list_submit({ count: chosen.length })}
+		<ShoppingBasket class="size-4 shrink-0 {only ? '' : 'max-[340px]:hidden'}" aria-hidden="true" />
+		{only && chosen.length === 1 && !previewFailed && target
+			? m.plan_to_list_one_submit({ list: target })
+			: chosen.length === 0 || previewFailed
+				? m.plan_to_list()
+				: chosen.length === 1
+					? m.plan_to_list_submit_one()
+					: m.plan_to_list_submit({ count: chosen.length })}
 	</Button>
 {/snippet}
 
@@ -653,7 +719,9 @@
 	bind:open
 	closeLabel={m.common_cancel()}
 	onsubmit={submit}
-	footerClass="flex gap-2 px-4 pt-3.5 min-[340px]:px-5"
+	footerClass="flex gap-2 px-4 pt-3.5 min-[340px]:px-5 {only
+		? 'max-md:flex-col-reverse max-md:*:w-full'
+		: ''}"
 	{body}
 	{footer}
 />

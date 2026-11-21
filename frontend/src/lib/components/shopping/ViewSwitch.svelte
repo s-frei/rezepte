@@ -51,7 +51,7 @@
 			tabindex={checked ? 0 : -1}
 			onclick={() => setListView(option.value)}
 			onkeydown={(event) => handleKey(event, i)}
-			class="inline-flex h-10 flex-1 items-center justify-center gap-2 rounded-[calc(var(--radius-md)-4px)] px-3 text-body-sm font-semibold whitespace-nowrap transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary {compact
+			class="inline-flex h-11 flex-1 items-center justify-center gap-2 rounded-[calc(var(--radius-md)-4px)] px-3 text-body-sm font-semibold whitespace-nowrap transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary {compact
 				? 'md:h-8 md:flex-none md:px-2.5'
 				: 'md:h-9'} {checked ? 'bg-accent text-accent-foreground' : 'hover-tint text-text-muted'}"
 		>

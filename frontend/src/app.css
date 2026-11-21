@@ -43,6 +43,10 @@
 	--color-destructive-soft: #f9e3dd;
 	--color-success-soft: #dbe7d9;
 	--color-success-foreground: #3f6b48;
+	/* A plan stamp (`LinkStamp`): honey, apart from the accent's tan, which
+	   marks what is selected; 6.3:1. Dark is olive-honey, apart from the accent there too. */
+	--color-plan-soft: #f3e4b8;
+	--color-plan-foreground: #6e4a06;
 	--color-success: #7fb069;
 	--color-inverse: #2b2118;
 	--color-inverse-foreground: #ffffff;
@@ -355,6 +359,8 @@
 	--color-destructive-soft: #3d2320;
 	--color-success-soft: #25341f;
 	--color-success-foreground: #aed3a8;
+	--color-plan-soft: #3a3118;
+	--color-plan-foreground: #ecc879;
 	--color-inverse: #f3ebe0;
 	--color-inverse-foreground: #1c1612;
 	--color-inverse-muted: #6f6255;
@@ -410,6 +416,8 @@
 		--color-destructive-soft: #3d2320;
 		--color-success-soft: #25341f;
 		--color-success-foreground: #aed3a8;
+		--color-plan-soft: #3a3118;
+		--color-plan-foreground: #ecc879;
 		--color-inverse: #f3ebe0;
 		--color-inverse-foreground: #1c1612;
 		--color-inverse-muted: #6f6255;

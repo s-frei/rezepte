@@ -25,11 +25,16 @@
 	const names = $derived(dayNames(day, getLocale()));
 </script>
 
+<!-- Focusable for a stamp's jump to the day (`tabindex="-1"`, no stop of its own). -->
 <section
+	data-day={day}
+	tabindex="-1"
 	aria-label={names.full}
 	aria-current={today ? 'date' : undefined}
 	id={today ? 'today' : undefined}
-	class="flex min-w-0 flex-col gap-2 rounded-2xl pb-2 {today ? 'outline-2 outline-primary' : ''}"
+	class="flex min-w-0 flex-col gap-2 rounded-2xl pb-2 {today
+		? 'outline-2 outline-primary'
+		: 'outline-none focus-visible:outline-2 focus-visible:outline-primary/60'}"
 >
 	<header
 		class="flex items-baseline gap-1.5 border-b-2 border-dotted py-2 pr-1 pl-2.5 {today

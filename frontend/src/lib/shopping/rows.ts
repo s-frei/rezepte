@@ -1,7 +1,7 @@
-import { planHref } from '#lib/mealplan/href.js';
 import type {
 	Department,
 	ListPerson,
+	PlanRef,
 	ShoppingEntry,
 	ShoppingItem,
 	ShoppingList
@@ -21,6 +21,8 @@ export type Source = {
 	amount: string;
 	/** Title of the entry the item came from; null for a free item. */
 	recipe: string | null;
+	/** The plan the recipe came from: a department row marks it with the plan's icon and names it to a screen reader. */
+	plan: PlanRef | null;
 	/** Who typed a free item in, so the row can show their mark and the page say "by you". */
 	addedBy: ListPerson | null;
 	/**
@@ -77,18 +79,6 @@ export function entryTitle(entry: ShoppingEntry, at: Now = now()): string {
 	return day ? `${day} · ${entry.title}` : entry.title;
 }
 
-/**
- * Where "aus der Woche" leads: the week of the first planned entry whose plan
- * the reader is in (`plans`); null when none is. Another member's plan would
- * answer 404, so it is never linked.
- */
-export function weekHref(entries: ShoppingEntry[], plans: Set<string>): string | null {
-	const mine = entries.filter((e) => e.planId && plans.has(e.planId));
-	const entry = mine.find((e) => e.planDay) ?? mine[0];
-	if (!entry?.planId) return null;
-	return planHref(entry.planId, entry.planDay ? mondayOf(entry.planDay) : undefined);
-}
-
 const amountText = (quantity: number | null, unit: string) =>
 	[formatQuantity(quantity), unit].filter(Boolean).join(' ');
 
@@ -142,6 +132,7 @@ function namesOf(list: ShoppingList): Map<string, string> {
 function rowsOf(list: ShoppingList, items: ShoppingItem[], at: Now): Row[] {
 	const names = namesOf(list);
 	const titles = new Map(list.entries.map((e) => [e.id, entryTitle(e, at)]));
+	const plans = new Map(list.entries.filter((e) => e.planId).map((e) => [e.id, e]));
 	// The same recipe added twice is one origin: its lines add up instead of repeating.
 	const recipeOf = new Map(list.entries.map((e) => [e.id, e.recipeId ?? e.id]));
 	const rows = new Map<string, { row: Row; items: ShoppingItem[] }>();
@@ -187,6 +178,7 @@ function rowsOf(list: ShoppingList, items: ShoppingItem[], at: Now): Row[] {
 				itemId: first.id,
 				amount: amountText(sum.quantity, sum.unit),
 				recipe: first.entryId ? (titles.get(first.entryId) ?? null) : null,
+				plan: (first.entryId && plans.get(first.entryId)) || null,
 				addedBy: first.addedBy,
 				addedByName: first.addedBy ? (names.get(first.addedBy.id) ?? null) : null,
 				note: notes.length > 0 ? notes.join(', ') : null,

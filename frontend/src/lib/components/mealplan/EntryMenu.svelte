@@ -2,6 +2,7 @@
 	import BookOpen from '@lucide/svelte/icons/book-open';
 	import CalendarDays from '@lucide/svelte/icons/calendar-days';
 	import Ellipsis from '@lucide/svelte/icons/ellipsis';
+	import ShoppingBasket from '@lucide/svelte/icons/shopping-basket';
 	import Trash2 from '@lucide/svelte/icons/trash-2';
 	import Users from '@lucide/svelte/icons/users';
 	import { Dialog, DropdownMenu } from 'bits-ui';
@@ -12,6 +13,9 @@
 	import Button from '#lib/components/ui/Button.svelte';
 	import DialogActions from '#lib/components/ui/DialogActions.svelte';
 	import { recipeHref } from '#lib/mealplan/entries.js';
+	import { getToList } from '#lib/mealplan/to-list.js';
+	import { listEntryHref } from '#lib/shopping/href.js';
+	import { byListName } from '#lib/shopping/plan-ref.js';
 	import { m } from '#lib/paraglide/messages.js';
 
 	let {
@@ -29,6 +33,9 @@
 		onremove: () => void;
 	} = $props();
 
+	const toList = getToList();
+	/** Three lists at most: the card's stamps and their "+n" reach every one. */
+	const lists = $derived(byListName(entry.lists).slice(0, 3));
 	let servingsOpen = $state(false);
 	let removing = false;
 	let servings = $state(0);
@@ -48,6 +55,9 @@
 
 	const item =
 		'flex h-10 items-center gap-2 rounded-sm px-3 text-body-sm text-text transition outline-none data-highlighted:bg-popover-highlight';
+	// A list's name may be long: it wraps, so its "öffnen" is never cut.
+	const listItem =
+		'flex min-h-10 items-center gap-2 rounded-sm px-3 py-2 text-body-sm text-text transition outline-none data-highlighted:bg-popover-highlight';
 </script>
 
 <DropdownMenu.Root>
@@ -71,7 +81,7 @@
 			sideOffset={4}
 			align="end"
 			collisionPadding={12}
-			class="z-50 w-60 rounded-2xl border border-popover-border bg-popover p-2 shadow-dialog"
+			class="z-50 w-64 max-w-[calc(100vw-24px)] rounded-2xl border border-popover-border bg-popover p-2 shadow-dialog"
 		>
 			{#if entry.recipeSlug}
 				{@const href = recipeHref(entry)}
@@ -89,6 +99,32 @@
 					<Users class="size-4" aria-hidden="true" />
 					{m.plan_entry_servings()}
 				</DropdownMenu.Item>
+			{/if}
+			{#if toList && entry.recipeId !== null && entry.servings !== null}
+				<DropdownMenu.Item onSelect={() => toList(entry)} class={item}>
+					<ShoppingBasket class="size-4" aria-hidden="true" />
+					{entry.lists.length > 0 ? m.plan_entry_to_another_list() : m.plan_entry_to_list()}
+				</DropdownMenu.Item>
+			{/if}
+			{#if entry.lists.length > 0}
+				<DropdownMenu.Separator class="mx-1 my-1.5 h-px bg-popover-border" />
+				<DropdownMenu.Group>
+					<DropdownMenu.GroupHeading class="px-3 pt-1 pb-1 text-caption text-text-muted"
+						>{m.plan_entry_on_lists()}</DropdownMenu.GroupHeading
+					>
+					{#each lists as list (list.id)}
+						<!-- A long name wraps: cut, it would lose the "öffnen" that says what the item does. -->
+						<DropdownMenu.Item
+							onSelect={() => goto(listEntryHref(list.id, entry.id))}
+							class={listItem}
+						>
+							<ShoppingBasket class="size-4 shrink-0 text-success-foreground" aria-hidden="true" />
+							<span class="min-w-0 flex-1 break-words"
+								>{m.plan_entry_open_list({ name: list.name })}</span
+							>
+						</DropdownMenu.Item>
+					{/each}
+				</DropdownMenu.Group>
 			{/if}
 			<DropdownMenu.Separator class="mx-1 my-1.5 h-px bg-popover-border" />
 			<DropdownMenu.Item

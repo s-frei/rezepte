@@ -1,10 +1,11 @@
 <script lang="ts">
 	import ArrowLeft from '@lucide/svelte/icons/arrow-left';
-	import ChevronRight from '@lucide/svelte/icons/chevron-right';
 	import ShoppingBasket from '@lucide/svelte/icons/shopping-basket';
 	import Share2 from '@lucide/svelte/icons/share-2';
+	import { getLocalTimeZone, today } from '@internationalized/date';
 	import { toast } from 'svelte-sonner';
-	import { goto } from '$app/navigation';
+	import { onDestroy, tick } from 'svelte';
+	import { afterNavigate, beforeNavigate, goto, replaceState } from '$app/navigation';
 	import { page } from '$app/state';
 	import { resolve } from '$app/paths';
 	import {
@@ -39,14 +40,17 @@
 	import ListPanel from '#lib/components/shopping/ListPanel.svelte';
 	import ListSide from '#lib/components/shopping/ListSide.svelte';
 	import ShoppingRow from '#lib/components/shopping/ShoppingRow.svelte';
+	import StampRow from '#lib/components/shopping/StampRow.svelte';
+	import { mondayOf } from '#lib/mealplan/week.js';
+	import { uniquePlans } from '#lib/shopping/plan-ref.js';
 	import { session } from '#lib/auth.svelte.js';
 	import { copyText } from '#lib/recipe/share.svelte.js';
 	import { departmentLabel } from '#lib/shopping/departments.js';
-	import { listText, listViews, weekHref, type Row } from '#lib/shopping/rows.js';
+	import { listText, listViews, type Row } from '#lib/shopping/rows.js';
 	import { failList } from '#lib/shopping/fail.js';
 	import { ListState } from '#lib/shopping/list-state.svelte.js';
 	import { shopHref } from '#lib/shopping/href.js';
-	import { listView } from '#lib/shopping/view.svelte.js';
+	import { borrowListView, listView } from '#lib/shopping/view.svelte.js';
 	import { m } from '#lib/paraglide/messages.js';
 	import { shell } from '#lib/shell.svelte.js';
 	import type { PageProps } from './$types';
@@ -70,8 +74,49 @@
 		listViews(list, listView.current)
 	);
 	const empty = $derived(list.items.length === 0 && list.entries.length === 0);
-	// Back to the week the planned entries came from, if the reader is in that plan.
-	const week = $derived(data.plans ? weekHref(list.entries, new Set(data.plans)) : null);
+	// Every plan the recipes came from: a link into a plan the reader is in.
+	const fromPlans = $derived(
+		uniquePlans(list.entries, session.user?.id, mondayOf(today(getLocalTimeZone()).toString()))
+	);
+
+	/**
+	 * A plan card's list stamp (`?entry=<plan entry>`): the recipe view, for
+	 * this visit only (`borrowListView`), scrolled to that recipe's block, its heading focused
+	 * and the block lit once; the address drops the parameter, so Back or a
+	 * reload does not jump again.
+	 */
+	let giveBack: (() => void) | undefined;
+	// Leaving the list (to another list too: the page stays mounted then),
+	// the view the reader chose comes back.
+	const giveViewBack = () => {
+		giveBack?.();
+		giveBack = undefined;
+	};
+	onDestroy(giveViewBack);
+	beforeNavigate(({ to }) => {
+		if (to?.url.pathname !== page.url.pathname) giveViewBack();
+	});
+	afterNavigate(() => {
+		const planEntry = page.url.searchParams.get('entry');
+		if (!planEntry) return;
+		const url = new URL(page.url.href);
+		url.searchParams.delete('entry');
+		replaceState(url, page.state);
+		const entry = list.entries.find((e) => e.planEntryId === planEntry);
+		if (!entry) return;
+		giveViewBack();
+		giveBack = borrowListView('recipe');
+		void tick().then(() => {
+			const block = document.querySelector<HTMLElement>(
+				`[data-entry-block="${CSS.escape(entry.id)}"]`
+			);
+			if (!block) return;
+			block.scrollIntoView({ block: 'center', behavior: 'smooth' });
+			block.querySelector<HTMLElement>('h2')?.focus({ preventScroll: true });
+			block.dataset.lit = '';
+			setTimeout(() => delete block.dataset.lit, 1800);
+		});
+	});
 
 	let sheetOpen = $state(false);
 	let sheetRow = $state<Row | null>(null);
@@ -199,15 +244,24 @@
 			<h1 class="font-display text-display-md font-medium wrap-break-word md:text-display-lg">
 				{list.name}
 			</h1>
-			{#if week}
-				<!-- A 44px target that keeps the line's height: padding out, margin back. -->
-				<a
-					href={week}
-					class="-my-3 -ml-1 inline-flex min-h-11 items-center gap-0.5 rounded-md px-1 py-3 text-body-sm font-semibold text-primary hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
-				>
-					{m.list_from_week()}
-					<ChevronRight class="size-4" aria-hidden="true" />
-				</a>
+			{#if fromPlans.length > 0}
+				<!-- Where the planned recipes came from: two lines of stamps, then "+n". -->
+				<div class="mt-1.5 flex items-start gap-x-1.5 max-sm:flex-col max-sm:gap-y-0.5">
+					<span class="shrink-0 text-caption leading-6 text-text-muted" aria-hidden="true"
+						>{m.link_from_plans()}</span
+					>
+					<StampRow
+						label={m.link_from_plans()}
+						class="w-full flex-1"
+						stamps={fromPlans.map((p) => ({
+							key: p.key,
+							kind: 'plan' as const,
+							label: p.label,
+							href: p.href,
+							quiet: !p.member
+						}))}
+					/>
+				</div>
 			{/if}
 			<!--
 				Phone: "Shop" is the page's main action, a wide button that also
@@ -257,7 +311,11 @@
 				</button>
 			{/if}
 			{#if owner}
-				<ShareButton label={m.list_share()} onclick={() => (shareOpen = true)} class="md:hidden" />
+				<ShareButton
+					label={m.list_share()}
+					onclick={() => (shareOpen = true)}
+					class="max-md:size-11 md:hidden"
+				/>
 				<Button variant="secondary" onclick={() => (shareOpen = true)} class="max-md:hidden">
 					<Share2 class="size-4" aria-hidden="true" />
 					{m.list_share()}
@@ -285,6 +343,7 @@
 					{recipes}
 					checkers={people.length > 1}
 					{flashId}
+					stamps
 					onToggle={(row) => lst.toggle(row)}
 					onOpen={openSheet}
 				>

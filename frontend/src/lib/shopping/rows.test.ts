@@ -1,14 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { PlanRef, ShoppingItem, ShoppingList } from '#lib/api/shopping.js';
 import { DEPARTMENTS } from './departments';
-import {
-	checkedRows,
-	groupByDepartment,
-	groupByRecipe,
-	listText,
-	tickedItemRows,
-	weekHref
-} from './rows';
+import { checkedRows, groupByDepartment, groupByRecipe, listText, tickedItemRows } from './rows';
 
 /** The plan fields of an entry added by hand. */
 const noPlan: PlanRef = {
@@ -115,6 +108,7 @@ describe('groupByDepartment', () => {
 				itemId: 'a',
 				amount: '1 ½ kg',
 				recipe: 'Soup',
+				plan: null,
 				addedBy: null,
 				addedByName: null,
 				note: null,
@@ -125,6 +119,7 @@ describe('groupByDepartment', () => {
 				itemId: 'b',
 				amount: '2',
 				recipe: 'Stew',
+				plan: null,
 				addedBy: null,
 				addedByName: null,
 				note: 'diced',
@@ -399,13 +394,10 @@ describe('planned entries', () => {
 		expect(groupByRecipe(list(items), { locale: 'de', today })[0].day).toBeNull();
 	});
 
-	it('links back only to a plan the reader is in', () => {
-		const entries = planned([]).entries;
-		expect(weekHref(entries, new Set(['p']))).toBe('/plans/p?from=2026-11-16');
-		expect(weekHref(entries, new Set(['other']))).toBeNull();
-		expect(weekHref(list([]).entries, new Set(['p']))).toBeNull();
-		// A tray entry links to the plan's current week.
-		const tray = [{ ...entry('e3', 'Soup'), planId: 'p', planDay: null }];
-		expect(weekHref(tray, new Set(['p']))).toBe('/plans/p');
+	it('marks the sources that came from a plan', () => {
+		const [dep] = groupByDepartment(planned(items), { locale: 'de', today });
+		expect(dep.rows[0].sources.map((s) => s.plan?.planId)).toEqual(['p', 'p']);
+		const [byHand] = groupByDepartment(list(items), { locale: 'de', today });
+		expect(byHand.rows[0].sources.map((s) => s.plan)).toEqual([null, null]);
 	});
 });

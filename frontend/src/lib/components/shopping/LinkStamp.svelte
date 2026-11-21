@@ -8,11 +8,19 @@
 		open?: number | null;
 		/** Resolved; a link where the reader can open the other side. */
 		href?: string | null;
-		/** A plan the reader is not in: hairline, no tint, no link. */
+		/** A plan the reader is not in: hairline, no tint, no link; its label names the kind ("Geplant von Mila"). */
 		quiet?: boolean;
 		/** Overrides the accessible name. */
 		ariaLabel?: string;
 	};
+
+	/** A stamp's tint by kind; the row's summary pill ("3 Listen") wears it too. */
+	export function stampTone(kind: StampProps['kind'], quiet = false): string {
+		if (quiet) return 'text-text-muted ring-1 ring-inset ring-border';
+		return kind === 'plan'
+			? 'bg-plan-soft text-plan-foreground ring-1 ring-inset ring-plan-foreground/20'
+			: 'bg-success-soft text-success-foreground';
+	}
 </script>
 
 <script lang="ts">
@@ -39,33 +47,38 @@
 		href = null,
 		quiet = false,
 		ariaLabel,
+		wrap = false,
+		bare = false,
 		class: extra = ''
-	}: StampProps & { class?: string } = $props();
+	}: StampProps & {
+		/** Without its detail (the day, the open count), where the row is tight; the accessible name keeps it. */
+		bare?: boolean;
+		/** A popover's stamp: the name wraps, the detail runs on after it. */
+		wrap?: boolean;
+		class?: string;
+	} = $props();
 
 	const locale = getLocale();
 	const names = $derived(day ? dayNames(day, locale) : null);
 	const aria = $derived(
 		ariaLabel ??
 			[
-				m.link_aria({
-					kind: kind === 'plan' ? m.link_kind_plan() : m.link_kind_list(),
-					name: label
-				}),
+				// "Geplant von Mila" and "Mein Plan" name the kind themselves.
+				quiet || (kind === 'plan' && label === m.plan_personal())
+					? label
+					: m.link_aria({
+							kind: kind === 'plan' ? m.link_kind_plan() : m.link_kind_list(),
+							name: label
+						}),
 				names?.full,
 				open === null ? null : m.list_open({ open })
 			]
 				.filter(Boolean)
 				.join(', ')
 	);
-	const tone = $derived(
-		quiet
-			? 'text-text-muted ring-1 ring-inset ring-border'
-			: kind === 'plan'
-				? 'bg-accent text-accent-foreground ring-1 ring-inset ring-accent-foreground/25'
-				: 'bg-success-soft text-success-foreground'
-	);
+	const tone = $derived(stampTone(kind, quiet));
 	const base = $derived(
-		`inline-flex h-6 max-w-full min-w-0 items-center gap-1 rounded-pill px-2 text-caption font-semibold whitespace-nowrap ${tone} ${extra}`
+		`inline-flex h-6 max-w-full min-w-0 items-center gap-1 rounded-pill px-2 text-caption font-semibold ${wrap ? '' : 'whitespace-nowrap'} ${tone} ${extra}`
 	);
 </script>
 
@@ -75,14 +88,22 @@
 	{:else}
 		<ShoppingBasket class="size-3.5 shrink-0" aria-hidden="true" />
 	{/if}
-	<span class="min-w-0 truncate">{label}</span>
-	{#if names && day}
+	{#if wrap}
+		<span class="min-w-0"
+			>{label}{#if open !== null}<span class="font-normal whitespace-nowrap"
+					>&nbsp;·&nbsp;{m.list_open({ open })}</span
+				>{/if}</span
+		>
+	{:else}
+		<span class="min-w-0 truncate">{label}</span>
+	{/if}
+	{#if names && day && !bare}
 		<span class="shrink-0 font-normal"
 			>·&nbsp;{names.weekday}<span class="hidden @[15rem]:inline">&nbsp;{stampDate(day)}</span
 			></span
 		>
 	{/if}
-	{#if open !== null}
+	{#if open !== null && !wrap && !bare}
 		<span class="shrink-0 font-normal">·&nbsp;{m.list_open({ open })}</span>
 	{/if}
 {/snippet}

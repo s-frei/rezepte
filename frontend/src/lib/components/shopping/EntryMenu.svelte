@@ -45,7 +45,7 @@
 	<!-- Round and outlined like the list header's ⋯, so it reads as a button where "remove" lives. -->
 	<DropdownMenu.Trigger
 		aria-label={m.list_entry_menu({ title: entry.title })}
-		class="{iconCircle} bg-surface text-text"
+		class="{iconCircle} bg-surface text-text max-md:size-11"
 	>
 		<Ellipsis class="size-5" aria-hidden="true" />
 	</DropdownMenu.Trigger>

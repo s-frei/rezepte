@@ -174,8 +174,19 @@
 		toast.success(said, {
 			action: {
 				label: m.common_undo(),
-				onClick: () =>
-					void week.apply(restorePlanEntry(before.id, entry.id, week.range), undefined, failed)
+				// Back in its place, the keyboard goes back to it: its ⋯, else its day's "+".
+				onClick: async () => {
+					if (
+						!(await week.apply(
+							restorePlanEntry(before.id, entry.id, week.range),
+							undefined,
+							failed
+						))
+					)
+						return;
+					if (entry.day !== null && past.includes(entry.day)) expanded = true;
+					focusAfter(() => menuOf(entry.id) ?? addOf(entry.day));
+				}
 			}
 		});
 	}
@@ -190,6 +201,7 @@
 		items={items(key)}
 		{layout}
 		{label}
+		{today}
 		onconsider={(event) => consider(key, event)}
 		onfinalize={(event) => finalize(key, event)}
 		onmove={(entry) => {

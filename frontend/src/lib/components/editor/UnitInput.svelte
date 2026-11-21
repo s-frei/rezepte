@@ -151,7 +151,7 @@
 			: undefined}
 		aria-label={labeled ? undefined : m.editor_ingredient_unit()}
 		placeholder={labeled ? undefined : m.editor_ingredient_unit()}
-		class="{fieldClass} {labeled ? 'pr-5.5 @xl:pr-9' : 'pr-9'}"
+		class="{fieldClass} {labeled ? 'pr-5.5 @xl:pr-9' : 'pr-9 max-md:pr-11'}"
 	/>
 	<button
 		type="button"
@@ -174,7 +174,7 @@
 		}}
 		class="absolute inset-y-0 right-0 flex items-center justify-center text-text-muted {labeled
 			? 'w-4.5 @xl:w-9'
-			: 'w-9'}"
+			: 'w-9 max-md:w-11'}"
 	>
 		<ChevronDown
 			class="size-4 transition-transform motion-reduce:transition-none {listboxOpen

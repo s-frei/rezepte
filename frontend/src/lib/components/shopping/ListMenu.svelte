@@ -70,7 +70,10 @@
 </script>
 
 <DropdownMenu.Root>
-	<DropdownMenu.Trigger aria-label={m.detail_menu()} class="{iconCircle} bg-surface text-text">
+	<DropdownMenu.Trigger
+		aria-label={m.detail_menu()}
+		class="{iconCircle} bg-surface text-text max-md:size-11"
+	>
 		<Ellipsis class="size-5" aria-hidden="true" />
 	</DropdownMenu.Trigger>
 	<DropdownMenu.Portal>

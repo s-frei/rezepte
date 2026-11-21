@@ -1,5 +1,9 @@
 <script lang="ts">
 	import ShoppingBasket from '@lucide/svelte/icons/shopping-basket';
+	import StampRow from '#lib/components/shopping/StampRow.svelte';
+	import { getToList } from '#lib/mealplan/to-list.js';
+	import { listEntryHref } from '#lib/shopping/href.js';
+	import { byListName } from '#lib/shopping/plan-ref.js';
 	import { imageUrl } from '#lib/api/recipes.js';
 	import type { PlanEntry } from '#lib/api/mealplan.js';
 	import PersonMark from '#lib/components/ui/PersonMark.svelte';
@@ -17,19 +21,29 @@
 	let {
 		entry,
 		layout,
+		today,
 		onmove,
 		onservings,
 		onremove
 	}: {
 		entry: PlanEntry;
 		layout: 'column' | 'row' | 'chip';
+		/** `YYYY-MM-DD`, the page's today: a day before it is past. */
+		today: string;
 		onmove: () => void;
 		onservings: (servings: number) => void;
 		onremove: () => void;
 	} = $props();
 
 	const href = $derived(recipeHref(entry));
-	const list = $derived(entry.lists[0]);
+	const toList = getToList();
+	/** A recipe on no list, today or later or on the tray, says so and offers one. */
+	const unlisted = $derived(
+		entry.recipeId !== null &&
+			entry.servings !== null &&
+			entry.lists.length === 0 &&
+			(entry.day === null || entry.day >= today)
+	);
 	const servings = $derived(
 		entry.servings === null
 			? ''
@@ -90,15 +104,32 @@
 {/snippet}
 
 {#snippet onList()}
-	{#if list}
-		<span
-			title={entry.lists.map((l) => l.name).join(', ')}
-			class="inline-flex min-w-0 items-center gap-1 text-caption font-semibold text-success-foreground"
+	{#if entry.lists.length > 0}
+		<!-- Each list a link, two lines at most, then "+n"; above the stretched title link. -->
+		<StampRow
+			class="relative z-10 w-full"
+			label={m.plans_card_lists()}
+			stamps={byListName(entry.lists).map((l) => ({
+				key: l.id,
+				kind: 'list' as const,
+				label: l.name,
+				href: listEntryHref(l.id, entry.id)
+			}))}
+		/>
+	{:else if unlisted && toList}
+		<!-- A press here is its own, never the start of a drag of the card. -->
+		<button
+			type="button"
+			aria-haspopup="dialog"
+			aria-label={m.link_not_listed_label({ title: entry.title })}
+			onmousedown={(event) => event.stopPropagation()}
+			ontouchstart={(event) => event.stopPropagation()}
+			onclick={() => toList(entry)}
+			class="relative z-10 inline-flex h-6 max-w-full min-w-0 items-center gap-1 rounded-pill border border-dashed border-handle px-2 text-caption font-semibold whitespace-nowrap text-text-muted transition hover:border-primary hover:text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary max-md:after:absolute max-md:after:inset-x-0 max-md:after:inset-y-[calc(50%-22px)] dark:border-text-muted/60"
 		>
 			<ShoppingBasket class="size-3.5 shrink-0" aria-hidden="true" />
-			<span class="sr-only">{m.plan_on_list({ name: list.name })}</span>
-			<span aria-hidden="true" class="truncate">{list.name}</span>
-		</span>
+			<span class="truncate">{m.link_not_listed()}</span>
+		</button>
 	{/if}
 {/snippet}
 
@@ -142,35 +173,43 @@
 		<div class="flex flex-col gap-0.5 px-2.5 pt-3 pb-2.5">
 			{@render title('text-body-sm leading-snug font-semibold text-text [hyphens:none]')}
 			<span class="text-caption whitespace-nowrap text-text-muted">{servings}</span>
-			<span class="mt-0.5 flex min-w-0">{@render onList()}</span>
+			<div class="mt-1 flex min-w-0">{@render onList()}</div>
 		</div>
 		<div class="absolute top-1.5 right-1.5 z-10">
 			{@render menu('size-7 bg-surface text-text shadow-card hover:bg-background')}
 		</div>
 	</article>
 {:else}
+	<!-- The thumbnail beside the title and servings, the ⋯ beside them at
+	     the top; the lists below run on under the ⋯, the row's full width. -->
 	<article
-		class="relative flex min-h-13 items-center gap-3 rounded-lg {still} {layout === 'chip'
+		class="relative grid min-h-13 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-x-3 rounded-lg {still} {layout ===
+		'chip'
 			? 'md:min-h-0 md:bg-background md:py-1 md:pl-1'
 			: ''}"
 	>
-		<span class="relative shrink-0">
+		<span class="relative row-span-2 shrink-0">
 			{@render cover(`rounded-md ${layout === 'chip' ? 'size-11' : 'size-12'}`, 'text-heading')}
 			{@render mark('absolute -right-1 -bottom-1 rounded-full ring-2 ring-surface')}
 		</span>
-		<span class="flex min-w-0 flex-1 {layout === 'chip' ? 'flex-col items-start' : 'flex-col'}">
-			{@render title(
-				`text-body-sm leading-snug font-semibold text-text [hyphens:none] ${layout === 'chip' ? 'md:whitespace-nowrap' : ''}`
-			)}
-			<span class="flex flex-wrap items-center gap-x-2.5">
-				<span class="text-caption whitespace-nowrap text-text-muted">{servings}</span>
-				{@render onList()}
-			</span>
-		</span>
-		<span class="relative z-10 flex">
+		<div class="col-start-2 row-start-1 flex min-w-0 self-end">
+			{@render title(`text-body-sm leading-snug font-semibold text-text [hyphens:none]`)}
+		</div>
+		<span class="col-start-2 row-start-2 self-start text-caption whitespace-nowrap text-text-muted"
+			>{servings}</span
+		>
+		<span class="relative z-10 col-start-3 row-span-2 row-start-1 flex">
 			{@render menu(
 				`text-text-muted hover:bg-surface ${layout === 'chip' ? 'size-11 md:size-8' : 'size-11 md:size-9'}`
 			)}
 		</span>
+		{#if entry.lists.length > 0 || (unlisted && toList)}
+			<!-- Below 360 the lists start under the thumbnail: two short ones share a line. -->
+			<div
+				class="col-span-2 col-start-2 row-start-3 mt-1 flex min-w-0 max-[359px]:col-span-3 max-[359px]:col-start-1"
+			>
+				{@render onList()}
+			</div>
+		{/if}
 	</article>
 {/if}

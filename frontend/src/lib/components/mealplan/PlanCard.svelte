@@ -7,6 +7,7 @@
 	import { session } from '#lib/auth.svelte.js';
 	import PeopleStack from '#lib/components/shopping/PeopleStack.svelte';
 	import StampRow from '#lib/components/shopping/StampRow.svelte';
+	import { byListName } from '#lib/shopping/plan-ref.js';
 	import { planHref } from '#lib/mealplan/href.js';
 	import { cellKind, weekStrip } from '#lib/mealplan/overview.svelte.js';
 	import { dayNames, mondayOf } from '#lib/mealplan/week.js';
@@ -69,7 +70,7 @@
 	const href = $derived(planHref(plan.id));
 	const titleId = $derived(`plan-card-${plan.id}`);
 	const stamps = $derived(
-		plan.lists.map((list) => ({
+		byListName(plan.lists).map((list) => ({
 			key: list.id,
 			kind: 'list' as const,
 			label: list.name,

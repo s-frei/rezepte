@@ -1,9 +1,18 @@
 <script lang="ts" module>
 	import { session } from '#lib/auth.svelte.js';
+	import type { PlanRef } from '#lib/api/shopping.js';
+	import { planStamp } from '#lib/shopping/plan-ref.js';
 	import type { Row, Source } from '#lib/shopping/rows.js';
 	import { m } from '#lib/paraglide/messages.js';
 
 	/** What follows a source's amount: its recipe (unless the block names it), or who typed it in. */
+	/** A department row's planned source, for a screen reader: "aus Plan Haushalt", "aus Mein Plan", "Geplant von Mila". */
+	function planSource(ref: PlanRef): string {
+		const stamp = planStamp(ref, session.user?.id, '');
+		if (!stamp?.member) return stamp?.label ?? '';
+		return stamp.personal ? m.link_from_my_plan_sr() : m.link_from_plan_sr({ name: stamp.label });
+	}
+
 	export function sourceOrigin(source: Source, bySource = false): string | null {
 		if (source.recipe) return bySource ? null : source.recipe;
 		if (source.formerMember) return m.list_added_by_former();
@@ -23,6 +32,7 @@
 </script>
 
 <script lang="ts">
+	import CalendarDays from '@lucide/svelte/icons/calendar-days';
 	import TickMark from '#lib/components/ui/TickMark.svelte';
 	import PersonMark from '#lib/components/ui/PersonMark.svelte';
 	let {
@@ -58,6 +68,7 @@
 				id: s.itemId,
 				amount: s.amount,
 				origin: sourceOrigin(s, bySource),
+				plan: s.plan ? planSource(s.plan) : null,
 				adder: adderMark(s, row.checked),
 				checked: s.checked
 			}))
@@ -156,6 +167,16 @@
 							<span class="flex min-w-0 items-center">
 								{#if pair.amount}<span>&nbsp;·&nbsp;</span>{/if}
 								<PersonMark person={pair.adder} size="xs" class="-my-0.5 mr-1" />
+								<span class="truncate">{pair.origin}</span>
+							</span>
+						{:else if pair.origin && pair.plan}
+							<!-- From a plan: the plan's icon before "Do · Rinderrouladen". -->
+							<span class="flex min-w-0 items-center">
+								{#if pair.amount}<span>&nbsp;·&nbsp;</span>{/if}
+								<CalendarDays
+									class="mr-1 size-3 shrink-0 text-plan-foreground"
+									aria-hidden="true"
+								/><span class="sr-only">{pair.plan}&nbsp;</span>
 								<span class="truncate">{pair.origin}</span>
 							</span>
 						{:else if pair.origin}

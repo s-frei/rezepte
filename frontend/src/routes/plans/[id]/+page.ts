@@ -30,7 +30,15 @@ export const load: PageLoad = async ({ params, url }) => {
 	const asked = url.searchParams.get('from');
 	const from = monday(asked, now);
 	const canonical = from === mondayOf(now) ? null : from;
-	if (asked !== canonical) redirect(307, planHref(params.id, canonical ?? undefined));
+	// A stamp's jump (`day`, `entry`) survives the move to the canonical address.
+	if (asked !== canonical)
+		redirect(
+			307,
+			planHref(params.id, canonical ?? undefined, {
+				day: url.searchParams.get('day'),
+				entry: url.searchParams.get('entry')
+			})
+		);
 	try {
 		const plan = await getPlan(params.id, { from, to: weekDays(from)[6] });
 		return { plan, today: now };

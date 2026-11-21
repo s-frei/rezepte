@@ -6,6 +6,11 @@
 	import { relativeTime } from '#lib/shopping/relative.js';
 	import { m } from '#lib/paraglide/messages.js';
 	import ArrowRight from '@lucide/svelte/icons/arrow-right';
+	import CalendarDays from '@lucide/svelte/icons/calendar-days';
+	import { getLocalTimeZone, today } from '@internationalized/date';
+	import { mondayOf } from '#lib/mealplan/week.js';
+	import { getLocale } from '#lib/paraglide/runtime.js';
+	import { uniquePlans } from '#lib/shopping/plan-ref.js';
 
 	let { list }: { list: ShoppingSummary } = $props();
 
@@ -32,6 +37,19 @@
 				})
 			: m.lists_card_changed({ when: relativeTime(list.updatedAt) })
 	);
+	// The plans that fed the list, as one line, not a row of pills: "Aus
+	// Mein Plan und Haushalt · Geplant von Mila". The card is one link, so no stamp is.
+	// A separator as an expression: spaces at the edge of a block are trimmed.
+	const SEP = ' · ';
+	const fromLine = $derived.by(() => {
+		const plans = uniquePlans(list.recipes, meId, mondayOf(today(getLocalTimeZone()).toString()));
+		const mine = plans.filter((p) => p.member).map((p) => p.label);
+		const names = new Intl.ListFormat(getLocale(), { type: 'conjunction' }).format(mine);
+		return [
+			...(mine.length ? [{ text: m.link_from_names({ names }), whole: false }] : []),
+			...plans.filter((p) => !p.member).map((p) => ({ text: p.label, whole: true }))
+		];
+	});
 	const total = $derived(list.openCount + list.doneCount);
 	const percent = $derived(total === 0 ? 0 : Math.round((list.doneCount / total) * 100));
 </script>
@@ -51,6 +69,17 @@
 	<p class="mt-0.5 text-caption text-text-muted">
 		{m.lists_card_counts({ open: list.openCount, done: list.doneCount })}
 	</p>
+	{#if fromLine.length > 0}
+		<p class="mt-1.5 flex items-start gap-1.5 text-caption text-text-muted">
+			<CalendarDays class="mt-px size-3.5 shrink-0 text-plan-foreground" aria-hidden="true" />
+			<!-- "Geplant von Mila" is never broken up; the line breaks between its parts. -->
+			<span class="min-w-0"
+				>{#each fromLine as part, i (i)}{#if i > 0}{SEP}{/if}<span
+						class={part.whole ? 'whitespace-nowrap' : ''}>{part.text}</span
+					>{/each}</span
+			>
+		</p>
+	{/if}
 	{#if list.recipes.length > 0}
 		<ul class="mt-2.5 flex flex-wrap gap-1.5">
 			{#each list.recipes as recipe, i (i)}

@@ -5,7 +5,8 @@
 	import Plus from '@lucide/svelte/icons/plus';
 	import Share2 from '@lucide/svelte/icons/share-2';
 	import ShoppingBasket from '@lucide/svelte/icons/shopping-basket';
-	import { onMount } from 'svelte';
+	import { onMount, tick } from 'svelte';
+	import { MediaQuery } from 'svelte/reactivity';
 	import { toast } from 'svelte-sonner';
 	import { afterNavigate, goto, replaceState } from '$app/navigation';
 	import { resolve } from '$app/paths';
@@ -17,7 +18,8 @@
 		invitePlan,
 		leavePlan,
 		removePlanMember,
-		renamePlan
+		renamePlan,
+		type PlanEntry
 	} from '#lib/api/mealplan.js';
 	import { session } from '#lib/auth.svelte.js';
 	import AddEntrySheet from '#lib/components/mealplan/AddEntrySheet.svelte';
@@ -25,6 +27,7 @@
 	import PeopleSheet from '#lib/components/shopping/PeopleSheet.svelte';
 	import PeopleStack from '#lib/components/shopping/PeopleStack.svelte';
 	import ShareDialog from '#lib/components/shopping/ShareDialog.svelte';
+	import StampRow from '#lib/components/shopping/StampRow.svelte';
 	import ToListDialog from '#lib/components/mealplan/ToListDialog.svelte';
 	import WeekView from '#lib/components/mealplan/WeekView.svelte';
 	import Button from '#lib/components/ui/Button.svelte';
@@ -36,8 +39,10 @@
 	import { getLocale } from '#lib/paraglide/runtime.js';
 	import { planHref } from '#lib/mealplan/href.js';
 	import { arrival } from '#lib/mealplan/overview.svelte.js';
+	import { setToList } from '#lib/mealplan/to-list.js';
 	import { rememberPlan, shell } from '#lib/shell.svelte.js';
 	import { listHref } from '#lib/shopping/href.js';
+	import { byListName } from '#lib/shopping/plan-ref.js';
 	import planArt from '$brand/lockups/rezepte-mascot-shopping.webp?url';
 	import type { PageProps } from './$types';
 
@@ -64,7 +69,42 @@
 		// share button keeps it on a plan just made.
 		if (from && !page.state.created)
 			document.querySelector<HTMLElement>('[data-plan-title]')?.focus({ preventScroll: true });
+		jump();
 	});
+
+	/**
+	 * A stamp's jump (`?day=&entry=`): a phone unfolds the day if it is
+	 * folded, the page scrolls the meal (else the day) to the middle,
+	 * focuses it and lights it up once. Done once: the address drops the
+	 * two, so Back or a reload does not jump again.
+	 */
+	function jump() {
+		const day = page.url.searchParams.get('day');
+		const entry = page.url.searchParams.get('entry');
+		if (!day && !entry) return;
+		const url = new URL(page.url.href);
+		url.searchParams.delete('day');
+		url.searchParams.delete('entry');
+		replaceState(url, page.state);
+		if (day && pastDays(monday, data.today).includes(day)) expandedWeek = monday;
+		void tick().then(() => {
+			const card = entry
+				? document.querySelector<HTMLElement>(`[data-entry-id="${CSS.escape(entry)}"]`)
+				: null;
+			const target =
+				card ??
+				(day ? document.querySelector<HTMLElement>(`[data-day="${CSS.escape(day)}"]`) : null);
+			if (!target) return;
+			target.scrollIntoView({ block: 'center', behavior: 'smooth' });
+			(card?.querySelector<HTMLElement>('a[href], [data-entry-menu]') ?? target).focus({
+				preventScroll: true
+			});
+			// The card itself lights up: its own background would cover its slot's.
+			const lit = card?.firstElementChild ?? target;
+			lit.classList.add('motion-safe:animate-flash');
+			setTimeout(() => lit.classList.remove('motion-safe:animate-flash'), 1800);
+		});
+	}
 
 	/** Back to the overview the plan was opened from, else to it in the plan's place. */
 	function back(event?: MouseEvent) {
@@ -111,8 +151,17 @@
 	const days = $derived(weekDays(monday));
 	const thisWeek = $derived(mondayOf(data.today));
 	const empty = $derived(plan.entries.length === 0);
-	/** The list most of the week went to, as far as the reader can open it. */
-	const list = $derived(plan.lists[0]);
+	/** Every list the shown week and the tray went to, as far as the reader can open them; by name, so none moves. */
+	const listStamps = $derived(
+		byListName(plan.lists).map((l) => ({
+			key: l.id,
+			kind: 'list' as const,
+			label: l.name,
+			open: l.openCount,
+			href: listHref(l.id)
+		}))
+	);
+	const wide = new MediaQuery('min-width: 1024px');
 
 	$effect(() => rememberPlan(plan.id));
 
@@ -180,6 +229,12 @@
 	// today in this week, else on the shown week's Monday.
 	let adding = $state(false);
 	let listing = $state(false);
+	/** "Auf eine Liste…" from one entry's ⋯ or its "Auf keiner Liste": the dialog for it alone. */
+	let listingOne = $state<PlanEntry | null>(null);
+	setToList((entry) => {
+		listingOne = entry;
+		listing = true;
+	});
 	let addDay = $state<string | null>(null);
 	function openAdd(day: string | null = days.includes(data.today) ? data.today : monday) {
 		addDay = day;
@@ -279,10 +334,11 @@
 		</div>
 	</header>
 
-	<!-- The week bar: the week and its pager, then the list it went to and
-	     "Put on the list". One row from md, where the list's name gives way
-	     first; on a phone stacked, the button over the full width. -->
-	<div class="mb-4 flex flex-col gap-2.5 md:flex-row md:items-center md:gap-x-3">
+	<!-- The week bar: the week and its pager, every list the week went to,
+	     and "Put on the list". From md the pager and the button share a row
+	     and the lists take the full width below (one line from lg, else two,
+	     then "+n"); on a phone all stacked, the button over the full width. -->
+	<div class="mb-4 flex flex-col gap-2.5 md:flex-row md:flex-wrap md:items-center md:gap-x-3">
 		<div
 			class="flex items-center justify-between gap-2 md:mr-1 md:shrink-0 md:justify-start md:gap-4"
 		>
@@ -316,29 +372,26 @@
 				</IconButton>
 			</div>
 		</div>
+		{#if plan.lists.length > 0}
+			<!-- A row of their own under the date from md: the bar keeps the
+			     pager and the button, the lists get the width. -->
+			<!-- Below sm the label sits above its row, which gets the full width. -->
+			<div
+				class="flex min-w-0 items-start gap-x-2 max-sm:flex-col max-sm:gap-y-0.5 md:order-last md:w-full"
+			>
+				<span class="shrink-0 text-caption leading-6 text-text-muted" aria-hidden="true"
+					>{m.plans_card_lists()}</span
+				>
+				<StampRow
+					label={m.link_plan_lists()}
+					lines={wide.current ? 1 : 2}
+					stamps={listStamps}
+					class="w-full flex-1"
+				/>
+			</div>
+		{/if}
 		{#if !empty}
 			<div class="flex min-w-0 flex-col gap-1 md:ml-auto md:flex-row md:items-center md:gap-3">
-				{#if list}
-					<a
-						href={listHref(list.id)}
-						class="flex min-h-11 min-w-0 items-center gap-1.5 px-0.5 text-body-sm whitespace-nowrap max-md:order-2 md:min-h-10"
-					>
-						<span class="flex min-w-0 items-center gap-1.5 font-semibold text-success-foreground">
-							<ShoppingBasket
-								class="size-4 shrink-0 md:max-[1199.98px]:hidden"
-								aria-hidden="true"
-							/>
-							<span class="truncate">{list.name}</span>
-						</span>
-						<span class="text-text-muted md:max-lg:hidden"
-							>· {m.list_open({ open: list.openCount })}</span
-						>
-						<ChevronRight
-							class="size-4 shrink-0 text-text-muted max-md:ml-auto"
-							aria-hidden="true"
-						/>
-					</a>
-				{/if}
 				<!-- The count is what the dialog would add for the shown week and the tray. -->
 				<Button
 					variant="primary"
@@ -347,7 +400,10 @@
 					label={plan.unlisted > 0
 						? `${m.plan_to_list()}, ${plan.unlisted === 1 ? m.plan_to_list_count_one() : m.plan_to_list_count({ count: plan.unlisted })}`
 						: undefined}
-					onclick={() => (listing = true)}
+					onclick={() => {
+						listingOne = null;
+						listing = true;
+					}}
 					class="shrink-0 shadow-cta max-md:h-11 max-md:w-full md:px-4.5"
 				>
 					<ShoppingBasket class="size-4" aria-hidden="true" />
@@ -422,5 +478,5 @@
 	{/if}
 {/if}
 
-<ToListDialog bind:open={listing} {week} today={data.today} />
+<ToListDialog bind:open={listing} {week} today={data.today} only={listingOne} />
 <AddEntrySheet bind:open={adding} {days} day={addDay} today={data.today} onadd={add} />
