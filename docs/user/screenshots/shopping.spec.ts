@@ -2,10 +2,12 @@ import { expect, test, type Page } from '@playwright/test';
 import { isMobile, prepare, shot } from './helpers';
 
 // Shopping lists as the demo seeds them for its admin: "Weekly shop" with
-// two samples at 4 servings, typed-in items and three rows checked off, and
-// "Saturday market" with typed-in items only. "Weekly shop" is shared with
-// Mila, Mila's "Sunday dinner" with the demo person, and Jonas's "Barbecue"
-// waits as an invitation. Keep the test names - they are
+// one recipe added by hand at 4 servings, the Monday to Thursday meals of
+// "My plan" and "Household", typed-in items and three rows checked off, and
+// "Saturday market" with typed-in items and two meals of "Household".
+// "Weekly shop" is shared with Mila, Mila's "Sunday dinner" (fed by her
+// plans, so it reads "Planned by Mila") with the demo person, and Jonas's
+// "Barbecue" waits as an invitation. Keep the test names - they are
 // the contract with <Screenshot name=…/>.
 
 async function openWeeklyShop(page: Page) {
