@@ -32,13 +32,12 @@ type fakeMailer struct {
 	err error // returned by every send when set
 	// stall makes the first send wait until its context ends, like an SMTP
 	// server that never answers.
-	stall       bool
-	comments    []mail.Comment
-	invites     []mail.InviteAccepted
-	digests     []mail.RecipeDigest
-	tasties     []mail.Tasty
-	listInvites []mail.ListInvite
-	planInvites []mail.PlanInvite
+	stall        bool
+	comments     []mail.Comment
+	invites      []mail.InviteAccepted
+	digests      []mail.RecipeDigest
+	tasties      []mail.Tasty
+	shareInvites []mail.ShareInvite
 	// sent runs after each recorded digest.
 	sent func()
 }
@@ -83,25 +82,14 @@ func (m *fakeMailer) SendTasty(_ context.Context, in mail.Tasty) error {
 	return nil
 }
 
-func (m *fakeMailer) SendPlanInvite(_ context.Context, in mail.PlanInvite) error {
+func (m *fakeMailer) SendShareInvite(_ context.Context, in mail.ShareInvite) error {
 	if m.off {
 		return mail.ErrDisabled
 	}
 	if m.err != nil {
 		return m.err
 	}
-	m.planInvites = append(m.planInvites, in)
-	return nil
-}
-
-func (m *fakeMailer) SendListInvite(_ context.Context, in mail.ListInvite) error {
-	if m.off {
-		return mail.ErrDisabled
-	}
-	if m.err != nil {
-		return m.err
-	}
-	m.listInvites = append(m.listInvites, in)
+	m.shareInvites = append(m.shareInvites, in)
 	return nil
 }
 

@@ -53,9 +53,7 @@ var audiences = map[string]struct {
 		"the recipes other people created since the last run, at least an hour old. Nobody whose only new recipes are their own.", "household", toAnyone},
 	"tasty": {"Notifications", "Whoever owns the recipe (created or inherited it), at a confirmed email address, unless switched off: " +
 		"a minute after another person marks it tasty, if the mark is still there. Not again for a mark that stays.", "household", toAnyone},
-	"list_invite": {"Notifications", "Whoever is invited to a shopping list, at a confirmed email address, unless switched off: " +
-		"at once, once per invitation.", "household", toAnyone},
-	"plan_invite": {"Notifications", "Whoever is invited to a meal plan, at a confirmed email address, unless switched off: " +
+	"share_invite": {"Notifications", "Whoever is invited to a shopping list or a meal plan, at a confirmed email address, unless switched off: " +
 		"at once, once per invitation.", "household", toAnyone},
 	"invite_accepted": {"Notifications", "The admin or owner who issued a setup link, when a new person (an account that could not sign in yet) " +
 		"redeems it: only while they are still admin or owner, with a confirmed email address, unless switched off.", "admin", toAdmins},
@@ -221,19 +219,13 @@ func Samples(publicURL string, picture []byte, photos [][]byte) []Sample {
 			name   string
 			avatar []byte
 		}{{"picture", picture}, {"initial", nil}} {
-			variant("list_invite", v.name, func(cfg Config, now time.Time) (Envelope, error) {
-				return BuildListInvite(cfg, ListInvite{To: "mila@example.org", ListName: p.list,
-					InviterName: p.invited, InviterColor: "sage", InviterAvatar: v.avatar, Unsubscribe: links("list_invite"), Locale: locale}, publicURL, now)
-			})
-		}
-		for _, v := range []struct {
-			name   string
-			avatar []byte
-		}{{"picture", picture}, {"initial", nil}} {
-			variant("plan_invite", v.name, func(cfg Config, now time.Time) (Envelope, error) {
-				return BuildPlanInvite(cfg, PlanInvite{To: "mila@example.org", PlanID: "sample", PlanName: p.plan,
-					InviterName: p.invited, InviterColor: "sage", InviterAvatar: v.avatar, Unsubscribe: links("plan_invite"), Locale: locale}, publicURL, now)
-			})
+			for _, in := range []ShareInvite{{Kind: "list", Name: p.list, Path: "/lists"}, {Kind: "plan", Name: p.plan, Path: "/plans/sample"}} {
+				variant("share_invite", in.Kind+"."+v.name, func(cfg Config, now time.Time) (Envelope, error) {
+					in.To, in.InviterName, in.InviterColor, in.InviterAvatar = "mila@example.org", p.invited, "sage", v.avatar
+					in.Unsubscribe, in.Locale = links(in.Kind+"_invite"), locale
+					return BuildShareInvite(cfg, in, publicURL, now)
+				})
+			}
 		}
 		add("invite_accepted", func(cfg Config, now time.Time) (Envelope, error) {
 			return BuildInviteAccepted(cfg, InviteAccepted{To: "demo@example.org", Username: "noah", DisplayName: p.invited, Color: "teal",

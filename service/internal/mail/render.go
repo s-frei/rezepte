@@ -2,6 +2,7 @@ package mail
 
 import (
 	"bytes"
+	"cmp"
 	"crypto/rand"
 	"embed"
 	"encoding/base64"
@@ -177,7 +178,10 @@ type Unsubscribe struct {
 // <Name>.txt.tmpl, which read Data; the layouts read the rest. render fills
 // Subject from SubjectKey and SubjectArgs.
 type letter struct {
-	Name        string
+	Name string
+	// Kind is the envelope's kind when one template serves several; Name
+	// otherwise.
+	Kind        string
 	Lang        string
 	SubjectKey  string
 	SubjectArgs map[string]string
@@ -289,7 +293,7 @@ func build(cfg Config, to string, l letter, now time.Time) (Envelope, error) {
 	header("Content-Type", contentType)
 	msg.WriteString("\r\n")
 	msg.Write(body.Bytes())
-	return Envelope{To: to, Data: msg.Bytes(), Kind: l.Name, Subject: subject}, nil
+	return Envelope{To: to, Data: msg.Bytes(), Kind: cmp.Or(l.Kind, l.Name), Subject: subject}, nil
 }
 
 // newID is the random part of a Message-ID, and of the Content-IDs of the

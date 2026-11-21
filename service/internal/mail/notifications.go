@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	htmltemplate "html/template"
-	"net/url"
 	"strconv"
 	"strings"
 	"time"
@@ -156,67 +155,40 @@ func BuildTasty(cfg Config, in Tasty, publicURL string, now time.Time) (Envelope
 	}, now)
 }
 
-// ListInvite tells somebody that they were invited to a shopping list.
-type ListInvite struct {
-	To, ListName, InviterName string
-	InviterColor              user.Color
+// ShareInvite tells somebody that they were invited to a shopping list or a
+// meal plan. One template serves both; Kind picks its copy.
+type ShareInvite struct {
+	// Kind is "list" or "plan": the copy is mail_<Kind>_invite_*, and the
+	// thing's name fills its {<Kind>} placeholder.
+	Kind string
+	// Path is the button's address below the public URL.
+	To, Name, Path, InviterName string
+	InviterColor                user.Color
 	// InviterAvatar is the inviter's picture as JPEG; nil shows the initial.
 	InviterAvatar []byte
 	Unsubscribe   Unsubscribe
 	Locale        user.Locale
 }
 
-// BuildListInvite renders the list invitation mail; its button opens the
-// shopping lists.
-func BuildListInvite(cfg Config, in ListInvite, publicURL string, now time.Time) (Envelope, error) {
+// BuildShareInvite renders the invitation mail; its button opens Path.
+func BuildShareInvite(cfg Config, in ShareInvite, publicURL string, now time.Time) (Envelope, error) {
 	bg, fg, initial := Circle(in.InviterColor, in.InviterName)
 	id := newID()
 	avatar, pictures := avatarPart(cfg, id, in.InviterAvatar)
 	return build(cfg, in.To, letter{
-		Name:        "list_invite",
+		Name:        "share_invite",
+		Kind:        in.Kind + "_invite",
 		Lang:        string(in.Locale),
-		SubjectKey:  "mail_list_invite_subject",
-		SubjectArgs: map[string]string{"name": in.InviterName, "list": in.ListName},
+		SubjectKey:  "mail_" + in.Kind + "_invite_subject",
+		SubjectArgs: map[string]string{"name": in.InviterName, in.Kind: in.Name},
 		ID:          id,
 		PublicURL:   publicURL,
 		Unsubscribe: in.Unsubscribe,
 		Inline:      pictures,
 		Data: struct {
-			Name, List, Initial, Bg, Fg, URL string
-			Avatar                           htmltemplate.URL
-		}{in.InviterName, in.ListName, initial, bg, fg, publicURL + "/lists", htmltemplate.URL(avatar)}, //nolint:gosec // G203: avatar is empty or a cid: URL built above from hex and the sender domain.
-	}, now)
-}
-
-// PlanInvite tells somebody that they were invited to a meal plan.
-type PlanInvite struct {
-	To, PlanID, PlanName, InviterName string
-	InviterColor                      user.Color
-	// InviterAvatar is the inviter's picture as JPEG; nil shows the initial.
-	InviterAvatar []byte
-	Unsubscribe   Unsubscribe
-	Locale        user.Locale
-}
-
-// BuildPlanInvite renders the meal plan invitation mail; its button opens the
-// week.
-func BuildPlanInvite(cfg Config, in PlanInvite, publicURL string, now time.Time) (Envelope, error) {
-	bg, fg, initial := Circle(in.InviterColor, in.InviterName)
-	id := newID()
-	avatar, pictures := avatarPart(cfg, id, in.InviterAvatar)
-	return build(cfg, in.To, letter{
-		Name:        "plan_invite",
-		Lang:        string(in.Locale),
-		SubjectKey:  "mail_plan_invite_subject",
-		SubjectArgs: map[string]string{"name": in.InviterName, "plan": in.PlanName},
-		ID:          id,
-		PublicURL:   publicURL,
-		Unsubscribe: in.Unsubscribe,
-		Inline:      pictures,
-		Data: struct {
-			Name, Plan, Initial, Bg, Fg, URL string
-			Avatar                           htmltemplate.URL
-		}{in.InviterName, in.PlanName, initial, bg, fg, publicURL + "/plans/" + url.PathEscape(in.PlanID), htmltemplate.URL(avatar)}, //nolint:gosec // G203: avatar is empty or a cid: URL built above from hex and the sender domain.
+			Kind, Name, Title, Initial, Bg, Fg, URL string
+			Avatar                                  htmltemplate.URL
+		}{in.Kind, in.InviterName, in.Name, initial, bg, fg, publicURL + in.Path, htmltemplate.URL(avatar)}, //nolint:gosec // G203: avatar is empty or a cid: URL built above from hex and the sender domain.
 	}, now)
 }
 

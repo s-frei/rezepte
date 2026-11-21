@@ -1,0 +1,11 @@
+{{define "content"}}{{t (printf "mail_%s_invite_heading" .Data.Kind) "name" .Data.Name .Data.Kind .Data.Title}}
+
+{{t (printf "mail_%s_invite_body" .Data.Kind)}}
+
+{{t (printf "mail_%s_invite_button" .Data.Kind)}}: {{.Data.URL}}
+
+{{t (printf "mail_%s_invite_reason" .Data.Kind)}}
+{{if .Unsubscribe.KindURL}}{{t (printf "mail_unsubscribe_kind_%s_invite" .Data.Kind)}}: {{.Unsubscribe.KindURL}}
+{{t "mail_unsubscribe_group_household"}}: {{.Unsubscribe.GroupURL}}
+{{end}}
+{{end}}

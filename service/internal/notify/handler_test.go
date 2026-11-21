@@ -41,8 +41,7 @@ func (mailOff) SendInviteAccepted(context.Context, mail.InviteAccepted) error {
 }
 func (mailOff) SendRecipeDigest(context.Context, mail.RecipeDigest) error { return mail.ErrDisabled }
 func (mailOff) SendTasty(context.Context, mail.Tasty) error               { return mail.ErrDisabled }
-func (mailOff) SendListInvite(context.Context, mail.ListInvite) error     { return mail.ErrDisabled }
-func (mailOff) SendPlanInvite(context.Context, mail.PlanInvite) error     { return mail.ErrDisabled }
+func (mailOff) SendShareInvite(context.Context, mail.ShareInvite) error   { return mail.ErrDisabled }
 
 type pushOff struct{}
 

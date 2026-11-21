@@ -346,7 +346,7 @@ func decoded(p picture) string {
 }
 
 func TestBuildListInviteGerman(t *testing.T) {
-	env, err := BuildListInvite(cfg, ListInvite{To: "mia@example.org", ListName: "Grillfest", InviterName: "Dattel",
+	env, err := BuildShareInvite(cfg, ShareInvite{Kind: "list", To: "mia@example.org", Name: "Grillfest", Path: "/lists", InviterName: "Dattel",
 		InviterColor: "sage", Unsubscribe: sampleLinks, Locale: "de"}, "https://r.example.org", time.Unix(0, 0))
 	if err != nil {
 		t.Fatal(err)
@@ -361,7 +361,7 @@ func TestBuildListInviteGerman(t *testing.T) {
 }
 
 func TestBuildPlanInviteGerman(t *testing.T) {
-	env, err := BuildPlanInvite(cfg, PlanInvite{To: "mia@example.org", PlanID: "p1", PlanName: "Familienwoche", InviterName: "Dattel",
+	env, err := BuildShareInvite(cfg, ShareInvite{Kind: "plan", To: "mia@example.org", Name: "Familienwoche", Path: "/plans/p1", InviterName: "Dattel",
 		InviterColor: "sage", Unsubscribe: sampleLinks, Locale: "de"}, "https://r.example.org", time.Unix(0, 0))
 	if err != nil {
 		t.Fatal(err)

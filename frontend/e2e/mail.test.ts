@@ -679,7 +679,8 @@ test('an unconfirmed address is named and the mail rows still switch', async ({ 
 	await expect(off).toHaveAttribute('aria-checked', 'true');
 });
 
-test('inviting someone to a shopping list mails them', async ({ page, request }) => {
+// Both invitations are one template (share_invite), each kind with its own copy.
+test('inviting someone to a shopping list or a meal plan mails them', async ({ page, request }) => {
 	const { address } = await confirmedAccount(page, request, 'guest');
 	const inviteeId = (await (await page.request.get('/api/v1/auth/me')).json()).id as string;
 	await switchTo(page);
@@ -694,4 +695,13 @@ test('inviting someone to a shopping list mails them', async ({ page, request })
 	});
 	expect(res.ok()).toBeTruthy();
 	await mailWithSubject(request, address, `${owner} invites you to “Picnic”`);
+
+	const plan = await (
+		await page.request.post('/api/v1/meal-plans', { data: { name: 'Family week' } })
+	).json();
+	const planInvite = await page.request.post(`/api/v1/meal-plans/${plan.id}/invitations`, {
+		data: { userId: inviteeId }
+	});
+	expect(planInvite.ok()).toBeTruthy();
+	await mailWithSubject(request, address, `${owner} invites you to the meal plan “Family week”`);
 });

@@ -41,10 +41,10 @@ func TestPlanInviteNotifiesInvitee(t *testing.T) {
 	case <-time.After(5 * time.Second):
 		t.Fatal("no push")
 	}
-	if len(f.mailer.planInvites) != 1 {
-		t.Fatalf("mailed %+v", f.mailer.planInvites)
+	if len(f.mailer.shareInvites) != 1 {
+		t.Fatalf("mailed %+v", f.mailer.shareInvites)
 	}
-	if m := f.mailer.planInvites[0]; m.To != mia.Email || m.PlanName != "Familienwoche" || m.PlanID != id || m.InviterName != olga.DisplayName ||
+	if m := f.mailer.shareInvites[0]; m.To != mia.Email || m.Name != "Familienwoche" || m.Path != "/plans/"+id || m.InviterName != olga.DisplayName ||
 		m.Locale != "de" || m.Unsubscribe.KindURL == "" {
 		t.Errorf("mail %+v", m)
 	}
@@ -61,8 +61,8 @@ func TestPlanInviteRespectsChannels(t *testing.T) {
 		t.Fatal(err)
 	}
 	f.svc.sendPlanInvite(ctx, id, olga.ID, mia.ID)
-	if len(p.sent) != 1 || len(f.mailer.planInvites) != 0 {
-		t.Errorf("pushed %+v, mailed %+v, want push only", p.sent, f.mailer.planInvites)
+	if len(p.sent) != 1 || len(f.mailer.shareInvites) != 0 {
+		t.Errorf("pushed %+v, mailed %+v, want push only", p.sent, f.mailer.shareInvites)
 	}
 	if _, err := f.svc.SetPreferences(ctx, mia, Prefs{
 		Kinds:  map[Kind]map[Channel]bool{KindPlanInvite: {ChannelMail: true}},
@@ -71,8 +71,8 @@ func TestPlanInviteRespectsChannels(t *testing.T) {
 		t.Fatal(err)
 	}
 	f.svc.sendPlanInvite(ctx, id, olga.ID, mia.ID)
-	if len(p.sent) != 1 || len(f.mailer.planInvites) != 1 {
-		t.Errorf("pushed %+v, mailed %+v, want one mail more", p.sent, f.mailer.planInvites)
+	if len(p.sent) != 1 || len(f.mailer.shareInvites) != 1 {
+		t.Errorf("pushed %+v, mailed %+v, want one mail more", p.sent, f.mailer.shareInvites)
 	}
 }
 
@@ -92,8 +92,8 @@ func TestPlanInviteSkipsGoneAccounts(t *testing.T) {
 		t.Fatal(err)
 	}
 	f.svc.sendPlanInvite(ctx, id, mia.ID, olga.ID) // inviter gone
-	if len(p.sent) != 0 || len(f.mailer.planInvites) != 0 {
-		t.Errorf("pushed %+v, mailed %+v", p.sent, f.mailer.planInvites)
+	if len(p.sent) != 0 || len(f.mailer.shareInvites) != 0 {
+		t.Errorf("pushed %+v, mailed %+v", p.sent, f.mailer.shareInvites)
 	}
 }
 
@@ -108,7 +108,7 @@ func TestPlanInviteSkipsPersonalPlan(t *testing.T) {
 		t.Fatal(err)
 	}
 	f.svc.sendPlanInvite(ctx, plans[0].ID, olga.ID, mia.ID)
-	if len(p.sent) != 0 || len(f.mailer.planInvites) != 0 {
-		t.Errorf("pushed %+v, mailed %+v for a personal plan", p.sent, f.mailer.planInvites)
+	if len(p.sent) != 0 || len(f.mailer.shareInvites) != 0 {
+		t.Errorf("pushed %+v, mailed %+v for a personal plan", p.sent, f.mailer.shareInvites)
 	}
 }

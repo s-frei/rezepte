@@ -197,9 +197,10 @@ func (s *Service) coverPhoto(ctx context.Context, r sqlc.ListDueAnnouncementsRow
 	return b
 }
 
-func deref(n *int64) int64 {
-	if n == nil {
-		return 0
+func deref[T any](p *T) T {
+	var zero T
+	if p != nil {
+		zero = *p
 	}
-	return *n
+	return zero
 }
