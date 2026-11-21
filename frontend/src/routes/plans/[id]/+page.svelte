@@ -8,7 +8,8 @@
 	import { onMount, tick } from 'svelte';
 	import { MediaQuery } from 'svelte/reactivity';
 	import { toast } from 'svelte-sonner';
-	import { afterNavigate, goto, replaceState } from '$app/navigation';
+	import { getLocalTimeZone, today as todayIn } from '@internationalized/date';
+	import { afterNavigate, goto, invalidateAll, replaceState } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { page } from '$app/state';
 	import { ApiError, isSignedOut } from '#lib/api/client.js';
@@ -165,6 +166,32 @@
 
 	$effect(() => rememberPlan(plan.id));
 
+	// The page's today is the real one: back on the tab on a new day, the load
+	// runs again, so the cards' stamps, the folded days and the badge move on
+	// together (the overview rereads the same way).
+	// Focus and visibility arrive together on one tab switch: one load for both.
+	let moved = '';
+	function newDay() {
+		const now = todayIn(getLocalTimeZone()).toString();
+		if (now === data.today || now === moved) return;
+		moved = now;
+		void invalidateAll();
+	}
+	// A tab that stays in view past midnight (a kitchen tablet) moves on too.
+	$effect(() => {
+		let timer: ReturnType<typeof setTimeout>;
+		const arm = () => {
+			const now = new Date();
+			const next = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 0, 0, 1);
+			timer = setTimeout(() => {
+				newDay();
+				arm();
+			}, next.getTime() - now.getTime());
+		};
+		arm();
+		return () => clearTimeout(timer);
+	});
+
 	const owner = $derived(plan.owner.id === session.user?.id);
 	const people = $derived([plan.owner, ...plan.members]);
 	const planName = $derived(plan.name ?? '');
@@ -274,6 +301,9 @@
 {/snippet}
 
 <svelte:head><title>{title} · {weekRange(monday, locale)} · {m.app_name()}</title></svelte:head>
+
+<svelte:window onfocus={newDay} onpageshow={newDay} />
+<svelte:document onvisibilitychange={() => !document.hidden && newDay()} />
 
 <div class="pt-6 pb-8 md:pt-4">
 	<!-- Like a list's head: phone back and the plan's controls above the

@@ -771,6 +771,63 @@ test('the badge counts what the dialog picks: no past day', async ({ page }) => 
 	await expect(dialog.getByRole('button', { name: 'Add 1 recipe' })).toBeEnabled();
 });
 
+test('a week gone by starts the dialog on the tray alone', async ({ page }) => {
+	await page.clock.setFixedTime(new Date('2026-11-25T10:00:00'));
+	await loginFresh(page);
+	const t = uniqueToken();
+	const pie = await createRecipe(page, { ...loadFixture(0), title: `Pie ${t}` });
+	const mash = await createRecipe(page, { ...loadFixture(2), title: `Mash ${t}` });
+	await plan(page, { day: '2026-11-17', recipeId: pie.id });
+	await plan(page, { recipeId: mash.id });
+	await page.goto(`/plans/${await ownPlan(page)}?from=2026-11-16`);
+	// The tray belongs to the plan, not to a week: it counts; last Tuesday does not.
+	await expect(toListButton(page)).toHaveAccessibleName('Put on the list, 1 recipe on no list');
+	const dialog = await openDialog(page, toListButton(page), 'Put on the list');
+	await expect(dialog.getByRole('button', { name: /^Days/ })).toHaveAccessibleName('Days No days');
+	await expect(dialog.getByRole('switch', { name: 'Include Someday' })).toBeChecked();
+	// No days, no dates in the name.
+	await expect(dialog.getByRole('textbox', { name: 'Name' })).toHaveValue('Shopping');
+	await expect(dialog.getByText(`Mash ${t}`)).toBeVisible();
+	await expect(dialog.getByText(`Pie ${t}`)).toHaveCount(0);
+	await expect(dialog.getByRole('button', { name: 'Add 1 recipe' })).toBeEnabled();
+	// Without the tray nothing is picked, and the dialog says what to do.
+	await dialog.getByRole('switch', { name: 'Include Someday' }).click();
+	await expect(
+		dialog.getByText('This week is over. Pick days or take “Someday” along.')
+	).toBeVisible();
+	await expect(dialog.getByRole('button', { name: 'Put on the list', exact: true })).toBeDisabled();
+});
+
+test('a plan left open in view moves on at midnight', async ({ page }) => {
+	await page.clock.install({ time: new Date('2026-11-18T23:58:00') });
+	await loginFresh(page);
+	const t = uniqueToken();
+	const pie = await createRecipe(page, { ...loadFixture(0), title: `Pie ${t}` });
+	await plan(page, { day: '2026-11-18', recipeId: pie.id });
+	await openOwn(page);
+	await expect(toListButton(page)).toHaveAccessibleName('Put on the list, 1 recipe on no list');
+	await expect(page.getByRole('main').getByText('On no list')).toHaveCount(1);
+	await page.clock.fastForward('05:00');
+	await expect(toListButton(page)).toHaveAccessibleName('Put on the list');
+	await expect(page.getByRole('main').getByText('On no list')).toHaveCount(0);
+});
+
+test('the plan moves on to a new day when the reader comes back', async ({ page }) => {
+	await page.clock.setFixedTime(new Date('2026-11-18T22:00:00'));
+	await loginFresh(page);
+	const t = uniqueToken();
+	const pie = await createRecipe(page, { ...loadFixture(0), title: `Pie ${t}` });
+	await plan(page, { day: '2026-11-18', recipeId: pie.id });
+	await openOwn(page);
+	await expect(toListButton(page)).toHaveAccessibleName('Put on the list, 1 recipe on no list');
+	await expect(page.getByRole('main').getByText('On no list')).toHaveCount(1);
+	// Past midnight, back on the tab: Wednesday is gone, its recipe needs no shopping.
+	await page.clock.setFixedTime(new Date('2026-11-19T07:00:00'));
+	await page.evaluate(() => window.dispatchEvent(new Event('focus')));
+	await expect(toListButton(page)).toHaveAccessibleName('Put on the list');
+	await expect(page.getByRole('main').getByText('On no list')).toHaveCount(0);
+});
+
 test('second time adds only new entries', async ({ page }) => {
 	await page.clock.setFixedTime(new Date('2026-11-16T10:00:00'));
 	await loginFresh(page);

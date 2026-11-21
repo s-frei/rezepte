@@ -451,6 +451,10 @@ func TestPlansWeekOverHTTP(t *testing.T) {
 			t.Fatalf("plan on %s: unlisted %d, want %d", today, got.Unlisted, want)
 		}
 	}
+	// A change answers with the plan for the reader's today too.
+	if got := a.call(t, owner, http.MethodPost, plans+"/"+id+"/entries"+week+"&today="+sun, map[string]any{"day": mon, "recipeId": r.ID}, http.StatusOK); got.Unlisted != 0 {
+		t.Fatalf("add on %s: unlisted %d, want 0", sun, got.Unlisted)
+	}
 	a.send(t, owner, http.MethodGet, plans+"/week"+week+"&today=morgen", nil, http.StatusUnprocessableEntity, nil)
 }
 

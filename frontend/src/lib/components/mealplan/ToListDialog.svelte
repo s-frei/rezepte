@@ -141,11 +141,16 @@
 
 	const daysText = $derived(
 		!span.from
-			? ''
+			? m.plan_to_list_days_none()
 			: span.from === span.to
 				? dayLabel(span.from, locale)
 				: `${dayLabel(span.from, locale)} – ${dayLabel(span.to, locale)}`
 	);
+	/** "Einkauf 23.–29. Nov." after the days; plain "Einkauf" when none are picked (the tray has no dates). */
+	const listName = (from: string, to: string) =>
+		from
+			? m.plan_new_list_name({ span: spanLabel(from, to, locale) })
+			: m.plan_new_list_name_undated();
 	/** "Sa" in the shown week, "Mo 30. Nov." beyond it, "Irgendwann" on the tray. */
 	function dayOf(day: string | null): string {
 		if (day === null) return m.plan_tray();
@@ -161,16 +166,20 @@
 
 	function start() {
 		const sunday = plan.to;
-		const from = today >= plan.from && today <= sunday ? today : plan.from;
-		span = { from, to: sunday };
-		calendar = { start: parseDate(from), end: parseDate(sunday) };
+		// A week gone by starts with no days, as the badge counts none of them;
+		// the calendar still picks some to cook again.
+		const from = today > sunday ? '' : today >= plan.from ? today : plan.from;
+		span = from ? { from, to: sunday } : { from: '', to: '' };
+		calendar = from
+			? { start: parseDate(from), end: parseDate(sunday) }
+			: { start: undefined, end: undefined };
 		picking = false;
 		listId = '';
 		showNew = false;
 		// The tray's recipes on no list count in the button's badge: they are in from the start.
 		tray = !only && trayRecipes > 0;
 		named = false;
-		newName = m.plan_new_list_name({ span: spanLabel(from, sunday, locale) });
+		newName = listName(from, sunday);
 		picks.clear();
 		expanded.clear();
 		if (only) expanded.add(only.id);
@@ -187,11 +196,15 @@
 		previewFailed = '';
 		const before = new Map(entries.map((e) => [e.entryId, e]));
 		try {
-			const answer = (
+			let answer = (
 				await (only
 					? getEntryShoppingPreview(plan.id, only.id)
-					: getShoppingPreview(plan.id, span, tray))
+					: getShoppingPreview(plan.id, span.from ? span : week.range, tray))
 			).entries;
+			// No days: the tray alone. ponytail: the preview has no tray-only mode,
+			// so this asks for the shown week (seven days) and drops its days; the
+			// filter is the point, not a leftover. A tray-only mode if it grows.
+			if (!only && !span.from) answer = answer.filter((e) => e.day === null);
 			if (mine !== previewReq) return;
 			for (const entry of answer) {
 				const old = before.get(entry.entryId);
@@ -248,7 +261,7 @@
 		calendar = next;
 		if (!next.start || !next.end) return;
 		span = { from: next.start.toString(), to: next.end.toString() };
-		if (!named) newName = m.plan_new_list_name({ span: spanLabel(span.from, span.to, locale) });
+		if (!named) newName = listName(span.from, span.to);
 		picking = false;
 		void loadPreview(true);
 		// The calendar folds away; the keyboard lands on what opened it.
@@ -392,6 +405,7 @@
 						<RangeCalendar.Root
 							id="{uid}-calendar"
 							value={calendar}
+							placeholder={calendar.start ?? parseDate(plan.from)}
 							onValueChange={pickRange}
 							isDateDisabled={tooFar}
 							weekStartsOn={1}
@@ -630,7 +644,13 @@
 					<p
 						class="rounded-2xl border border-dashed border-handle px-4 py-5 text-center text-body-sm text-text-muted"
 					>
-						{listed.length > 0 ? m.plan_to_list_nothing_new() : m.plan_to_list_none()}
+						{!span.from && !tray
+							? today > plan.to
+								? m.plan_to_list_no_days_past()
+								: m.plan_to_list_no_days()
+							: listed.length > 0
+								? m.plan_to_list_nothing_new()
+								: m.plan_to_list_none()}
 					</p>
 				{/if}
 				{#if alreadyLine && !only}

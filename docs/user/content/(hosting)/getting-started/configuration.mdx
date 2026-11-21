@@ -28,7 +28,7 @@ Configure Rezepte with environment variables; there is no config file.
     REZEPTE_SMTP_FROM: { description: 'The address mail is sent from; required with REZEPTE_SMTP_HOST', type: 'string', required: true },
     REZEPTE_SMTP_FROM_NAME: { description: 'The sender name people see in their inbox', type: 'string', default: 'Rezepte', required: true },
     REZEPTE_UPDATE_CHECK: { description: 'false stops the daily check for a new version, see Updates', type: 'boolean', default: 'true', required: true },
-    TZ: { description: 'Time zone, such as Europe/Berlin, for the times in mails, which name no zone, and the hour the daily new recipes go out', type: 'string', default: 'UTC', required: true },
+    TZ: { description: 'Time zone, such as Europe/Berlin, for the times in mails, which name no zone, the hour the daily new recipes go out, and the meal plan’s today for API callers that send none', type: 'string', default: 'UTC', required: true },
   }}
 />
 
