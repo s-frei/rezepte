@@ -11,6 +11,7 @@ import (
 	"github.com/danielgtaylor/huma/v2"
 
 	"github.com/s-frei/rezepte/service/internal/auth"
+	"github.com/s-frei/rezepte/service/internal/db/sqlc"
 	"github.com/s-frei/rezepte/service/internal/shopping"
 )
 
@@ -315,7 +316,9 @@ func Register(api huma.API, svc *Service) {
 		if err := svc.canAccess(ctx, uid, in.ID); err != nil {
 			return nil, fail(err, "")
 		}
-		return svc.stream(uid, in.ID), nil
+		return svc.hub.Stream(in.ID, func(ctx context.Context) (int64, error) {
+			return svc.q.GetMealPlanRevision(ctx, sqlc.GetMealPlanRevisionParams{ID: in.ID, UserID: uid})
+		}), nil
 	})
 
 	huma.Register(api, op("rename-meal-plan", http.MethodPatch, "/api/v1/meal-plans/{id}", "Rename a shared meal plan", http.StatusOK, 404, 422),

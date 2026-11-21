@@ -70,7 +70,7 @@ A signed-in person plans recipes and free texts ("Reste") on days, or on the tra
 
 ### Live updates
 
-**`GET …/events` is the list stream, keyed by plan.** `stream.go` mirrors the list's ([Shopping lists](/features/shopping-lists#live-updates)): `retry: 3000`, `event: changed` with the plan's `revision`, a ping every 25 s, and the stream ends once `GetMealPlanRevision` finds no row, so a removed member's stream ends (`TestStreamEndsWhenAccessLost`, `TestStreamForbidsStrangers`). `main.go` closes the plan hub on shutdown.
+**`GET …/events` is the list stream, keyed by plan.** The handler calls `shopping.Hub.Stream` (`shopping/stream.go`, [Shopping lists](/features/shopping-lists#live-updates)) with a `GetMealPlanRevision` lookup: `retry: 3000`, `event: changed` with the plan's `revision`, a ping every 25 s, and the stream ends once `GetMealPlanRevision` finds no row, so a removed member's stream ends (`TestStreamEndsWhenAccessLost`, `TestStreamForbidsStrangers`). `main.go` closes the plan hub on shutdown.
 
 ### Calendar feed
 
