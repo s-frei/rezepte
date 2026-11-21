@@ -1,5 +1,7 @@
 <script lang="ts">
+	import BookOpen from '@lucide/svelte/icons/book-open';
 	import ChevronLeft from '@lucide/svelte/icons/chevron-left';
+	import ClipboardList from '@lucide/svelte/icons/clipboard-list';
 	import Import from '@lucide/svelte/icons/import';
 	import Plus from '@lucide/svelte/icons/plus';
 	import { flushSync } from 'svelte';
@@ -108,6 +110,7 @@
 				aria-current={place === 'recipes' ? 'page' : undefined}
 				class="{segment} {segmentState(place === 'recipes')}"
 			>
+				<BookOpen class="size-4" aria-hidden="true" />
 				{m.nav_recipes()}
 			</a>
 			<!-- To the side of the place last used, lists or week. -->
@@ -116,6 +119,7 @@
 				aria-current={place === 'lists' ? 'page' : undefined}
 				class="{segment} {segmentState(place === 'lists')}"
 			>
+				<ClipboardList class="size-4" aria-hidden="true" />
 				{m.nav_lists()}
 				{#if invitations.count > 0}
 					<span aria-hidden="true" class="size-2 rounded-full bg-primary"></span>

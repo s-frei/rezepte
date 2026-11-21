@@ -1,7 +1,7 @@
 <script lang="ts">
 	import BookOpen from '@lucide/svelte/icons/book-open';
 	import CircleUserRound from '@lucide/svelte/icons/circle-user-round';
-	import ShoppingBasket from '@lucide/svelte/icons/shopping-basket';
+	import ClipboardList from '@lucide/svelte/icons/clipboard-list';
 	import Plus from '@lucide/svelte/icons/plus';
 	import Search from '@lucide/svelte/icons/search';
 	import { flushSync } from 'svelte';
@@ -119,7 +119,7 @@
 			data-current={current === 'lists' ? '' : undefined}
 			class="{item} {itemState('lists')}"
 		>
-			<ShoppingBasket class="size-6" aria-hidden="true" />
+			<ClipboardList class="size-6" aria-hidden="true" />
 			{#if invitations.count > 0}
 				<span
 					aria-hidden="true"
