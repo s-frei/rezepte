@@ -4429,6 +4429,52 @@ test.describe('ingredient search', () => {
 		await expect(next).toBeVisible();
 	});
 
+	// A browser leaves a focused pill where it is while any of it shows,
+	// which on the narrow row was under an arrow or past the edge.
+	test('Tab brings each pill of the narrow row clear of the arrows', async ({
+		page,
+		isMobile,
+		browserName
+	}) => {
+		test.skip(isMobile, 'a keyboard and the mouse arrows');
+		await page.setViewportSize({ width: 500, height: 800 });
+		const token = await kitchen(page);
+		await page.goto(`/?tags=${token}&ingredients=Kartoffel&ingredients=Zwiebel`);
+		const pills = general(page).locator('button[aria-pressed]');
+		await expect(pills.first()).toBeVisible();
+		// A dozen pills cross the arrow's edge often enough.
+		const count = Math.min(await pills.count(), 12);
+		// Whether the focused pill lies whole inside the row and under no
+		// arrow that shows.
+		const clear = () =>
+			page.evaluate(() => {
+				const pill = document.activeElement!.getBoundingClientRect();
+				const row = document.activeElement!.closest('[role=group]')!;
+				const view = row.getBoundingClientRect();
+				const arrows = [...row.parentElement!.querySelectorAll(':scope > button')]
+					.filter((arrow) => getComputedStyle(arrow).visibility === 'visible')
+					.map((arrow) => arrow.getBoundingClientRect());
+				return (
+					pill.left >= view.left - 0.5 &&
+					pill.right <= view.right + 0.5 &&
+					arrows.every((arrow) => arrow.right <= pill.left || arrow.left >= pill.right)
+				);
+			});
+		// Safari's Tab skips buttons unless Option is held.
+		const tab = browserName === 'webkit' ? 'Alt+Tab' : 'Tab';
+		await pills.first().focus();
+		for (let i = 1; i < count; i++) {
+			await page.keyboard.press(tab);
+			await expect(pills.nth(i)).toBeFocused();
+			await expect.poll(clear).toBe(true);
+		}
+		for (let i = count - 2; i >= 0; i--) {
+			await page.keyboard.press(`Shift+${tab}`);
+			await expect(pills.nth(i)).toBeFocused();
+			await expect.poll(clear).toBe(true);
+		}
+	});
+
 	// Below `md` every pill shows, so "+N more" would name nothing hidden.
 	test('the narrow row shows every pill and no "+N more"', async ({ page, isMobile }) => {
 		if (!isMobile) await page.setViewportSize({ width: 400, height: 800 });

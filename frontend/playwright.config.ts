@@ -43,12 +43,13 @@ export default defineConfig({
 			testMatch: /recipes\.test\.ts/,
 			grep: /text card|cards (never|re-flow)|card per row|search field stays|holds still|let go of with Done/
 		},
-		// The desktop card sizes on the same native path.
+		// The desktop card sizes on the same native path, and the narrow
+		// row's focus scroll, which WebKit's own scroll to a focus cut short.
 		{
 			name: 'webkit-desktop-masonry',
 			use: { ...devices['Desktop Safari'] },
 			testMatch: /recipes\.test\.ts/,
-			grep: /card size|overview columns/
+			grep: /card size|overview columns|clear of the arrows/
 		}
 	]
 });

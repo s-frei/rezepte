@@ -3,6 +3,7 @@
 	import ChevronRight from '@lucide/svelte/icons/chevron-right';
 	import type { Snippet } from 'svelte';
 	import { prefersReducedMotion } from 'svelte/motion';
+	import { MediaQuery } from 'svelte/reactivity';
 	import type { HTMLAttributes } from 'svelte/elements';
 
 	let {
@@ -32,6 +33,9 @@
 
 	/** With arrows, a fade is a solid bed under the arrow and a short tail (`w-14`, `from-75%`). */
 	const INSET = 56;
+	/** A fade without an arrow (`w-6`). */
+	const FADE = 24;
+	const fine = new MediaQuery('pointer: fine');
 
 	function measure(el: HTMLElement) {
 		start = el.scrollLeft > 1;
@@ -60,10 +64,33 @@
 		mutations.observe(el, { childList: true, subtree: true });
 		const settle = () => (goal = null);
 		el.addEventListener('scrollend', settle);
+		// A browser leaves a focused item where it is while any of it shows,
+		// even under an arrow or a fade; this brings it in whole, clear of
+		// both. A frame later: WebKit's own scroll to the focus came after
+		// `focusin` and cut a smooth scroll started there short.
+		const reveal = (event: FocusEvent) => {
+			const item = event.target;
+			if (!(item instanceof Element)) return;
+			requestAnimationFrame(() => {
+				if (el.scrollWidth <= el.clientWidth || document.activeElement !== item) return;
+				const pad = arrows && fine.current ? INSET : FADE;
+				const view = el.getBoundingClientRect();
+				const box = item.getBoundingClientRect();
+				const by =
+					box.left < view.left + pad
+						? box.left - view.left - pad
+						: Math.max(0, box.right - view.right + pad);
+				if (by === 0) return;
+				goal = Math.max(0, Math.min(el.scrollLeft + by, el.scrollWidth - el.clientWidth));
+				el.scrollTo({ left: goal, behavior: prefersReducedMotion.current ? 'instant' : 'smooth' });
+			});
+		};
+		el.addEventListener('focusin', reveal);
 		return () => {
 			observer.disconnect();
 			mutations.disconnect();
 			el.removeEventListener('scrollend', settle);
+			el.removeEventListener('focusin', reveal);
 		};
 	}
 
