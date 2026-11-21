@@ -1,25 +1,9 @@
-<script lang="ts" module>
-	import type { listShoppingLists as read } from '#lib/api/shopping.js';
-
-	// The last answer, shown at once when the page mounts again (back from
-	// the plans side, say) while it loads afresh: no skeleton for a page
-	// just seen. Kept per person: a sign-in after a sign-out needs no reload.
-	let last: { user: string | undefined; body: Awaited<ReturnType<typeof read>> } | undefined;
-</script>
-
 <script lang="ts">
 	import Plus from '@lucide/svelte/icons/plus';
-	import { onMount, untrack } from 'svelte';
+	import { untrack } from 'svelte';
 	import { toast } from 'svelte-sonner';
-	import { isSignedOut } from '#lib/api/client.js';
-	import { goto } from '$app/navigation';
-	import {
-		acceptListInvitation,
-		leaveList,
-		listShoppingLists,
-		type ShoppingInvitation,
-		type ShoppingSummary
-	} from '#lib/api/shopping.js';
+	import { goto, invalidateAll } from '$app/navigation';
+	import { acceptListInvitation, leaveList } from '#lib/api/shopping.js';
 	import { session } from '#lib/auth.svelte.js';
 	import PlaceSwitch from '#lib/components/shell/PlaceSwitch.svelte';
 	import InvitationCard from '#lib/components/shopping/InvitationCard.svelte';
@@ -30,43 +14,32 @@
 	import Button from '#lib/components/ui/Button.svelte';
 	import EmptyState from '#lib/components/ui/EmptyState.svelte';
 	import NoteEmptyState from '#lib/components/ui/NoteEmptyState.svelte';
-	import Skeleton from '#lib/components/ui/Skeleton.svelte';
 	import { m } from '#lib/paraglide/messages.js';
 	import shoppingArt from '$brand/lockups/rezepte-mascot-shopping.webp?url';
 	import { shell } from '#lib/shell.svelte.js';
+	import type { PageProps } from './$types';
 
-	const seen = last?.user === session.user?.id ? last?.body : undefined;
-	let lists = $state<ShoppingSummary[] | undefined>(seen?.items);
-	let invited = $state<ShoppingInvitation[]>(seen?.invitations ?? []);
-	const mine = $derived(lists?.filter((l) => l.owner.id === session.user?.id) ?? []);
-	const shared = $derived(lists?.filter((l) => l.owner.id !== session.user?.id) ?? []);
-	let failed = $state(false);
+	let { data }: PageProps = $props();
 
-	async function load() {
-		failed = false;
-		try {
-			const body = await listShoppingLists();
-			last = { user: session.user?.id, body };
-			lists = body.items;
-			invited = body.invitations;
-			nav.lists = invited.length;
-		} catch (error) {
-			if (!isSignedOut(error)) toast.error(m.lists_load_error());
-			failed = true;
-		}
-	}
+	// Answered here: gone at once, before the next read.
+	let answered = $state<string[]>([]);
+	const lists = $derived(data.items);
+	const invited = $derived(data.invitations.filter((i) => !answered.includes(i.listId)));
+	const mine = $derived(lists.filter((l) => l.owner.id === session.user?.id));
+	const shared = $derived(lists.filter((l) => l.owner.id !== session.user?.id));
 
-	onMount(load);
-
-	// The shell's count moved on its own (the tab came back): load the cards it counts.
 	$effect(() => {
-		if (lists !== undefined && nav.lists !== untrack(() => invited.length)) void load();
+		if (data.failed && !data.signedOut) untrack(() => toast.error(m.lists_load_error()));
+	});
+	$effect(() => {
+		if (!data.failed) nav.lists = invited.length;
+	});
+	// The shell's count moved on its own (the tab came back): read the cards it counts.
+	$effect(() => {
+		if (!data.failed && nav.lists !== untrack(() => invited.length)) void invalidateAll();
 	});
 
-	function declined(listId: string) {
-		invited = invited.filter((i) => i.listId !== listId);
-		nav.lists = invited.length;
-	}
+	const answer = (listId: string) => (answered = [...answered, listId]);
 
 	$effect(() => {
 		shell.breadcrumb = m.lists_title();
@@ -81,15 +54,10 @@
 	     the recipes; the title shares its line only with the place's switch. -->
 	<PlaceSwitch side="lists" />
 
-	{#if failed}
+	{#if data.failed}
 		<EmptyState title={m.lists_load_error()} text="">
-			<Button variant="primary" onclick={load}>{m.common_retry()}</Button>
+			<Button variant="primary" onclick={() => invalidateAll()}>{m.common_retry()}</Button>
 		</EmptyState>
-	{:else if lists === undefined}
-		<div class="grid grid-cols-[repeat(auto-fill,minmax(min(100%,320px),1fr))] gap-4">
-			<Skeleton class="h-36 rounded-2xl" />
-			<Skeleton class="h-36 rounded-2xl" />
-		</div>
 	{:else if lists.length === 0 && invited.length === 0}
 		<NoteEmptyState
 			art={shoppingArt}
@@ -124,11 +92,12 @@
 						gone={m.list_gone()}
 						accept={async () => {
 							await acceptListInvitation(invitation.listId);
-							nav.lists--;
+							// The list opens in the overview's place: its count drops here, as the card goes.
+							answer(invitation.listId);
 							await goto(listHref(invitation.listId));
 						}}
 						decline={() => leaveList(invitation.listId)}
-						ondone={() => declined(invitation.listId)}
+						ondone={() => answer(invitation.listId)}
 					/>
 				{/each}
 			</div>

@@ -111,10 +111,26 @@
 				`[data-entry-block="${CSS.escape(entry.id)}"]`
 			);
 			if (!block) return;
-			block.scrollIntoView({ block: 'center', behavior: 'smooth' });
+			// Its head at the top, clear of the bar (`scroll-mt-*`): a recipe's
+			// block is often taller than the screen, and centered, its title
+			// scrolled away.
+			block.scrollIntoView({ block: 'start', behavior: 'smooth' });
 			block.querySelector<HTMLElement>('h2')?.focus({ preventScroll: true });
-			block.dataset.lit = '';
-			setTimeout(() => delete block.dataset.lit, 1800);
+			// Lit once the page stands still, so its brightest moment is seen:
+			// 150ms after the last scroll, or 400ms after the tap when nothing
+			// scrolls. Not `scrollend`: the navigation's own scroll ends one
+			// before this one starts, and older Safari has none.
+			const light = () => {
+				removeEventListener('scroll', moved);
+				block.dataset.lit = '';
+				setTimeout(() => delete block.dataset.lit, 1800);
+			};
+			let still = setTimeout(light, 400);
+			const moved = () => {
+				clearTimeout(still);
+				still = setTimeout(light, 150);
+			};
+			addEventListener('scroll', moved, { passive: true });
 		});
 	});
 

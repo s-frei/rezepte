@@ -94,7 +94,7 @@
 			     that reaches past its sides, so the rows keep room to the edge. -->
 			<section
 				data-entry-block={group.entry?.id}
-				class="relative isolate before:absolute before:-inset-x-3 before:inset-y-0 before:-z-10 before:rounded-lg data-lit:before:motion-safe:animate-flash {!shop &&
+				class="relative isolate scroll-mt-4 before:absolute before:-inset-x-2.5 before:inset-y-0 before:-z-10 before:rounded-lg data-lit:before:motion-safe:animate-flash md:scroll-mt-24 {!shop &&
 				i > 0
 					? 'mt-2 border-t border-border'
 					: ''}"
@@ -111,7 +111,7 @@
 						{@const plan = stamps ? planStamp(group.entry, session.user?.id, thisMonday) : null}
 						<h2
 							tabindex="-1"
-							class="col-start-2 row-start-1 self-end font-display text-card font-medium text-pretty hyphens-auto outline-none focus-visible:rounded-sm focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-primary focus-visible:outline-solid"
+							class="col-start-2 row-start-1 self-end font-display text-card font-medium text-pretty hyphens-auto outline-none"
 						>
 							<!-- "Mi ·" stays one piece; with a stamp, the stamp names the day. -->
 							{#if group.day && !stamps}<span class="text-text-muted">{group.day}&nbsp;·</span>{/if}

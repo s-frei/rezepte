@@ -68,38 +68,54 @@ test('place switch remembers the side', async ({ page }) => {
 
 test('the switch swaps the sides in place, without a reload or a fade', async ({ page }) => {
 	await loginFresh(page);
+	const list = `Switch ${uniqueToken()}`;
+	expect((await page.request.post('/api/v1/shopping-lists', { data: { name: list } })).ok()).toBe(
+		true
+	);
 	await page.goto('/lists');
-	await expect(side(page, 'Lists')).toBeChecked();
+	await expect(page.getByRole('link', { name: list })).toBeVisible();
 	const documents: string[] = [];
 	page.on('request', (r) => {
 		if (r.resourceType() === 'document') documents.push(r.url());
 	});
+	// Recorded on every change, not read once at the end: an expect that
+	// retries passes over a skeleton or a bare page that came and went.
 	// A reload would drop the marker; a page transition sets its attribute.
-	await page.evaluate(() => {
-		Object.assign(window, { stayed: true, faded: false });
-		new MutationObserver(() => {
-			if (document.documentElement.hasAttribute('data-page-transition'))
-				Object.assign(window, { faded: true });
-		}).observe(document.documentElement, { attributes: true });
-	});
+	await page.evaluate((list) => {
+		const seen = { stayed: true, faded: false, skeleton: false, bare: false };
+		Object.assign(window, { seen });
+		const look = () => {
+			const main = document.querySelector('main');
+			if (document.documentElement.hasAttribute('data-page-transition')) seen.faded = true;
+			if (main?.querySelector('.bg-skeleton')) seen.skeleton = true;
+			// Some side is always whole on screen: its list card or its plans.
+			const text = main?.textContent ?? '';
+			if (!text.includes(list) && !text.includes('Your plans')) seen.bare = true;
+		};
+		new MutationObserver(look).observe(document.documentElement, {
+			attributes: true,
+			childList: true,
+			subtree: true
+		});
+	}, list);
 	for (const [to, url] of [
 		['Week', /\/plans$/],
 		['Lists', /\/lists$/],
-		['Week', /\/plans$/]
+		['Week', /\/plans$/],
+		['Lists', /\/lists$/]
 	] as const) {
 		await side(page, to).click();
 		await expect(page).toHaveURL(url);
 		await expect(side(page, to)).toBeChecked();
 	}
-	// Back on the lists, the cards are there at once: no skeleton for a page just seen.
-	await side(page, 'Lists').click();
-	await expect(page.locator('main .bg-skeleton')).toHaveCount(0);
+	await expect(page.getByRole('link', { name: list })).toBeVisible();
 	expect(documents).toEqual([]);
-	const seen = await page.evaluate(() => {
-		const w = window as unknown as { stayed?: boolean; faded?: boolean };
-		return { stayed: w.stayed, faded: w.faded };
+	expect(await page.evaluate(() => (window as unknown as { seen: object }).seen)).toEqual({
+		stayed: true,
+		faded: false,
+		skeleton: false,
+		bare: false
 	});
-	expect(seen).toEqual({ stayed: true, faded: false });
 });
 
 test('the pager moves by weeks and Today comes back', async ({ page }) => {
@@ -1140,6 +1156,37 @@ test('a list member outside the plan sees who planned it, and no way to the plan
 	} finally {
 		await other.context.close();
 	}
+});
+
+test("a card's list stamp lands on the meal's block, its title in view", async ({
+	page,
+	isMobile
+}) => {
+	if (isMobile) await page.setViewportSize({ width: 360, height: 780 });
+	await page.clock.setFixedTime(new Date('2026-11-16T10:00:00'));
+	await loginFresh(page);
+	const t = uniqueToken();
+	// A block taller than the screen, below another: centered, its title went out of view.
+	const breakfast = await createRecipe(page, { ...loadFixture(1), title: `Breakfast ${t}` });
+	const pie = await createRecipe(page, { ...loadFixture(0), title: `Pie ${t}` });
+	await plan(page, { day: '2026-11-17', recipeId: breakfast.id });
+	await plan(page, { day: '2026-11-18', recipeId: pie.id });
+	const planId = await ownPlan(page);
+	const name = `Jump ${t.slice(-4)}`;
+	await planOnList(page, planId, '2026-11-16', '2026-11-22', name);
+	await page.goto(`/plans/${planId}`);
+	const card = page.locator('[data-entry-id]', { hasText: `Pie ${t}` });
+	const stamp = card.getByRole('link', { name: `List ${name}` });
+	await stamp.scrollIntoViewIfNeeded();
+	if (isMobile) await stamp.tap();
+	else await stamp.click();
+
+	const title = page.getByRole('main').getByRole('heading', { level: 2, name: `Pie ${t}` });
+	await expect(title).toBeFocused();
+	// Lit once the scroll has settled; then the title is on screen, without a ring of its own.
+	await expect(page.locator('[data-lit]')).toHaveCount(1);
+	await expect(title).toBeInViewport({ ratio: 1 });
+	expect(await title.evaluate((h) => getComputedStyle(h).outlineStyle)).toBe('none');
 });
 
 test('one meal goes on a second list from its menu', async ({ page }) => {
