@@ -751,11 +751,23 @@
 							: m.ticks_focus_announce({ title, count });
 			}
 			const card = document.querySelector(`main [data-card="${id}"]`);
-			const rowBottom = tickRow?.getBoundingClientRect().bottom ?? 0;
-			const gap = (card?.getBoundingClientRect().top ?? Infinity) - (rowBottom + 12);
+			// The sheet's bottom, not the sticky box's, which may reach past it.
+			const top = (tickRow?.firstElementChild?.getBoundingClientRect().bottom ?? 0) + 12;
+			let gap = (card?.getBoundingClientRect().top ?? Infinity) - top;
 			// On a phone the card always comes to sit 12px under the sticky
 			// row, and the page reaches as far as that scroll goes; a desktop
-			// only lifts one the row would cover.
+			// only lifts one the row would cover. A phone too short for the
+			// whole card to its missing line goes on until that line clears
+			// the bottom bar, the card's top under the row: ticking is
+			// watching that line shrink.
+			if (phone.current && gap !== Infinity) {
+				const line = card?.querySelector('[data-missing]')?.getBoundingClientRect();
+				const bar = document.querySelector('[data-bottom-nav]')?.getBoundingClientRect().top;
+				const bottom = Math.min(window.innerHeight, bar || Infinity) - 12;
+				if (line && line.bottom - gap > bottom) {
+					gap += Math.min(line.bottom - gap - bottom, line.top - gap - top);
+				}
+			}
 			if (gap < 0 || (gap !== Infinity && phone.current)) {
 				reserve = Math.max(reserve, roomBelow(gap));
 				await tick();
@@ -1419,27 +1431,35 @@
 	     top and takes over the dotted leader; on a desktop it sticks while
 	     a card is focused, as a sheet of its own over the cards. Dark mode
 	     has no card shadow, so there the sheet is a raised surface with an
-	     edge. -->
+	     edge. The sticky box keeps the general row's height (`rowHeight`);
+	     the sheet inside it is only as tall as its pills, and the rest of
+	     the box lets the cards under it show and take the pointer. -->
 	{#if showTicks}
 		<div
 			bind:this={tickRow}
 			data-tick-row
 			style:min-height={focus && rowHeight ? `${rowHeight}px` : undefined}
-			class="sticky top-0 z-20 -mx-5 mt-1.5 border-b-2 border-dotted bg-background px-5 pt-1.5 pb-2 md:mt-4.5 md:border-0 {focus
-				? 'border-primary md:-mx-4 md:rounded-b-2xl md:px-4 md:py-2.5 md:shadow-card dark:md:border dark:md:border-t-0 dark:md:border-border dark:md:bg-surface-elevated'
-				: 'border-handle md:static md:mx-0 md:p-0'}"
+			class="sticky top-0 z-20 -mx-5 mt-1.5 md:mt-4.5 {focus
+				? 'md:pointer-events-none md:-mx-4'
+				: 'md:static md:mx-0'}"
 		>
-			<p aria-live="polite" class="sr-only">{announcement}</p>
-			<TickRow
-				{row}
-				ticked={have}
-				{focus}
-				ontoggle={toggleTick}
-				onclear={clearTicks}
-				ondone={() => focusCard(null, true)}
-				{hint}
-				onhover={(item) => (hovered = item?.key ?? null)}
-			/>
+			<div
+				class="border-b-2 border-dotted bg-background px-5 pt-1.5 pb-2 md:border-0 {focus
+					? 'border-primary md:pointer-events-auto md:rounded-b-2xl md:px-4 md:py-2.5 md:shadow-card dark:md:border dark:md:border-t-0 dark:md:border-border dark:md:bg-surface-elevated'
+					: 'border-handle md:p-0'}"
+			>
+				<p aria-live="polite" class="sr-only">{announcement}</p>
+				<TickRow
+					{row}
+					ticked={have}
+					{focus}
+					ontoggle={toggleTick}
+					onclear={clearTicks}
+					ondone={() => focusCard(null, true)}
+					{hint}
+					onhover={(item) => (hovered = item?.key ?? null)}
+				/>
+			</div>
 		</div>
 	{/if}
 

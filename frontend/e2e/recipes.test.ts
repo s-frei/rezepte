@@ -3962,13 +3962,20 @@ test.describe('ingredient search', () => {
 		// The hint stands until the first tick.
 		await expect(hint(page)).toBeVisible();
 		const row = page.locator('[data-tick-row]');
-		const height = (await row.boundingBox())!.height;
+		// The row's height, and where its heading and first pill sit.
+		const place = async () => [
+			(await row.boundingBox())!.height,
+			(await row.getByText('Schon zu Hause', { exact: true }).boundingBox())!.y,
+			(await general(page).getByRole('button').first().boundingBox())!.y
+		];
+		const before = await place();
 		// Nothing is fetched for a tick within 0.9 s, so this is the cards' own.
 		await general(page).getByRole('button', { name: 'Salz', exact: true }).click();
 		await expect(missing.filter({ hasText: /\bSalz\b/ })).toHaveCount(0, { timeout: 100 });
 		await expect(hint(page)).toHaveCount(0);
-		// The row keeps the hint's line, so nothing under it moves.
-		expect((await row.boundingBox())!.height).toBe(height);
+		// The count takes the hint's place, so nothing in the row or under
+		// it moves.
+		expect(await place()).toEqual(before);
 		await expect(page).toHaveURL(/have=Salz/);
 	});
 
@@ -4043,6 +4050,37 @@ test.describe('ingredient search', () => {
 		// The hint does not come back after a clear or an undo.
 		await page.getByRole('button', { name: 'Haken entfernen' }).click();
 		await expect(hint(page)).toHaveCount(0);
+	});
+
+	// The phone's "Clear ticks" is a finger's height without reaching over
+	// the heading above it.
+	test('the phone\'s "Clear ticks" is 44px tall and leaves the heading alone', async ({
+		page,
+		isMobile
+	}) => {
+		test.skip(!isMobile, 'the phone header');
+		const token = await kitchen(page);
+		await page.goto(`/?tags=${token}&ingredients=Kartoffel&ingredients=Zwiebel`);
+		await general(page).getByRole('button', { name: 'Salz', exact: true }).click();
+		const clear = page.getByRole('button', { name: 'Haken entfernen' }).filter({ visible: true });
+		await expect(clear).toBeVisible();
+		const heading = (await page
+			.locator('[data-tick-row]')
+			.getByText('Schon zu Hause', { exact: true })
+			.boundingBox())!;
+		const reach = await clear.evaluate(
+			(el, headingY) => {
+				const box = el.getBoundingClientRect();
+				const x = box.left + box.width / 2;
+				const y = box.top + box.height / 2;
+				return {
+					tall: [y - 21, y + 21].every((at) => el.contains(document.elementFromPoint(x, at))),
+					heading: el.contains(document.elementFromPoint(x, headingY))
+				};
+			},
+			heading.y + heading.height / 2
+		);
+		expect(reach).toEqual({ tall: true, heading: false });
 	});
 
 	test('a re-sort the ticks started waits while a card is focused', async ({ page }) => {
@@ -4333,6 +4371,75 @@ test.describe('ingredient search', () => {
 		await expect.poll(() => line.evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true);
 	});
 
+	// A desktop window narrowed below `md` gets the phone's sideways row,
+	// which a mouse could only move with shift and the wheel.
+	test('a mouse moves the narrow row by its arrows', async ({ page, isMobile }) => {
+		test.skip(isMobile, 'a mouse; a touch screen swipes and gets no arrows');
+		await page.setViewportSize({ width: 400, height: 800 });
+		const token = await kitchen(page);
+		await page.goto(`/?tags=${token}&ingredients=Kartoffel&ingredients=Zwiebel`);
+		const pills = general(page).locator('button[aria-pressed]');
+		await expect(pills.first()).toBeVisible();
+		const scroller = general(page);
+		const previous = page.getByRole('button', { name: 'Vorherige Zutaten' });
+		const next = page.getByRole('button', { name: 'Weitere Zutaten' });
+		await expect(previous).toBeHidden();
+		await expect(next).toBeVisible();
+		// Where the arrows leave the row: the scroller's edges and scroll
+		// offset, and every pill's edges in the scroller's own coordinates.
+		const state = () =>
+			scroller.evaluate((el) => {
+				const view = el.getBoundingClientRect();
+				return {
+					left: el.scrollLeft,
+					width: el.clientWidth,
+					pills: [...el.querySelectorAll('button[aria-pressed]')]
+						.map((pill) => pill.getBoundingClientRect())
+						.map((box) => [box.left - view.left, box.right - view.left])
+				};
+			});
+		const settled = async () => {
+			let last = -1;
+			await expect
+				.poll(async () => {
+					const now = (await state()).left;
+					const same = now === last;
+					last = now;
+					return same;
+				})
+				.toBe(true);
+			return state();
+		};
+
+		// A step stops on a pill's edge: the pill the edge cut starts 56px
+		// in, clear of the other arrow and its solid bed.
+		await next.click();
+		const forward = await settled();
+		expect(forward.left).toBeGreaterThan(150);
+		expect(forward.pills.some(([left]) => Math.abs(left - 56) <= 1)).toBe(true);
+		await expect(previous).toBeVisible();
+
+		// From the end the previous arrow mirrors it: the cut pill ends 56px
+		// before the right edge.
+		await scroller.evaluate((el) => (el.scrollLeft = el.scrollWidth));
+		await expect(next).toBeHidden();
+		await previous.click();
+		const back = await settled();
+		expect(back.pills.some(([, right]) => Math.abs(back.width - right - 56) <= 1)).toBe(true);
+		await expect(next).toBeVisible();
+	});
+
+	// Below `md` every pill shows, so "+N more" would name nothing hidden.
+	test('the narrow row shows every pill and no "+N more"', async ({ page, isMobile }) => {
+		if (!isMobile) await page.setViewportSize({ width: 400, height: 800 });
+		const token = await kitchen(page);
+		await page.goto(`/?tags=${token}&ingredients=Kartoffel&ingredients=Zwiebel`);
+		const pills = general(page).locator('button[aria-pressed]');
+		await expect(pills.first()).toBeVisible();
+		expect(await pills.count()).toBeGreaterThan(11);
+		await expect(general(page).getByRole('button', { name: /^\+\d+ weitere$/ })).toBeHidden();
+	});
+
 	test('the row opens past its cap and marks a hovered item in the cards', async ({
 		page,
 		isMobile
@@ -4345,15 +4452,64 @@ test.describe('ingredient search', () => {
 		const visible = () =>
 			pills.evaluateAll((all) => all.filter((el) => el.checkVisibility()).length);
 		expect(await visible()).toBe(11);
-		await general(page)
-			.getByRole('button', { name: /^\+\d+ weitere$/ })
-			.click();
+		const more = general(page).getByRole('button', { name: /^\+\d+ weitere$/ });
+		await expect(more).toHaveAttribute('aria-expanded', 'false');
+		await more.click();
+		await expect.poll(visible).toBeGreaterThan(11);
+
+		// The same button folds the row back and keeps the focus.
+		const fewer = general(page).getByRole('button', { name: 'Weniger', exact: true });
+		await expect(fewer).toHaveAttribute('aria-expanded', 'true');
+		await expect(fewer).toBeFocused();
+		await fewer.click();
+		await expect.poll(visible).toBe(11);
+		await expect(more).toBeFocused();
+		await more.press('Enter');
 		await expect.poll(visible).toBeGreaterThan(11);
 
 		await general(page).getByRole('button', { name: 'Senf', exact: true }).hover();
 		await expect(
 			card(page, 'Kartoffelsalat').locator('[data-missing] b', { hasText: 'Senf' })
 		).toBeVisible();
+	});
+
+	// The hint's height the row keeps after the first tick is the folded
+	// row's: taken while "+N more" stood open, it stayed after "Less" as an
+	// empty band and the focused sheet carried it along.
+	test('"Less" after a tick folds the row back, and the focused sheet ends at its pills', async ({
+		page,
+		isMobile
+	}) => {
+		test.skip(isMobile, 'the cap is desktop-only');
+		// A tablet's width, where the folded row takes more lines than the
+		// focused card's pills.
+		await page.setViewportSize({ width: 900, height: 900 });
+		const token = await kitchen(page);
+		await page.goto(`/?tags=${token}&ingredients=Kartoffel&ingredients=Zwiebel`);
+		const row = page.locator('[data-tick-row]');
+		await expect(general(page).getByRole('button').first()).toBeVisible();
+		const folded = (await row.boundingBox())!.height;
+		await general(page)
+			.getByRole('button', { name: /^\+\d+ weitere$/ })
+			.click();
+		await expect.poll(async () => (await row.boundingBox())!.height).toBeGreaterThan(folded);
+		await general(page).getByRole('button', { name: 'Salz', exact: true }).click();
+		await general(page).getByRole('button', { name: 'Weniger', exact: true }).click();
+		await expect.poll(async () => (await row.boundingBox())!.height).toBe(folded);
+
+		// The focused sheet ends under its own pills, whatever room the
+		// sticky box keeps; past it the page shows and takes the pointer.
+		await card(page, 'Kartoffelsalat')
+			.getByRole('button', { name: /fehlen$/ })
+			.click();
+		const pills = page.getByRole('group', { name: 'Fehlt bei Kartoffelsalat' });
+		await expect(pills).toBeVisible();
+		const box = (await pills.boundingBox())!;
+		const under = await page.evaluate(
+			([x, y]) => !!document.elementFromPoint(x, y)?.closest('[data-tick-row]'),
+			[box.x + 8, box.y + box.height + 20]
+		);
+		expect(under).toBe(false);
 	});
 
 	test('a chip from the link says what else it covers, also on focus', async ({ page }) => {
@@ -4664,6 +4820,47 @@ test.describe('ingredient search', () => {
 		await expect(tooltip).toHaveText('Also covers: Frühlingszwiebeln');
 		await touch.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
 		await expect(tooltip).toHaveCount(0, { timeout: 500 });
+	});
+
+	// Ticking is watching the focused card's missing line shrink: a phone
+	// too short for the row and the whole card scrolls on to that line,
+	// and the row takes at most a share of the screen.
+	test("a short phone keeps the focused card's missing line in view", async ({
+		page,
+		isMobile
+	}) => {
+		test.skip(!isMobile, 'a phone');
+		const token = await kitchen(page);
+		for (const [width, height] of [
+			[320, 568],
+			[740, 360]
+		]) {
+			await page.setViewportSize({ width, height });
+			await page.goto(`/?tags=${token}&ingredients=Kartoffel&ingredients=Zwiebel`);
+			const schnitzel = card(page, 'Schweineschnitzel mit Bratkartoffeln');
+			await schnitzel.locator('[data-stamp]').click();
+			await expect(page.getByRole('button', { name: 'Fertig' })).toBeVisible();
+			await page.waitForTimeout(500);
+			const sheet = (await page.locator('[data-tick-row] > div').boundingBox())!;
+			const line = (await schnitzel.locator('[data-missing]').boundingBox())!;
+			const bar = (await page.locator('[data-bottom-nav]').boundingBox())!;
+			expect(sheet.height).toBeLessThanOrEqual(height * 0.45);
+			expect(line.y).toBeGreaterThanOrEqual(sheet.y + sheet.height);
+			expect(line.y + line.height).toBeLessThanOrEqual(bar.y);
+		}
+	});
+
+	// A tablet's "Done" sits beside the pills at a mouse's 40px; a finger
+	// gets 44.
+	test('"Done" is a finger\'s size on a touch tablet', async ({ page, isMobile }) => {
+		test.skip(!isMobile, 'a touch screen');
+		await page.setViewportSize({ width: 1024, height: 768 });
+		const token = await kitchen(page);
+		await page.goto(`/?tags=${token}&ingredients=Kartoffel&ingredients=Zwiebel`);
+		await card(page, 'Kartoffelsalat').locator('[data-stamp]').click();
+		const done = page.getByRole('button', { name: 'Fertig' });
+		await expect(done).toBeVisible();
+		expect((await done.boundingBox())!.height).toBeGreaterThanOrEqual(44);
 	});
 
 	test('a focused card sits below the sticky row on a phone', async ({ page }) => {

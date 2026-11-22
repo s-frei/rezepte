@@ -13,7 +13,7 @@ describe('TickRow', () => {
 		const row = Array.from({ length: 14 }, (_, i) => item(`Item${i}`));
 		const { body } = render(TickRow, { props: { ...props, row, focus: null } });
 		expect(body).toContain('+3 more');
-		expect(body.match(/<button[^>]*md:hidden[^>]*>/g)).toHaveLength(3);
+		expect(body.match(/<button[^>]*[" ]md:hidden[^>]*>/g)).toHaveLength(3);
 	});
 
 	it('says all is there for a focused card that misses nothing, without an empty group', () => {

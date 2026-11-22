@@ -1745,6 +1745,7 @@
 	"ticks_hint": "für ein Rezept: auf der Karte {stamp} tippen",
 	"ticks_hint_stamp": "fehlen",
 	"ticks_more": "+{count} weitere",
+	"ticks_less": "Weniger",
 	"ticks_focus": "Fehlt bei {title}",
 	"ticks_focus_all_there": "Alles da für {title}",
 	"ticks_focus_announce_one": "Fehlt bei {title}, 1 Zutat",
@@ -1753,5 +1754,7 @@
 	"ticks_covered": "{name}, abgehakt über {by}",
 	"ticks_cleared_one": "1 Haken entfernt",
 	"ticks_cleared": "{count} Haken entfernt",
-	"ticks_undo": "Rückgängig"
+	"ticks_undo": "Rückgängig",
+	"ticks_scroll_previous": "Vorherige Zutaten",
+	"ticks_scroll_next": "Weitere Zutaten"
 }

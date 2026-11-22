@@ -1745,6 +1745,7 @@
 	"ticks_hint": "for one recipe: tap {stamp} on its card",
 	"ticks_hint_stamp": "missing",
 	"ticks_more": "+{count} more",
+	"ticks_less": "Less",
 	"ticks_focus": "Missing for {title}",
 	"ticks_focus_all_there": "All there for {title}",
 	"ticks_focus_announce_one": "Missing for {title}, 1 ingredient",
@@ -1753,5 +1754,7 @@
 	"ticks_covered": "{name}, ticked via {by}",
 	"ticks_cleared_one": "1 tick cleared",
 	"ticks_cleared": "{count} ticks cleared",
-	"ticks_undo": "Undo"
+	"ticks_undo": "Undo",
+	"ticks_scroll_previous": "Earlier ingredients",
+	"ticks_scroll_next": "More ingredients"
 }

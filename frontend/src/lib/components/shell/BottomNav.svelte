@@ -88,6 +88,7 @@
 -->
 <div
 	bind:this={barEl}
+	data-bottom-nav
 	data-docked={bottomNav.docked ? '' : undefined}
 	class="fixed inset-x-2 bottom-0 z-30 flex h-[calc(4rem+env(safe-area-inset-bottom))] origin-bottom items-center border border-border bg-surface px-2.5 pb-[env(safe-area-inset-bottom)] transition-[translate,scale,border-radius,border-color,box-shadow] duration-500 ease-[cubic-bezier(0.3,1.3,0.5,1)] [view-transition-name:bottom-nav] motion-reduce:transition-none md:hidden {bottomNav.docked
 		? 'rounded-t-3xl border-b-transparent shadow-sheet'
