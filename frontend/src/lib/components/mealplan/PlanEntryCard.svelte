@@ -6,6 +6,7 @@
 	import { byListName } from '#lib/shopping/plan-ref.js';
 	import { imageUrl } from '#lib/api/recipes.js';
 	import type { PlanEntry } from '#lib/api/mealplan.js';
+	import CardLink from '#lib/components/ui/CardLink.svelte';
 	import PersonMark from '#lib/components/ui/PersonMark.svelte';
 	import { recipeHref } from '#lib/mealplan/entries.js';
 	import { m } from '#lib/paraglide/messages.js';
@@ -69,7 +70,7 @@
 
 {#snippet title(cls: string)}
 	{#if href}
-		<a {href} draggable="false" onclick={once} class="{cls} {stretched}">{entry.title}</a>
+		<CardLink {href} onclick={once} class="{cls} {stretched}">{entry.title}</CardLink>
 	{:else}
 		<span class={cls}>{entry.title}</span>
 	{/if}
@@ -113,7 +114,8 @@
 				key: l.id,
 				kind: 'list' as const,
 				label: l.name,
-				href: listEntryHref(l.id, entry.id)
+				href: listEntryHref(l.id, entry.id),
+				card: true
 			}))}
 		/>
 	{:else if unlisted && toList}

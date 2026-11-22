@@ -12,6 +12,8 @@
 		quiet?: boolean;
 		/** Overrides the accessible name. */
 		ariaLabel?: string;
+		/** On a card a finger drags: a `CardLink`, no link preview on a long press. */
+		card?: boolean;
 	};
 
 	/** A stamp's tint by kind; the row's summary pill ("3 Listen") wears it too. */
@@ -29,6 +31,7 @@
 	import { dayNames, stampDate } from '#lib/mealplan/week.js';
 	import { m } from '#lib/paraglide/messages.js';
 	import { getLocale } from '#lib/paraglide/runtime.js';
+	import CardLink from '#lib/components/ui/CardLink.svelte';
 
 	/**
 	 * The link between a plan and a list, on either side: the kind's icon
@@ -47,6 +50,7 @@
 		href = null,
 		quiet = false,
 		ariaLabel,
+		card = false,
 		wrap = false,
 		bare = false,
 		class: extra = ''
@@ -77,6 +81,8 @@
 				.join(', ')
 	);
 	const tone = $derived(stampTone(kind, quiet));
+	const linked =
+		'relative transition hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary max-md:after:absolute max-md:after:inset-x-0 max-md:after:inset-y-[calc(50%-22px)]';
 	const base = $derived(
 		`inline-flex h-6 max-w-full min-w-0 items-center gap-1 rounded-pill px-2 text-caption font-semibold ${wrap ? '' : 'whitespace-nowrap'} ${tone} ${extra}`
 	);
@@ -108,14 +114,11 @@
 	{/if}
 {/snippet}
 
-{#if href}
+{#if href && card}
+	<CardLink {href} aria-label={aria} data-stamp class="{base} {linked}">{@render inner()}</CardLink>
+{:else if href}
 	<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -- resolved by the caller -->
-	<a
-		{href}
-		aria-label={aria}
-		draggable="false"
-		data-stamp
-		class="{base} relative transition hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary max-md:after:absolute max-md:after:inset-x-0 max-md:after:inset-y-[calc(50%-22px)]"
+	<a {href} aria-label={aria} draggable="false" data-stamp class="{base} {linked}"
 		>{@render inner()}</a
 	>
 {:else}

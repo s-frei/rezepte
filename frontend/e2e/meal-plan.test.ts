@@ -401,7 +401,7 @@ test('plans a recipe and a note on a day', async ({ page }) => {
 	await expect(day(page, 'Thursday, November 19').getByText('Pizza bestellen')).toHaveCount(0);
 });
 
-test('moves an entry to another day by menu', async ({ page }) => {
+test('moves an entry to another day by menu', async ({ page, isMobile }) => {
 	await page.clock.setFixedTime(new Date('2026-11-16T10:00:00'));
 	await loginFresh(page);
 	const title = `Klopse ${uniqueToken()}`;
@@ -422,7 +422,8 @@ test('moves an entry to another day by menu', async ({ page }) => {
 
 	// A tap opens the recipe at the planned servings.
 	const link = thursday.getByRole('link', { name: title });
-	await expect(link).toHaveAttribute('href', `/recipes/${recipe.slug}?servings=7`);
+	// A touch screen's card has no href (`CardLink`); the stepper below checks it there.
+	if (!isMobile) await expect(link).toHaveAttribute('href', `/recipes/${recipe.slug}?servings=7`);
 	await link.click();
 	const stepper = page.getByRole('group', { name: 'Servings' }).first();
 	await expect(stepper.getByText('7', { exact: true })).toBeVisible();
@@ -610,9 +611,14 @@ test('a held finger on a card gets no link menu, a tap opens the recipe', async 
 	const title = `Klopse ${uniqueToken()}`;
 	const recipe = await createRecipe(page, { ...loadFixture(0), title });
 	await plan(page, { day: '2026-11-18', recipeId: recipe.id });
+	await plan(page, { day: '2026-11-18', title: 'Pizza bestellen' });
 	await openOwn(page);
 	const link = day(page, 'Wednesday, November 18').getByRole('link', { name: title });
 	await link.scrollIntoViewIfNeeded();
+	// No <a href> under the finger: iOS previews any on a long press, and
+	// Chrome there ignores -webkit-touch-callout. Still a link to a screen reader.
+	const card = day(page, 'Wednesday, November 18').locator('li', { hasText: title });
+	await expect(card.locator('a[href]')).toHaveCount(0);
 	// Two fingers: the guard holds until the last one lifts. (Chromium knows
 	// no -webkit-touch-callout, so its style reads empty: ask a menu instead.)
 	const blocked = () =>
@@ -661,6 +667,35 @@ test('a held finger on a card gets no link menu, a tap opens the recipe', async 
 	await expect.poll(() => clicksHeard(page)).toBe(true);
 	await link.tap();
 	await expect(page.getByRole('heading', { level: 1, name: title })).toBeVisible();
+	// Enter opens it too, not a keyboard drag of the card.
+	await page.goBack();
+	await link.focus();
+	await page.keyboard.press('Enter');
+	await expect(page.getByRole('heading', { level: 1, name: title })).toBeVisible();
+	// Space does nothing on a link: no hidden keyboard drag that an arrow then saves.
+	await page.goBack();
+	await link.focus();
+	await page.keyboard.press('Space');
+	await page.keyboard.press('ArrowDown');
+	await page.keyboard.press('Space');
+	const order = () => day(page, 'Wednesday, November 18').locator('li').allInnerTexts();
+	await expect
+		.poll(async () => (await order()).map((t) => t.includes(title)))
+		.toEqual([true, false]);
+	await openOwn(page);
+	expect((await order()).map((t) => t.includes(title))).toEqual([true, false]);
+});
+
+test('a card is a real link without a touch screen', async ({ page, isMobile }) => {
+	test.skip(isMobile, 'a touch screen has no <a href> on a card');
+	await page.clock.setFixedTime(new Date('2026-11-16T10:00:00'));
+	await loginFresh(page);
+	const title = `Klopse ${uniqueToken()}`;
+	const recipe = await createRecipe(page, { ...loadFixture(0), title });
+	await plan(page, { day: '2026-11-18', recipeId: recipe.id });
+	await openOwn(page);
+	const link = day(page, 'Wednesday, November 18').getByRole('link', { name: title });
+	await expect(link).toHaveAttribute('href', /^\/recipes\//);
 });
 
 test('the click that ends a long drag never opens the recipe, a tap does', async ({
@@ -1135,7 +1170,7 @@ test('a changed range waits for its recipes before it goes on a list', async ({ 
 	);
 });
 
-test('plans a recipe from its page for Wednesday at 6 servings', async ({ page }) => {
+test('plans a recipe from its page for Wednesday at 6 servings', async ({ page, isMobile }) => {
 	await page.clock.setFixedTime(new Date('2026-11-16T10:00:00'));
 	await loginFresh(page);
 	const title = `Frühstück ${uniqueToken()}`;
@@ -1161,9 +1196,15 @@ test('plans a recipe from its page for Wednesday at 6 servings', async ({ page }
 
 	await page.getByRole('button', { name: 'Open plan' }).click();
 	await expect(page).toHaveURL(/\/plans\/[^?]+$/);
-	await expect(
-		day(page, 'Wednesday, November 18').getByRole('link', { name: title })
-	).toHaveAttribute('href', `/recipes/${recipe.slug}?servings=6`);
+	const link = day(page, 'Wednesday, November 18').getByRole('link', { name: title });
+	// A touch screen's card has no href (`CardLink`): the tap shows the servings.
+	if (!isMobile) {
+		await expect(link).toHaveAttribute('href', `/recipes/${recipe.slug}?servings=6`);
+		return;
+	}
+	await link.tap();
+	await expect(page).toHaveURL(/\/recipes\//);
+	await expect(stepper.getByText('6', { exact: true })).toBeVisible();
 });
 
 // Named plans: made, shared, renamed, deleted and left like lists.
@@ -1580,7 +1621,7 @@ test("a card's list stamp lands on the meal's block, its title in view", async (
 	expect(await title.evaluate((h) => getComputedStyle(h).outlineStyle)).toBe('none');
 });
 
-test('one meal goes on a second list from its menu', async ({ page }) => {
+test('one meal goes on a second list from its menu', async ({ page, isMobile }) => {
 	await page.clock.setFixedTime(new Date('2026-11-18T10:00:00'));
 	await loginFresh(page);
 	const t = uniqueToken();
@@ -1609,10 +1650,13 @@ test('one meal goes on a second list from its menu', async ({ page }) => {
 	// The card and the week's head show both lists, each a link.
 	const card = page.locator('[data-entry-id]', { hasText: `Pie ${t}` });
 	const entryId = (await card.getAttribute('data-entry-id'))!;
-	await expect(card.getByRole('link', { name: `List ${a}` })).toHaveAttribute(
-		'href',
-		`/lists/${first}?entry=${entryId}`
-	);
+	// A touch screen's card has no href (`CardLink`).
+	if (isMobile) await expect(card.getByRole('link', { name: `List ${a}` })).toBeVisible();
+	else
+		await expect(card.getByRole('link', { name: `List ${a}` })).toHaveAttribute(
+			'href',
+			`/lists/${first}?entry=${entryId}`
+		);
 	await expect(card.getByRole('link', { name: `List ${b}` })).toBeVisible();
 	await expect(
 		page.getByRole('list', { name: 'Lists of this plan' }).getByRole('link', { name: /^List B / })

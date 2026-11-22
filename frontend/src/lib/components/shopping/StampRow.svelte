@@ -157,8 +157,14 @@
 				<ul class="flex flex-col items-start gap-2.5">
 					{#each rest as stamp (stamp.key)}
 						<li class="flex max-w-full min-w-0">
-							<!-- In the popover a long name may wrap, its detail running on after it: nothing here is cut. -->
-							<LinkStamp {...stamp} wrap class="{stampClass} h-auto! min-h-6 rounded-lg! py-1" />
+							<!-- In the popover a long name may wrap, its detail running on after it: nothing here is cut.
+							     Outside a card's drop zone, a real link again. -->
+							<LinkStamp
+								{...stamp}
+								card={false}
+								wrap
+								class="{stampClass} h-auto! min-h-6 rounded-lg! py-1"
+							/>
 						</li>
 					{/each}
 				</ul>

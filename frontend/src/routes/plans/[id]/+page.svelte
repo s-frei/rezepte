@@ -105,7 +105,9 @@
 				(day ? document.querySelector<HTMLElement>(`[data-day="${CSS.escape(day)}"]`) : null);
 			if (!target) return;
 			target.scrollIntoView({ block: 'center', behavior: 'smooth' });
-			(card?.querySelector<HTMLElement>('a[href], [data-entry-menu]') ?? target).focus({
+			(
+				card?.querySelector<HTMLElement>('a[href], [role="link"], [data-entry-menu]') ?? target
+			).focus({
 				preventScroll: true
 			});
 			// The card itself lights up: its own background would cover its slot's.
