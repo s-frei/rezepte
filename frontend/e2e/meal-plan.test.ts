@@ -118,7 +118,11 @@ test('the switch swaps the sides in place, without a reload or a fade', async ({
 	});
 });
 
-test('the pager moves by weeks, says where it is, and Today leads back', async ({ page }) => {
+test('a phone pages by weeks, says where it is, and Today leads back', async ({
+	page,
+	isMobile
+}) => {
+	test.skip(!isMobile, 'from md the pager steps the strip by days (its own tests)');
 	await page.clock.setFixedTime(new Date('2026-11-20T10:00:00'));
 	await loginFresh(page);
 	await plan(page, { day: '2026-11-21', title: 'Pizza bestellen' });
@@ -169,6 +173,404 @@ test('the pager moves by weeks, says where it is, and Today leads back', async (
 	// Paging replaced the plan's entry: one Back leaves the plan.
 	await page.goBack();
 	await expect(page).toHaveURL(/\/lists$/);
+});
+
+/** From md: the strip of days, and the day at its left edge. */
+const strip = (page: Page) => page.getByRole('region', { name: 'Days', exact: true });
+const firstInView = (page: Page) =>
+	strip(page).evaluate((el) => {
+		const left = el.getBoundingClientRect().left;
+		return [...el.querySelectorAll<HTMLElement>('[data-day]')]
+			.find((d) => d.getBoundingClientRect().left >= left - 2)
+			?.getAttribute('data-day');
+	});
+const weekBar = (page: Page) => page.getByRole('heading', { level: 2 }).first();
+const lens = (page: Page) => page.getByRole('slider', { name: 'Days in view' });
+
+/**
+ * Requests for other days of a plan than the ones from `from`, counted from
+ * now on: a live refetch of the loaded days does not count.
+ */
+function planLoads(page: Page, id: string, from: string) {
+	let n = 0;
+	page.on('request', (r) => {
+		const url = new URL(r.url());
+		if (
+			r.method() === 'GET' &&
+			url.pathname === `/api/v1/meal-plans/${id}` &&
+			url.searchParams.get('from') !== from
+		)
+			n++;
+	});
+	return () => n;
+}
+
+test('from md the strip opens around today, steps by days, and the address keeps it', async ({
+	page,
+	isMobile
+}) => {
+	test.skip(isMobile, 'a phone pages by weeks');
+	await page.clock.setFixedTime(new Date('2026-11-20T10:00:00'));
+	await loginFresh(page);
+	const pie = await createRecipe(page, { ...loadFixture(0), title: `Pie ${uniqueToken()}` });
+	await plan(page, { day: '2026-11-27', recipeId: pie.id });
+	await page.goto('/lists');
+	const id = await openOwn(page);
+	const where = page.locator('[data-week-from-now]');
+	const today = page.getByRole('button', { name: 'Today', exact: true });
+	// Today in the middle: three days back, three ahead.
+	await expect(where).toHaveText('Around today');
+	await expect(weekBar(page)).toContainText('November 17–23');
+	await expect.poll(() => firstInView(page)).toBe('2026-11-17');
+	await expect(today).toHaveAttribute('aria-disabled', 'true');
+
+	const next = page.getByRole('button', { name: 'One day ahead' });
+	const back = page.getByRole('button', { name: 'One day back' });
+	for (let i = 0; i < 3; i++) await next.click();
+	await expect(where).toHaveText('From today');
+	await expect(weekBar(page)).toContainText('November 20–26');
+	await expect(page).toHaveURL(new RegExp(`/plans/${id}\\?from=2026-11-20$`));
+	// Shift: a week; a day beyond tomorrow is named by its date.
+	await next.click({ modifiers: ['Shift'] });
+	await expect(where).toHaveText('From Fri Nov 27');
+	await expect(weekBar(page)).toContainText('November 27 – December 3');
+	await expect(page).toHaveURL(new RegExp(`/plans/${id}\\?from=2026-11-27$`));
+
+	// Back from a meal and a reload open where the strip rested.
+	await page.getByRole('link', { name: pie.title }).click();
+	await expect(page.getByRole('heading', { level: 1, name: pie.title })).toBeVisible();
+	await page.goBack();
+	await expect(weekBar(page)).toContainText('November 27 – December 3');
+	await expect.poll(() => firstInView(page)).toBe('2026-11-27');
+	await page.reload();
+	await expect(weekBar(page)).toContainText('November 27 – December 3');
+	await expect.poll(() => firstInView(page)).toBe('2026-11-27');
+
+	// The arrow keys step the strip a day at a time.
+	await strip(page).focus();
+	await page.keyboard.press('ArrowLeft');
+	await expect(weekBar(page)).toContainText('November 26 – December 2');
+	await expect(page).toHaveURL(new RegExp(`/plans/${id}\\?from=2026-11-26$`));
+
+	// Today goes back around today, and the address drops the day.
+	await page.getByRole('button', { name: 'Today, show around today' }).click();
+	await expect(where).toHaveText('Around today');
+	await expect(page).toHaveURL(new RegExp(`/plans/${id}$`));
+	await expect(today).toHaveAttribute('aria-disabled', 'true');
+	await expect.poll(() => firstInView(page)).toBe('2026-11-17');
+	// There and back again: the address follows the strip home too.
+	await next.click();
+	await expect(page).toHaveURL(new RegExp(`/plans/${id}\\?from=2026-11-18$`));
+	await back.click();
+	await expect(where).toHaveText('Around today');
+	await expect(page).toHaveURL(new RegExp(`/plans/${id}$`));
+
+	// Opened on a Monday, seven days are that week; back to the day it
+	// opened on, the address says so again.
+	await page.goto(`/plans/${id}?from=2026-11-23`);
+	await expect(where).toHaveText('Next week');
+	await next.click();
+	await expect(page).toHaveURL(new RegExp(`/plans/${id}\\?from=2026-11-24$`));
+	await back.click();
+	await expect(page).toHaveURL(new RegExp(`/plans/${id}\\?from=2026-11-23$`));
+	await page.reload();
+	await expect(where).toHaveText('Next week');
+	await expect.poll(() => firstInView(page)).toBe('2026-11-23');
+});
+
+test('from md the timeline shows the days in view as a lens, by pointer and by keyboard', async ({
+	page,
+	isMobile
+}) => {
+	test.skip(isMobile, 'a phone pages by weeks');
+	await page.clock.setFixedTime(new Date('2026-11-20T10:00:00'));
+	await loginFresh(page);
+	await plan(page, { day: '2026-11-24', title: 'Pizza bestellen' });
+	await plan(page, { day: '2026-12-18', title: 'Raclette' });
+	const id = await openOwn(page);
+	const where = page.locator('[data-week-from-now]');
+	const timeline = page.locator('[data-timeline]');
+	await expect(lens(page)).toHaveAttribute('aria-valuetext', 'November 17–23');
+	await expect(timeline.locator('[data-today]')).toHaveCount(1);
+	await expect(timeline.locator('[data-planned]')).toHaveCount(1);
+
+	// Up a week, down a day: a slider's keys.
+	await lens(page).focus();
+	await page.keyboard.press('PageUp');
+	await expect(lens(page)).toHaveAttribute('aria-valuetext', 'November 24–30');
+	await expect(where).toHaveText('From Tue Nov 24');
+	await expect(page).toHaveURL(new RegExp(`/plans/${id}\\?from=2026-11-24$`));
+	await page.keyboard.press('ArrowDown');
+	await expect(lens(page)).toHaveAttribute('aria-valuetext', 'November 23–29');
+	await expect(where).toHaveText('Next week');
+	await expect(lens(page)).toBeFocused();
+
+	// Dragged, the lens takes the strip along and comes to rest on a day.
+	const line = (await timeline.boundingBox())!;
+	const per = line.width / (await timeline.locator('li').count());
+	const box = (await lens(page).boundingBox())!;
+	const y = box.y + box.height / 2;
+	await page.mouse.move(box.x + box.width / 2, y);
+	await page.mouse.down();
+	await page.mouse.move(box.x + box.width / 2 - 3 * per, y, { steps: 10 });
+	await page.mouse.up();
+	await expect(lens(page)).toHaveAttribute('aria-valuetext', 'November 20–26');
+	await expect.poll(() => firstInView(page)).toBe('2026-11-20');
+
+	// A week's date brings that week. Near the end of the loaded weeks the
+	// next ones load once the strip rests: the ruler and the lens stay where
+	// they are, and only the new days' dots come in (18 Dec's).
+	await expect(timeline.locator('[data-planned]')).toHaveCount(1);
+	const loading = page.waitForResponse(
+		(r) => r.url().includes(`/api/v1/meal-plans/${id}?`) && !r.url().includes('from=2026-11-02')
+	);
+	await timeline.locator('[data-week="2026-12-07"]').click();
+	await expect(lens(page)).toHaveAttribute('aria-valuetext', 'December 7–13');
+	await expect(where).toHaveText('In 3 weeks');
+	await expect(page).toHaveURL(new RegExp(`/plans/${id}\\?from=2026-12-07$`));
+	await expect.poll(() => firstInView(page)).toBe('2026-12-07');
+	const monday = timeline.locator('[data-week="2026-12-07"]');
+	const where2 = async () => [
+		Math.round((await lens(page).boundingBox())!.x),
+		Math.round((await monday.boundingBox())!.x)
+	];
+	const before = await where2();
+	await loading;
+	await expect(timeline.locator('[data-planned]')).toHaveCount(2);
+	await page.waitForTimeout(400);
+	expect(await where2()).toEqual(before);
+	// The lens sits on the week it shows (its left edge at that Monday's rule).
+	expect(Math.abs(before[0] - before[1])).toBeLessThan(8);
+});
+
+test('from md a week step is a week, near the end of the loaded days too', async ({
+	page,
+	isMobile
+}) => {
+	test.skip(isMobile, 'a phone pages by weeks');
+	await page.clock.setFixedTime(new Date('2026-11-20T10:00:00'));
+	await loginFresh(page);
+	const id = await openOwn(page);
+	await plan(page, { day: '2026-12-08', title: 'Pizza bestellen' });
+	await page.reload();
+	const next = page.getByRole('button', { name: 'One day ahead' });
+	for (const from of ['2026-11-24', '2026-12-01', '2026-12-08']) {
+		await next.click({ modifiers: ['Shift'] });
+		await expect(page).toHaveURL(new RegExp(`/plans/${id}\\?from=${from}$`));
+	}
+	await expect(page.locator('[data-week-from-now]')).toHaveText('From Tue Dec 8');
+	await expect.poll(() => firstInView(page)).toBe('2026-12-08');
+	// Quick steps add up past the loaded days as well.
+	for (let i = 0; i < 3; i++) await next.click({ modifiers: ['Shift'] });
+	await expect(page).toHaveURL(new RegExp(`/plans/${id}\\?from=2026-12-29$`));
+	await expect.poll(() => firstInView(page)).toBe('2026-12-29');
+});
+
+test('from md the badge and the dialog take the days in view from today on', async ({
+	page,
+	isMobile
+}) => {
+	test.skip(isMobile, 'a phone counts its week');
+	await page.clock.setFixedTime(new Date('2026-11-20T10:00:00'));
+	await loginFresh(page);
+	const t = uniqueToken();
+	const pie = await createRecipe(page, { ...loadFixture(0), title: `Pie ${t}` });
+	const mash = await createRecipe(page, { ...loadFixture(2), title: `Mash ${t}` });
+	const fish = await createRecipe(page, { ...loadFixture(1), title: `Fish ${t}` });
+	await plan(page, { day: '2026-11-19', recipeId: pie.id });
+	await plan(page, { day: '2026-11-20', recipeId: mash.id });
+	await plan(page, { day: '2026-11-30', recipeId: fish.id });
+	await openOwn(page);
+	// Yesterday is done, and Monday week is out of view.
+	await expect(toListButton(page)).toHaveAccessibleName('Put on the list, 1 recipe on no list');
+	const next = page.getByRole('button', { name: 'One day ahead' });
+	const back = page.getByRole('button', { name: 'One day back' });
+	await next.click({ modifiers: ['Shift'] });
+	await expect(weekBar(page)).toContainText('November 24–30');
+	await expect(toListButton(page)).toHaveAccessibleName('Put on the list, 1 recipe on no list');
+	await back.click();
+	await expect(weekBar(page)).toContainText('November 23–29');
+	await expect(toListButton(page)).toHaveAccessibleName('Put on the list');
+	await next.click();
+	await expect(weekBar(page)).toContainText('November 24–30');
+	// The badge and the dialog follow the days once they rest (the address says so).
+	await expect(page).toHaveURL(/from=2026-11-24$/);
+	const dialog = await openDialog(page, toListButton(page), 'Put on the list');
+	await expect(dialog.getByRole('button', { name: /^Days/ })).toContainText(
+		'Tue Nov 24 – Mon Nov 30'
+	);
+	await expect(dialog.getByText(`Fish ${t}`)).toBeVisible();
+	await expect(dialog.getByText(`Mash ${t}`)).toHaveCount(0);
+	await expect(dialog.getByText(`Pie ${t}`)).toHaveCount(0);
+});
+
+test('at 1024 five days sit around today, and the badge and words follow them', async ({
+	page,
+	isMobile
+}) => {
+	test.skip(isMobile, 'a phone counts its week');
+	await page.setViewportSize({ width: 1024, height: 800 });
+	await page.clock.setFixedTime(new Date('2026-11-20T10:00:00'));
+	await loginFresh(page);
+	const t = uniqueToken();
+	const mash = await createRecipe(page, { ...loadFixture(2), title: `Mash ${t}` });
+	const fish = await createRecipe(page, { ...loadFixture(1), title: `Fish ${t}` });
+	await plan(page, { day: '2026-11-20', recipeId: mash.id });
+	await plan(page, { day: '2026-11-30', recipeId: fish.id });
+	const id = await openOwn(page);
+	const where = page.locator('[data-week-from-now]');
+	await expect(where).toHaveText('Around today');
+	await expect(weekBar(page)).toContainText('Nov 18–22');
+	await expect(toListButton(page)).toHaveAccessibleName('Put on the list, 1 recipe on no list');
+	let dialog = await openDialog(page, toListButton(page), 'Put on the list');
+	await expect(dialog.getByRole('button', { name: /^Days/ })).toContainText(
+		'Fri Nov 20 – Sun Nov 22'
+	);
+	await page.keyboard.press('Escape');
+	// Five days from a Monday are no week: named by their first day.
+	await page.goto(`/plans/${id}?from=2026-11-23`);
+	await expect(where).toHaveText('From Mon Nov 23');
+	await expect(toListButton(page)).toHaveAccessibleName('Put on the list');
+	await page.getByRole('button', { name: 'One day ahead' }).click();
+	await expect(weekBar(page)).toContainText('Nov 24–28');
+	await expect(toListButton(page)).toHaveAccessibleName('Put on the list');
+	await page.getByRole('button', { name: 'One day ahead' }).click({ modifiers: ['Shift'] });
+	await expect(weekBar(page)).toContainText('Dec 1–5');
+	await page.getByRole('button', { name: 'One day back' }).click();
+	await expect(weekBar(page)).toContainText('Nov 30 – Dec 4');
+	await expect(toListButton(page)).toHaveAccessibleName('Put on the list, 1 recipe on no list');
+	// Days gone by: the dialog says so about days, not a week.
+	await page.goto(`/plans/${id}?from=2026-11-09`);
+	dialog = await openDialog(page, toListButton(page), 'Put on the list');
+	await expect(
+		dialog.getByText('These days are over. Pick days or take “Someday” along.')
+	).toBeVisible();
+});
+
+test('a card held at the strip’s edge steps it calmly and lands beyond', async ({
+	page,
+	isMobile
+}) => {
+	test.skip(isMobile, 'the strip is the desktop’s');
+	await page.clock.setFixedTime(new Date('2026-11-20T10:00:00'));
+	await loginFresh(page);
+	const made = await plan(page, { day: '2026-11-20', title: 'Pizza bestellen' });
+	const id = made.entries.find((e) => e.title === 'Pizza bestellen')!.id;
+	await openOwn(page);
+	await expect.poll(() => firstInView(page)).toBe('2026-11-17');
+	const card = day(page, 'Friday, November 20').getByText('Pizza bestellen');
+	const from = (await card.boundingBox())!;
+	const edge = (await strip(page).boundingBox())!;
+	const y = from.y + from.height / 2;
+	await page.mouse.move(from.x + from.width / 2, y);
+	await page.mouse.down();
+	await page.mouse.move(from.x + from.width / 2, y + 12, { steps: 4 });
+	await page.waitForTimeout(200);
+	await page.mouse.move(edge.x + edge.width - 16, y, { steps: 12 });
+	// A day at a time, not a rush: about two days in a second and a half.
+	await page.waitForTimeout(1500);
+	const first = (await firstInView(page))!;
+	expect(first > '2026-11-17' && first <= '2026-11-20').toBe(true);
+	await page.mouse.move(edge.x + edge.width - 80, y, { steps: 4 });
+	await page.waitForTimeout(500);
+	await page.mouse.up();
+	await expect
+		.poll(async () => {
+			const plan = (await (
+				await page.request.get(`/api/v1/meal-plans/${made.id}?from=2026-11-16&to=2026-12-06`)
+			).json()) as Plan;
+			return (plan.entries.find((e) => e.id === id)?.day ?? '') > '2026-11-23';
+		})
+		.toBe(true);
+});
+
+test('a card dragged past the loaded weeks loads more only once it is dropped', async ({
+	page,
+	isMobile
+}) => {
+	test.skip(isMobile, 'the strip is the desktop’s');
+	await page.clock.setFixedTime(new Date('2026-11-20T10:00:00'));
+	await loginFresh(page);
+	const made = await plan(page, { day: '2026-12-21', title: 'Pizza bestellen' });
+	const entryOf = async (from: string, to: string) =>
+		(
+			(await (
+				await page.request.get(`/api/v1/meal-plans/${made.id}?from=${from}&to=${to}`)
+			).json()) as Plan
+		).entries.find((e) => e.title === 'Pizza bestellen');
+	const entry = (await entryOf('2026-12-21', '2026-12-21'))!.id;
+	// Loaded: Nov 30 to Jan 10, around the week of Dec 14.
+	await page.goto(`/plans/${made.id}?from=2026-12-18`);
+	await expect.poll(() => firstInView(page)).toBe('2026-12-18');
+	const loads = planLoads(page, made.id, '2026-11-30');
+	const card = day(page, 'Monday, December 21').getByText('Pizza bestellen');
+	const from = (await card.boundingBox())!;
+	const edge = (await strip(page).boundingBox())!;
+	const y = from.y + from.height / 2;
+	await page.mouse.move(from.x + from.width / 2, y);
+	await page.mouse.down();
+	await page.mouse.move(from.x + from.width / 2, y + 12, { steps: 4 });
+	await page.waitForTimeout(200);
+	await page.mouse.move(edge.x + edge.width - 16, y, { steps: 12 });
+	// Into the last days loaded, past where the strip at rest would load more.
+	await expect
+		.poll(async () => ((await firstInView(page)) ?? '') >= '2027-01-01', { timeout: 10000 })
+		.toBe(true);
+	await page.waitForTimeout(500);
+	expect(loads()).toBe(0);
+	await page.mouse.move(edge.x + edge.width - 80, y, { steps: 4 });
+	await page.waitForTimeout(500);
+	await page.mouse.up();
+	// The drop saves, then the next weeks load around the days at rest.
+	await expect.poll(loads).toBeGreaterThan(0);
+	await expect
+		.poll(async () => {
+			const moved = await entryOf('2026-12-14', '2027-01-10');
+			return moved?.id === entry && (moved.day ?? '') > '2026-12-27';
+		})
+		.toBe(true);
+});
+
+test('a drag let go outside the days leaves the card and the strip on a day', async ({
+	page,
+	isMobile
+}) => {
+	test.skip(isMobile, 'the strip is the desktop’s');
+	await page.clock.setFixedTime(new Date('2026-11-20T10:00:00'));
+	await loginFresh(page);
+	const made = await plan(page, { day: '2026-11-20', title: 'Pizza bestellen' });
+	const id = made.entries.find((e) => e.title === 'Pizza bestellen')!.id;
+	await openOwn(page);
+	const card = day(page, 'Friday, November 20').getByText('Pizza bestellen');
+	const from = (await card.boundingBox())!;
+	const edge = (await strip(page).boundingBox())!;
+	const y = from.y + from.height / 2;
+	await page.mouse.move(from.x + from.width / 2, y);
+	await page.mouse.down();
+	await page.mouse.move(from.x + from.width / 2, y + 12, { steps: 4 });
+	await page.waitForTimeout(200);
+	await page.mouse.move(edge.x + edge.width - 16, y, { steps: 12 });
+	await page.waitForTimeout(900);
+	// Let go over the page's head, no day under it.
+	await page.mouse.move(edge.x + edge.width / 2, 60, { steps: 8 });
+	await page.waitForTimeout(300);
+	await page.mouse.up();
+	await expect(strip(page)).toHaveClass(/snap-mandatory/);
+	await expect
+		.poll(() =>
+			strip(page).evaluate((el) => {
+				const [a, b] = el.children;
+				const step = b.getBoundingClientRect().left - a.getBoundingClientRect().left;
+				const off = el.scrollLeft / step;
+				return Math.abs(off - Math.round(off)) < 0.02;
+			})
+		)
+		.toBe(true);
+	const saved = (await (
+		await page.request.get(`/api/v1/meal-plans/${made.id}?from=2026-11-16&to=2026-11-29`)
+	).json()) as Plan;
+	expect(saved.entries.find((e) => e.id === id)?.day).toBe('2026-11-20');
+	await expect(day(page, 'Friday, November 20').getByText('Pizza bestellen')).toBeVisible();
 });
 
 // The pick lands on another page; the keyboard stays in the switch.
@@ -300,9 +702,10 @@ async function countAnimations(page: Page): Promise<() => Promise<number>> {
 	return () => page.evaluate(() => (window as unknown as { turns: number }).turns);
 }
 
-async function openOwn(page: Page): Promise<string> {
+/** Opens the signed-in person's own plan (from `from`: a phone's week, a desktop's strip), and gives its id. */
+async function openOwn(page: Page, from?: string): Promise<string> {
 	const id = await ownPlan(page);
-	await page.goto(`/plans/${id}`);
+	await page.goto(`/plans/${id}${from ? `?from=${from}` : ''}`);
 	return id;
 }
 
@@ -538,6 +941,8 @@ test('drags an entry from the tray to a day', async ({ page, isMobile }) => {
 
 	const card = tray(page).getByText('Flammkuchen');
 	const friday = day(page, 'Friday, November 20');
+	// From md Friday is just past the strip's days around Monday.
+	if (!isMobile) await friday.getByText('Pizza bestellen').scrollIntoViewIfNeeded();
 	if (isMobile) {
 		await card.scrollIntoViewIfNeeded();
 		await touchDrag(page, card, friday.getByText('Pizza bestellen'));
@@ -840,7 +1245,7 @@ test('puts the rest of the week on a new list without staples', async ({ page })
 		data: { name: 'salt', staple: true }
 	});
 	expect(staple.ok()).toBe(true);
-	await openOwn(page);
+	await openOwn(page, '2026-11-16');
 
 	const dialog = await openDialog(page, toListButton(page), 'Put on the list');
 	// Today to Sunday; Monday is behind us.
@@ -960,10 +1365,13 @@ test('a week gone by starts the dialog on the tray alone', async ({ page }) => {
 	await expect(dialog.getByText(`Mash ${t}`)).toBeVisible();
 	await expect(dialog.getByText(`Pie ${t}`)).toHaveCount(0);
 	await expect(dialog.getByRole('button', { name: 'Add 1 recipe' })).toBeEnabled();
-	// Without the tray nothing is picked, and the dialog says what to do.
+	// Without the tray nothing is picked, and the dialog says what to do:
+	// about a phone's week, or the strip's days.
 	await dialog.getByRole('switch', { name: 'Include Someday' }).click();
 	await expect(
-		dialog.getByText('This week is over. Pick days or take “Someday” along.')
+		dialog.getByText(
+			`${phone(page) ? 'This week is' : 'These days are'} over. Pick days or take “Someday” along.`
+		)
 	).toBeVisible();
 	await expect(dialog.getByRole('button', { name: 'Put on the list', exact: true })).toBeDisabled();
 });
@@ -982,24 +1390,37 @@ test('a plan left open in view moves on at midnight', async ({ page }) => {
 	await expect(page.getByRole('main').getByText('On no list')).toHaveCount(0);
 });
 
-test('the week bar moves on at midnight without a page turn', async ({ page }) => {
+test('the week bar moves on at midnight without a page turn', async ({ page, isMobile }) => {
 	await page.clock.install({ time: new Date('2026-11-22T23:58:00') });
 	await loginFresh(page);
 	await plan(page, { day: '2026-11-23', title: 'Pizza bestellen' });
 	await openOwn(page);
 	const label = page.getByRole('heading', { level: 2 }).first();
+	const where = page.locator('[data-week-from-now]');
+	if (!isMobile) {
+		// The strip keeps today in its middle, the next day too.
+		await expect(label).toContainText('November 19–25');
+		await page.clock.fastForward('05:00');
+		await expect(label).toContainText('November 20–26');
+		await expect(where).toHaveText('Around today');
+		return;
+	}
 	await expect(label).toContainText(/November 16–22|Nov 16–22/);
 	const turns = await countAnimations(page);
 	await page.clock.fastForward('05:00');
 	await expect(label).toContainText(/November 23–29|Nov 23–29/);
-	await expect(page.locator('[data-week-from-now]')).toHaveText('This week');
+	await expect(where).toHaveText('This week');
 	// Only the pager turns the page; the new day moves the week quietly.
 	expect(await turns()).toBe(0);
 });
 
 // A slow connection: a second tap while a week loads steps on from it, and
 // the days stay dimmed and busy until the last week has arrived.
-test('quick taps on the pager stay dimmed until the last week arrives', async ({ page }) => {
+test('quick taps on the pager stay dimmed until the last week arrives', async ({
+	page,
+	isMobile
+}) => {
+	test.skip(!isMobile, 'only a phone pages by weeks');
 	await page.clock.setFixedTime(new Date('2026-11-20T10:00:00'));
 	await loginFresh(page);
 	await plan(page, { day: '2026-11-21', title: 'Pizza bestellen' });
@@ -1007,8 +1428,8 @@ test('quick taps on the pager stay dimmed until the last week arrives', async ({
 	const where = page.locator('[data-week-from-now]');
 	await expect(where).toHaveText('This week');
 	// The first tap's week answers soon; the second's is held back. Only the
-	// pager's weeks count: the events stream's first `open` refetches the
-	// shown week, and it may land after the taps.
+	// pager's weeks count: a live refetch of the shown week may land after
+	// the taps.
 	let release = () => {};
 	const held = new Promise<void>((resolve) => (release = resolve));
 	let calls = 0;
@@ -1083,7 +1504,7 @@ test('second time adds only new entries', async ({ page }) => {
 	const pie = await createRecipe(page, { ...loadFixture(0), title: `Pie ${t}` });
 	const mash = await createRecipe(page, { ...loadFixture(2), title: `Mash ${t}` });
 	await plan(page, { day: '2026-11-17', recipeId: pie.id });
-	await openOwn(page);
+	await openOwn(page, '2026-11-16');
 
 	let dialog = await openDialog(page, toListButton(page), 'Put on the list');
 	await dialog.getByRole('button', { name: 'Add 1 recipe' }).click();
@@ -1115,7 +1536,7 @@ test('a changed range waits for its recipes before it goes on a list', async ({ 
 	const mash = await createRecipe(page, { ...loadFixture(2), title: `Mash ${t}` });
 	await plan(page, { day: '2026-11-18', recipeId: pie.id });
 	await plan(page, { day: '2026-11-23', recipeId: mash.id, servings: 4 });
-	await openOwn(page);
+	await openOwn(page, '2026-11-16');
 
 	const dialog = await openDialog(page, toListButton(page), 'Put on the list');
 	const submit = dialog.getByRole('button', { name: 'Add 1 recipe' });

@@ -89,17 +89,14 @@
 		dragging?: boolean;
 	} = $props();
 
-	// While a card is dragged, a day row takes a drop on its name too: empty,
-	// the zone covers the whole row (its nearest positioned box), the "+"
-	// staying where it was under it; once the slot is in, the zone reaches
-	// over the day's head - up on a phone (`-mt`, `pt` the head's height),
-	// left over the name's column from `md` (`-ml`, `pl` the 152px column and
-	// its gap, `DayRow`) - so the finger that brought the slot in stays over
-	// the zone and it does not flicker out again.
+	// While a card is dragged, a phone's day row takes a drop on its name
+	// too: empty, the zone covers the whole row (its nearest positioned box),
+	// the "+" staying where it was under it; once the slot is in, the zone
+	// reaches up over the day's head (`-mt`, `pt` the head's height), so the
+	// finger that brought the slot in stays over the zone and it does not
+	// flicker out again.
 	const cover = $derived(dragging && layout === 'row' && items.length === 0);
-	const reach = $derived(
-		dragging && layout === 'row' ? 'max-md:-mt-12.5 max-md:pt-12.5 md:-ml-42 md:pl-42' : ''
-	);
+	const reach = $derived(dragging && layout === 'row' ? '-mt-12.5 pt-12.5' : '');
 
 	const FLIP = $derived(prefersReducedMotion.current ? 0 : 150);
 
@@ -159,7 +156,11 @@
 	}
 </script>
 
-<div class="min-h-11 {cover ? '' : 'relative'} {className}">
+<div
+	class="min-h-11 {cover ? '' : 'relative'} {layout === 'column'
+		? 'flex flex-1 flex-col'
+		: ''} {className}"
+>
 	<ul
 		aria-label={label}
 		use:dndzone={{
@@ -175,10 +176,10 @@
 		onfinalize={finalize}
 		{@attach guard}
 		class="min-h-11 {cover ? 'absolute inset-0 z-10' : reach} {layout === 'column'
-			? '-mb-[60vh] flex flex-col gap-2 pb-[60vh]'
+			? 'flex flex-1 flex-col gap-2'
 			: layout === 'chip'
 				? 'flex flex-col gap-1 md:grid md:grid-cols-2 md:gap-2 lg:grid-cols-[repeat(auto-fit,minmax(16rem,1fr))] md:max-lg:[&>li:last-child:nth-child(odd)]:col-span-2'
-				: 'flex flex-col gap-1.5 md:grid md:grid-cols-2 md:gap-x-5 md:[&>li:last-child:nth-child(odd)]:col-span-2'}"
+				: 'flex flex-col gap-1.5'}"
 	>
 		{#each items as entry (entry.id)}
 			<!-- Picked up, the copy that follows the pointer is a lifted card: a

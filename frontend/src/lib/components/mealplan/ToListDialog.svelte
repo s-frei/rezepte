@@ -38,8 +38,8 @@
 	import { load, save } from '#lib/storage.js';
 
 	/**
-	 * "Put on the list": the days (today to the shown week's Sunday, or a
-	 * past or later week whole), optionally the tray, the list, and per
+	 * "Put on the list": the days (the ones in view from today on, or all of
+	 * them when they lie ahead; none when they are gone by), optionally the tray, the list, and per
 	 * recipe its ingredients - all picked but the plan's staples. Recipes on
 	 * a list the reader can open already are left out and counted in one
 	 * line; the server skips them too. A changed range or tray refetches the
@@ -52,11 +52,17 @@
 	let {
 		open = $bindable(false),
 		week,
+		range,
+		weekly = false,
 		today,
 		only = null
 	}: {
 		open?: boolean;
 		week: PlanState;
+		/** The days in view: a phone's week, the strip's window. */
+		range: { from: string; to: string };
+		/** The days are a phone's week: gone by, "Diese Woche ist vorbei"; else "Diese Tage". */
+		weekly?: boolean;
 		today: string;
 		only?: PlanEntry | null;
 	} = $props();
@@ -155,7 +161,7 @@
 	function dayOf(day: string | null): string {
 		if (day === null) return m.plan_tray();
 		const names = dayNames(day, locale);
-		return day >= plan.from && day <= plan.to ? names.weekday : `${names.weekday} ${names.date}`;
+		return day >= range.from && day <= range.to ? names.weekday : `${names.weekday} ${names.date}`;
 	}
 
 	// A fresh start on every opening.
@@ -165,10 +171,10 @@
 	});
 
 	function start() {
-		const sunday = plan.to;
-		// A week gone by starts with no days, as the badge counts none of them;
+		const sunday = range.to;
+		// Days gone by start with none, as the badge counts none of them;
 		// the calendar still picks some to cook again.
-		const from = today > sunday ? '' : today >= plan.from ? today : plan.from;
+		const from = today > sunday ? '' : today >= range.from ? today : range.from;
 		span = from ? { from, to: sunday } : { from: '', to: '' };
 		calendar = from
 			? { start: parseDate(from), end: parseDate(sunday) }
@@ -199,7 +205,7 @@
 			let answer = (
 				await (only
 					? getEntryShoppingPreview(plan.id, only.id)
-					: getShoppingPreview(plan.id, span.from ? span : week.range, tray))
+					: getShoppingPreview(plan.id, span.from ? span : range, tray))
 			).entries;
 			// No days: the tray alone. ponytail: the preview has no tray-only mode,
 			// so this asks for the shown week (seven days) and drops its days; the
@@ -405,7 +411,7 @@
 						<RangeCalendar.Root
 							id="{uid}-calendar"
 							value={calendar}
-							placeholder={calendar.start ?? parseDate(plan.from)}
+							placeholder={calendar.start ?? parseDate(range.from)}
 							onValueChange={pickRange}
 							isDateDisabled={tooFar}
 							weekStartsOn={1}
@@ -645,8 +651,10 @@
 						class="rounded-2xl border border-dashed border-handle px-4 py-5 text-center text-body-sm text-text-muted"
 					>
 						{!span.from && !tray
-							? today > plan.to
-								? m.plan_to_list_no_days_past()
+							? today > range.to
+								? weekly
+									? m.plan_to_list_no_days_past()
+									: m.plan_to_list_no_days_past_days()
 								: m.plan_to_list_no_days()
 							: listed.length > 0
 								? m.plan_to_list_nothing_new()

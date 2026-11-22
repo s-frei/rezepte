@@ -12,7 +12,7 @@
 	import { getLocalTimeZone, today as todayIn } from '@internationalized/date';
 	import { afterNavigate, goto, invalidateAll, replaceState } from '$app/navigation';
 	import { resolve } from '$app/paths';
-	import { page } from '$app/state';
+	import { navigating, page } from '$app/state';
 	import { ApiError, isSignedOut } from '#lib/api/client.js';
 	import {
 		addPlanEntry,
@@ -31,19 +31,27 @@
 	import ShareDialog from '#lib/components/shopping/ShareDialog.svelte';
 	import StampRow from '#lib/components/shopping/StampRow.svelte';
 	import ToListDialog from '#lib/components/mealplan/ToListDialog.svelte';
+	import DayTimeline from '#lib/components/mealplan/DayTimeline.svelte';
 	import WeekView from '#lib/components/mealplan/WeekView.svelte';
 	import Button from '#lib/components/ui/Button.svelte';
 	import IconButton, { iconCircle } from '#lib/components/ui/IconButton.svelte';
 	import NoteEmptyState from '#lib/components/ui/NoteEmptyState.svelte';
 	import { PlanState } from '#lib/mealplan/plan-state.svelte.js';
+	import { countUnlisted, listsOf, shownEntries } from '#lib/mealplan/entries.js';
 	import {
+		aroundToday,
+		dayNumber,
+		dayRange,
+		daysFrom,
 		mondayOf,
 		pastDays,
+		shiftDay,
 		shiftWeek,
 		weekDays,
 		weekFromNow,
-		weekRange
+		windowFromNow
 	} from '#lib/mealplan/week.js';
+	import { narrow } from '#lib/ui/narrow.js';
 	import { m } from '#lib/paraglide/messages.js';
 	import { getLocale } from '#lib/paraglide/runtime.js';
 	import { planHref } from '#lib/mealplan/href.js';
@@ -63,7 +71,7 @@
 	 * new entry. Paging weeks keeps it.
 	 */
 	let fromOverview = false;
-	afterNavigate(({ from, to }) => {
+	afterNavigate(({ from, to, type }) => {
 		// "Plan today" on the overview's card: the add sheet on today, once
 		// (after the navigation: the router takes no `replaceState` before).
 		if (page.url.searchParams.has('add')) {
@@ -72,7 +80,11 @@
 			replaceState(url, page.state);
 			openAdd();
 		}
-		if (from?.route.id === '/plans/[id]' && from.params?.id === to?.params?.id) return;
+		if (from?.route.id === '/plans/[id]' && from.params?.id === to?.params?.id) {
+			// A link to this plan with other days (the load reads no query): there.
+			if (type === 'link') follow(page.url.searchParams.get('from'));
+			return;
+		}
 		fromOverview = from?.route.id === '/plans';
 		// Arriving, the keyboard starts at the plan, not at the logo; the
 		// share button keeps it on a plan just made.
@@ -158,10 +170,84 @@
 	const plan = $derived(week.plan);
 
 	const locale = getLocale();
-	const monday = $derived(plan.from);
-	const days = $derived(weekDays(monday));
 	const thisWeek = $derived(mondayOf(data.today));
-	const current = $derived(monday === thisWeek);
+
+	// Columns in view: a phone's week, from `md` the strip's (`DayStrip`).
+	const seven = new MediaQuery('min-width: 1200px');
+	const five = new MediaQuery('min-width: 1024px');
+	const count = $derived(narrow.current || seven.current ? 7 : five.current ? 5 : 4);
+	/** The strip's own place: today in the middle of the days in view. */
+	const centered = $derived(aroundToday(data.today, count));
+	const origin = () => (narrow.current ? data.today : centered);
+
+	// What is in view. A phone shows the week of `rested`; from `md` the strip
+	// shows `count` days from `start`, which follows its scroll frame by
+	// frame (the heading's dates), while `rested` follows it once it rests:
+	// the badge, the list stamps, the address and a screen reader take that,
+	// so they do not flicker while the days pass. `around`: the address has
+	// no `from`, the days sit around today (a phone: this week), and stay
+	// there when the columns change.
+	// svelte-ignore state_referenced_locally
+	let around = $state(data.start === null);
+	// svelte-ignore state_referenced_locally
+	let start = $state(data.start ?? origin());
+	// svelte-ignore state_referenced_locally
+	let rested = $state(data.start ?? origin());
+	/** The strip's first day in view on the timeline's ruler (`dayNumber`). */
+	// svelte-ignore state_referenced_locally
+	let at = $state(dayNumber(start));
+	let view = $state<WeekView>();
+
+	/** Shows the days from `from` (null: around today): a load's, a link's. */
+	function follow(from: string | null) {
+		around = from === null;
+		const day = from ?? origin();
+		if (day === rested) return;
+		start = rested = day;
+		view?.aim(day);
+	}
+	// A load from elsewhere (the phone's pager, a stamp's jump, Back) shows
+	// its day; the strip's own loads ask for the days it already shows.
+	// svelte-ignore state_referenced_locally
+	let asked = data.start;
+	$effect(() => {
+		const next = data.start;
+		untrack(() => {
+			if (next === asked) return;
+			asked = next;
+			follow(next);
+		});
+	});
+	// A resized window, a turned tablet, a new day: around today stays
+	// around today, and the days now in view get loaded.
+	$effect(() => {
+		void centered;
+		void narrow.current;
+		untrack(() => {
+			if (around) follow(null);
+			sync();
+		});
+	});
+
+	const monday = $derived(mondayOf(rested));
+	const loaded = $derived(daysFrom(plan.from, plan.to));
+	const last = (from: string) => shiftDay(from, count - 1);
+	/** The days in view (the heading's) and at rest (the rest's). */
+	const viewFrom = $derived(narrow.current ? monday : start);
+	const restFrom = $derived(narrow.current ? monday : rested);
+	const restTo = $derived(last(restFrom));
+	const current = $derived(
+		narrow.current ? monday === thisWeek : data.today >= viewFrom && data.today <= last(viewFrom)
+	);
+	const pill = (from: string) =>
+		narrow.current ? weekFromNow(from, thisWeek) : windowFromNow(from, data.today, count);
+	/** "Heute" rests where it leads: this week on a phone, today in the middle from `md`. */
+	const atToday = $derived(narrow.current ? current : start === centered);
+	/** The add sheet's days: the week from the first day at rest. */
+	const days = $derived(weekDays(restFrom));
+	/** The entries at rest in view, and the tray's. */
+	const inView = $derived(shownEntries(plan.entries, restFrom, restTo));
+	const unlisted = $derived(countUnlisted(inView, data.today));
 
 	// A page turn by the pager slides the heading and the days in from the
 	// side the week came from (a later week from the right), so the step
@@ -190,10 +276,12 @@
 			el?.animate(frames, { duration: still ? 160 : 260, easing: 'cubic-bezier(0.4, 0, 0.2, 1)' })
 		);
 	});
-	const empty = $derived(plan.entries.length === 0);
-	/** Every list the shown week and the tray went to, as far as the reader can open them; most used first (`byPlanUse`). */
+	// A phone's week is empty without a meal on its days or the tray; the
+	// strip, without one in all its weeks (it scrolls past an empty week).
+	const empty = $derived((narrow.current ? inView : plan.entries).length === 0);
+	/** Every list the days at rest and the tray went to, as far as the reader can open them; most used first (`byPlanUse`). */
 	const listStamps = $derived(
-		byPlanUse(plan.lists).map((l) => ({
+		byPlanUse(listsOf(plan.lists, inView)).map((l) => ({
 			key: l.id,
 			kind: 'list' as const,
 			label: l.name,
@@ -277,21 +365,89 @@
 	}
 
 	/**
-	 * Another week of this plan; this week's address carries no `from`. It
-	 * replaces the shown week in the history, so Back leaves the plan. A tap
-	 * while a week loads steps on from that week (`aim`) and abandons its
-	 * navigation, whose settling must not end the latest turn's dim or slide.
+	 * A phone's other week of this plan; this week's address carries no
+	 * `from`. It replaces the shown week in the history, so Back leaves the
+	 * plan. A tap while a week loads steps on from that week (`aim`) and
+	 * abandons its navigation, whose settling must not end the latest turn's
+	 * dim or slide.
 	 */
 	function show(from: string) {
 		const mine = ++turn;
 		aim = from;
 		turning = pending = true;
-		void goto(planHref(plan.id, from === thisWeek ? undefined : from), {
+		void goto(address(from === thisWeek ? null : from), {
 			reset: false,
-			replaceState: true
+			replace: true,
+			refreshAll: true
 		}).finally(() => {
 			if (mine === turn) turning = pending = false;
 		});
+	}
+	/** The plan's address from `from`; null, around today. */
+	const address = (from: string | null) => planHref(plan.id, from ?? undefined);
+
+	/**
+	 * The address follows the days at rest, and the loaded days cover them:
+	 * a `goto` that replaces the plan's entry, running no load while they do
+	 * (the load reads its query untracked), so a reload or Back opens there;
+	 * one that loads (`refreshAll`) when they do not, from `md` within four
+	 * days of either end of the six weeks. Never while a navigation is on its
+	 * way (a card's recipe, the sidebar): it would cancel it, or replace the
+	 * page it lands on. A write that was skipped or overtaken is made up after.
+	 */
+	let writing = false;
+	function sync() {
+		if (writing || navigating.to || page.route.id !== '/plans/[id]') return;
+		const from = around ? null : rested;
+		// From md a week of days beyond the view either way, so a week's step fits.
+		const need = narrow.current
+			? [monday, shiftDay(monday, 6)]
+			: [shiftDay(rested, -7), shiftDay(rested, count + 6)];
+		const load = !need.every((day) => loaded.includes(day));
+		if (!load && from === page.url.searchParams.get('from')) return;
+		writing = true;
+		if (load) asked = from;
+		goto(address(from), { reset: false, replace: true, refreshAll: load }).then(
+			() => {
+				writing = false;
+				sync();
+			},
+			() => (writing = false)
+		);
+	}
+	afterNavigate(() => sync());
+
+	/** The strip at rest on `first`. */
+	function settled(first: string) {
+		rested = first;
+		around = first === centered;
+		sync();
+	}
+	/** The strip scrolls no further than its last `count` loaded days. */
+	const reaches = (day: string) => {
+		const at = loaded.indexOf(day);
+		return at >= 0 && at <= loaded.length - count;
+	};
+	/**
+	 * The pager from `md`: a day (a week with Shift) along the strip. With the
+	 * strip not there (no meals in its weeks), the days move without it.
+	 * On by `by` days from where the strip is going: along the strip when it
+	 * holds them, else by a jump that loads them first, so a week step is a
+	 * week even near the end of the loaded days.
+	 */
+	function stepBy(by: number) {
+		if (!view || empty) return jumpTo(shiftDay(rested, by));
+		const to = shiftDay(view.aimed() ?? rested, by);
+		if (reaches(to)) view.scrollByDays(by);
+		else jumpTo(to);
+	}
+	/** `day` first; loaded around it when it lies beyond the loaded weeks. */
+	function jumpTo(day: string) {
+		around = day === centered;
+		if (view && !empty) view.aim(day);
+		if (view && !empty && reaches(day)) return;
+		start = rested = day;
+		sync();
 	}
 	let turn = 0;
 	let aim = '';
@@ -315,7 +471,7 @@
 		listing = true;
 	});
 	let addDay = $state<string | null>(null);
-	function openAdd(day: string | null = days.includes(data.today) ? data.today : monday) {
+	function openAdd(day: string | null = days.includes(data.today) ? data.today : restFrom) {
 		addDay = day;
 		adding = true;
 	}
@@ -352,7 +508,9 @@
 	</Button>
 {/snippet}
 
-<svelte:head><title>{title} · {weekRange(monday, locale)} · {m.app_name()}</title></svelte:head>
+<svelte:head
+	><title>{title} · {dayRange(restFrom, restTo, locale)} · {m.app_name()}</title></svelte:head
+>
 
 <svelte:window onfocus={newDay} onpageshow={newDay} />
 <svelte:document onvisibilitychange={() => !document.hidden && newDay()} />
@@ -425,12 +583,12 @@
 	     button over the full width. -->
 	<div class="mb-4 flex flex-col gap-2.5 md:flex-row md:flex-wrap md:items-center md:gap-x-3">
 		<div class="flex items-center justify-between gap-2 md:contents">
-			<!-- Where the week lies sits over its dates, a pill for every week:
-			     this week's wears today's accent. Read out with the dates when a
-			     page turns. The dates never run under the pager. -->
+			<!-- Where the days in view lie sits over their dates, a pill for every
+			     week or window: one that holds today wears today's accent. The
+			     dates never run under the pager. A screen reader hears it once
+			     the days rest (the live line after it), not while they pass. -->
 			<h2
 				bind:this={heading}
-				aria-live="polite"
 				class="flex min-w-0 flex-col items-start font-display text-card-sm font-medium whitespace-nowrap min-[360px]:text-card md:mr-auto md:text-heading"
 			>
 				<span
@@ -441,52 +599,74 @@
 				>
 					{#if current}<span class="size-1.5 rounded-full bg-primary" aria-hidden="true"
 						></span>{/if}
-					{weekFromNow(monday, thisWeek)}</span
+					{pill(viewFrom)}</span
 				>
-				<span class="max-w-full truncate max-[1199.98px]:hidden">{weekRange(monday, locale)}</span>
+				<span class="max-w-full truncate max-[1199.98px]:hidden"
+					>{dayRange(viewFrom, last(viewFrom), locale)}</span
+				>
 				<span class="max-w-full truncate max-[359.98px]:hidden min-[1200px]:hidden"
-					>{weekRange(monday, locale, 'short')}</span
+					>{dayRange(viewFrom, last(viewFrom), locale, 'short')}</span
 				>
 				<span class="max-w-full truncate min-[360px]:hidden"
-					>{weekRange(monday, locale, 'numeric')}</span
+					>{dayRange(viewFrom, last(viewFrom), locale, 'numeric')}</span
 				>
 			</h2>
+			<p class="sr-only" aria-live="polite">
+				{pill(restFrom)}, {dayRange(restFrom, restTo, locale)}
+			</p>
 			<div class="flex shrink-0 items-center gap-1 md:order-2 md:gap-1.5">
-				<IconButton label={m.week_previous()} class="max-md:size-11" onclick={() => step(-1)}>
+				<IconButton
+					label={narrow.current ? m.week_previous() : m.week_day_previous()}
+					title={narrow.current
+						? undefined
+						: `${m.week_day_previous()} · ${m.week_day_step_hint()}`}
+					class="max-md:size-11"
+					onclick={(event) => (narrow.current ? step(-1) : stepBy(event.shiftKey ? -7 : -1))}
+				>
 					<ChevronLeft class="size-4.5" aria-hidden="true" />
 				</IconButton>
-				<!-- In this week it rests, a label without its outline that stays a
-				     Tab stop, so the focus stays put; away it is the way back. -->
+				<!-- Where it would lead (this week on a phone, today first from md)
+				     it rests, a label without its outline that stays a Tab stop, so
+				     the focus stays put; elsewhere it is the way back. -->
 				<Button
 					variant="secondary"
-					aria-disabled={current || undefined}
-					label={current ? undefined : m.week_today_jump()}
+					aria-disabled={atToday || undefined}
+					label={atToday ? undefined : narrow.current ? m.week_today_jump() : m.week_today_first()}
 					class="aria-disabled:cursor-default aria-disabled:border-transparent aria-disabled:text-text-muted aria-disabled:active:scale-100 max-md:h-11 max-md:px-3.5"
-					onclick={() => !current && show(thisWeek)}
+					onclick={() => !atToday && (narrow.current ? show(thisWeek) : jumpTo(centered))}
 				>
 					{m.week_today()}
 				</Button>
-				<IconButton label={m.week_next()} class="max-md:size-11" onclick={() => step(1)}>
+				<IconButton
+					label={narrow.current ? m.week_next() : m.week_day_next()}
+					title={narrow.current ? undefined : `${m.week_day_next()} · ${m.week_day_step_hint()}`}
+					class="max-md:size-11"
+					onclick={(event) => (narrow.current ? step(1) : stepBy(event.shiftKey ? 7 : 1))}
+				>
 					<ChevronRight class="size-4.5" aria-hidden="true" />
 				</IconButton>
 			</div>
 		</div>
-		{#if plan.lists.length > 0}
+		{#if listStamps.length > 0 || (!narrow.current && !empty)}
 			<!-- A row of their own under the date from md: the bar keeps the
-			     pager and the button, the lists get the width. -->
+			     pager and the button, the lists get the width. From md the row
+			     keeps its line when the days at rest went to no list, so the
+			     timeline and the days do not jump as the strip passes them. -->
 			<!-- Below sm the label sits above its row, which gets the full width. -->
 			<div
-				class="flex min-w-0 items-start gap-x-2 max-sm:flex-col max-sm:gap-y-0.5 md:order-last md:w-full"
+				class="flex min-h-6 min-w-0 items-start gap-x-2 max-sm:flex-col max-sm:gap-y-0.5 md:order-last md:w-full"
 			>
-				<span class="shrink-0 text-caption leading-6 text-text-muted" aria-hidden="true"
-					>{m.plans_card_lists()}</span
-				>
-				<StampRow
-					label={m.link_plan_lists()}
-					lines={wide.current ? 1 : 2}
-					stamps={listStamps}
-					class="w-full flex-1"
-				/>
+				{#if listStamps.length > 0}
+					<span class="shrink-0 text-caption leading-6 text-text-muted" aria-hidden="true"
+						>{m.plans_card_lists()}</span
+					>
+					<StampRow
+						label={m.link_plan_lists()}
+						lines={wide.current ? 1 : 2}
+						stamps={listStamps}
+						class="w-full flex-1"
+					/>
+				{/if}
 			</div>
 		{/if}
 		{#if !empty}
@@ -496,10 +676,12 @@
 					variant="primary"
 					aria-haspopup="dialog"
 					aria-expanded={listing}
-					label={plan.unlisted > 0
-						? `${m.plan_to_list()}, ${plan.unlisted === 1 ? m.plan_to_list_count_one() : m.plan_to_list_count({ count: plan.unlisted })}`
+					label={unlisted > 0
+						? `${m.plan_to_list()}, ${unlisted === 1 ? m.plan_to_list_count_one() : m.plan_to_list_count({ count: unlisted })}`
 						: undefined}
 					onclick={() => {
+						// The days the strip is on its way to, not the ones it left.
+						if (!narrow.current && view && !empty) rested = view.aimed() ?? rested;
 						listingOne = null;
 						listing = true;
 					}}
@@ -507,16 +689,33 @@
 				>
 					<ShoppingBasket class="size-4" aria-hidden="true" />
 					{m.plan_to_list()}
-					{#if plan.unlisted > 0}
+					{#if unlisted > 0}
 						<span
 							class="inline-flex h-5.5 min-w-5.5 items-center justify-center rounded-full bg-primary-foreground px-1.5 text-caption font-bold text-primary"
-							aria-hidden="true">{plan.unlisted}</span
+							aria-hidden="true">{unlisted}</span
 						>
 					{/if}
 				</Button>
 			</div>
 		{/if}
 	</div>
+
+	{#if !narrow.current && !empty}
+		<div class="-mt-1 mb-3">
+			<DayTimeline
+				days={loaded}
+				today={data.today}
+				entries={plan.entries}
+				{at}
+				{count}
+				label={dayRange(start, last(start), locale)}
+				onseek={(day) => view?.seekDay(day)}
+				onrelease={() => view?.release()}
+				onpick={jumpTo}
+				onstep={stepBy}
+			/>
+		</div>
+	{/if}
 
 	<div
 		bind:this={content}
@@ -550,8 +749,14 @@
 			</NoteEmptyState>
 		{:else}
 			<WeekView
+				bind:this={view}
 				{week}
 				today={data.today}
+				{monday}
+				bind:start
+				onat={(day) => (at = day)}
+				{count}
+				onsettle={settled}
 				bind:expanded={() => expandedWeek === monday, (open) => (expandedWeek = open ? monday : '')}
 				onadd={openAdd}
 			/>
@@ -583,5 +788,12 @@
 	{/if}
 {/if}
 
-<ToListDialog bind:open={listing} {week} today={data.today} only={listingOne} />
+<ToListDialog
+	bind:open={listing}
+	{week}
+	range={{ from: restFrom, to: restTo }}
+	weekly={narrow.current}
+	today={data.today}
+	only={listingOne}
+/>
 <AddEntrySheet bind:open={adding} {days} day={addDay} today={data.today} onadd={add} />

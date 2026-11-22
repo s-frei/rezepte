@@ -1,14 +1,20 @@
 import { describe, expect, it } from 'vitest';
 import {
 	dayNames,
+	aroundToday,
 	dayRange,
+	dayNumber,
+	dayOf,
+	daysFrom,
 	mondayOf,
+	shiftDay,
 	pastDays,
 	shiftWeek,
 	weekDays,
 	weekFromNow,
 	spanLabel,
-	weekRange
+	weekRange,
+	windowFromNow
 } from './week';
 
 describe('week', () => {
@@ -120,5 +126,55 @@ describe('dayNames', () => {
 			number: '20',
 			full: 'Friday, November 20'
 		});
+	});
+});
+
+describe('days in view', () => {
+	it('counts days on a ruler and back', () => {
+		expect(dayNumber('2026-11-23') - dayNumber('2026-11-16')).toBe(7);
+		expect(dayOf(dayNumber('2027-01-01'))).toBe('2027-01-01');
+		expect(dayOf(dayNumber('2026-11-22') + 0.6)).toBe('2026-11-22');
+	});
+
+	it('moves by days and lists a span', () => {
+		expect(shiftDay('2026-11-30', 2)).toBe('2026-12-02');
+		expect(shiftDay('2027-01-01', -1)).toBe('2026-12-31');
+		expect(daysFrom('2026-11-29', '2026-12-01')).toEqual([
+			'2026-11-29',
+			'2026-11-30',
+			'2026-12-01'
+		]);
+		expect(daysFrom('2026-11-29', '2026-11-29')).toEqual(['2026-11-29']);
+	});
+
+	it('puts today in the middle of the days in view', () => {
+		expect(aroundToday('2026-11-22', 7)).toBe('2026-11-19');
+		expect(aroundToday('2026-11-22', 5)).toBe('2026-11-20');
+		expect(aroundToday('2026-11-22', 4)).toBe('2026-11-21');
+	});
+
+	it('names today in the middle "around today"', () => {
+		expect(windowFromNow('2026-11-19', '2026-11-22', 7, 'de')).toBe('Rund um heute');
+		expect(windowFromNow('2026-11-21', '2026-11-22', 4, 'en')).toBe('Around today');
+		// Today a Thursday: its Monday week is also around today, and says so.
+		expect(windowFromNow('2026-11-16', '2026-11-19', 7, 'en')).toBe('Around today');
+	});
+
+	it('names a whole Monday-to-Sunday week as that week, as a phone does', () => {
+		expect(windowFromNow('2026-11-16', '2026-11-22', 7, 'de')).toBe('Diese Woche');
+		expect(windowFromNow('2026-11-23', '2026-11-22', 7, 'en')).toBe('Next week');
+		// Four days from a Monday are no week.
+		expect(windowFromNow('2026-11-16', '2026-11-22', 4, 'de')).toBe('Ab Mo 16. Nov.');
+	});
+
+	it('names other days by their first day, past and future alike by date', () => {
+		expect(windowFromNow('2026-11-22', '2026-11-22', 7, 'de')).toBe('Ab heute');
+		expect(windowFromNow('2026-11-22', '2026-11-22', 7, 'en')).toBe('From today');
+		expect(windowFromNow('2026-11-24', '2026-11-23', 5, 'de')).toBe('Ab morgen');
+		expect(windowFromNow('2026-11-21', '2026-11-22', 7, 'en')).toBe('From yesterday');
+		// A past Thursday is never "Thursday", which reads as the coming one.
+		expect(windowFromNow('2026-11-18', '2026-11-22', 7, 'de')).toBe('Ab Mi 18. Nov.');
+		expect(windowFromNow('2026-11-27', '2026-11-22', 7, 'en')).toBe('From Fri Nov 27');
+		expect(windowFromNow('2026-12-03', '2026-11-22', 5, 'de')).toBe('Ab Do 3. Dez.');
 	});
 });

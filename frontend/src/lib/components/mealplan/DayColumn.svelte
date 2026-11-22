@@ -6,18 +6,22 @@
 	import { getLocale } from '#lib/paraglide/runtime.js';
 
 	/**
-	 * A day as one of the desktop's seven columns: a short header over its
-	 * cards, "MO 16." on a dotted rule; today's header is an accent band and
-	 * the column is outlined around its cards.
+	 * A day as a column of the desktop's strip (`DayStrip`): a short header
+	 * over its cards, "MO 16." on a dotted rule. It runs to the strip's foot,
+	 * its drop zone with it. Today's header is an accent band and the column
+	 * is outlined, inside its edge, as the strip clips at its sides. A day
+	 * gone by sits back a little until the pointer or the focus comes.
 	 */
 	let {
 		day,
 		today,
+		past,
 		onadd,
 		children
 	}: {
 		day: string;
 		today: boolean;
+		past: boolean;
 		onadd: () => void;
 		children: Snippet;
 	} = $props();
@@ -32,7 +36,7 @@
 	aria-label={names.full}
 	aria-current={today ? 'date' : undefined}
 	id={today ? 'today' : undefined}
-	class="flex min-w-0 flex-col gap-2 rounded-2xl pb-2 {today
+	class="flex w-full min-w-0 flex-col gap-2 rounded-2xl pb-2 -outline-offset-2 {today
 		? 'outline-2 outline-primary'
 		: 'outline-none focus-visible:outline-2 focus-visible:outline-primary/60 focus-visible:outline-solid'}"
 >
@@ -46,7 +50,9 @@
 				? ''
 				: 'text-text-muted'}">{names.weekday}{today ? ` · ${m.week_today()}` : ''}</span
 		>
-		<span class="font-display text-heading leading-none font-medium">{names.number}</span>
+		<span class="font-display text-heading leading-none font-medium {past ? 'text-text-muted' : ''}"
+			>{names.number}</span
+		>
 		<button
 			type="button"
 			aria-label={m.plan_day_add({ day: names.full })}
@@ -58,5 +64,11 @@
 			<Plus class="size-4" aria-hidden="true" />
 		</button>
 	</header>
-	<div class="flex flex-col {today ? 'px-2' : ''}">{@render children()}</div>
+	<div
+		class="flex flex-1 flex-col {today ? 'px-2' : ''} {past
+			? 'opacity-80 transition-opacity duration-200 focus-within:opacity-100 hover:opacity-100'
+			: ''}"
+	>
+		{@render children()}
+	</div>
 </section>

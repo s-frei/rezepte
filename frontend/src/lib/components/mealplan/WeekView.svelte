@@ -1,7 +1,6 @@
 <script lang="ts">
 	import Plus from '@lucide/svelte/icons/plus';
 	import { tick } from 'svelte';
-	import { MediaQuery } from 'svelte/reactivity';
 	import { TRIGGERS, type DndEvent } from 'svelte-dnd-action';
 	import { toast } from 'svelte-sonner';
 	import { ApiError, isSignedOut } from '#lib/api/client.js';
@@ -14,47 +13,75 @@
 	} from '#lib/api/mealplan.js';
 	import { byZone, placeEntry, TRAY } from '#lib/mealplan/entries.js';
 	import type { PlanState } from '#lib/mealplan/plan-state.svelte.js';
-	import { dayNames, pastDays, weekDays } from '#lib/mealplan/week.js';
+	import {
+		dayNames,
+		daysFrom,
+		mondayOf,
+		pastDays,
+		shiftDay,
+		weekDays
+	} from '#lib/mealplan/week.js';
 	import { m } from '#lib/paraglide/messages.js';
 	import { getLocale } from '#lib/paraglide/runtime.js';
 	import { applyDndAriaStrings, applyDrag } from '#lib/recipe/dnd.js';
 	import { narrow } from '#lib/ui/narrow.js';
 	import DayColumn from './DayColumn.svelte';
 	import DayRow from './DayRow.svelte';
+	import DayStrip from './DayStrip.svelte';
 	import EntryZone from './EntryZone.svelte';
 	import MoveSheet from './MoveSheet.svelte';
 	import PastDays from './PastDays.svelte';
 	import TrayStrip from './TrayStrip.svelte';
 
 	/**
-	 * The shown week's days and its tray, laid out by width: seven columns
-	 * from 1200px, a row per day from `md`, a card per day on a phone, where
-	 * this week's days gone by fold into one row (`expanded` opens it). Every
-	 * day and the tray is a drop zone; moves, servings and removals change the
-	 * plan at once and go through `PlanState.apply`, which puts a refused one
-	 * back.
+	 * The plan's days and its tray. From `md` every loaded day is a column of
+	 * one strip (`DayStrip`) that scrolls by the day, `start` its first day in
+	 * view; on a phone the week of `monday` is a card per day, and this week's
+	 * days gone by fold into one row (`expanded` opens it). Every day and the
+	 * tray is a drop zone; moves, servings and removals change the plan at
+	 * once and go through `PlanState.apply`, which puts a refused one back.
 	 */
 	let {
 		week,
 		today,
+		monday,
+		start = $bindable(),
+		count = 7,
 		expanded = $bindable(false),
+		onsettle,
+		onat,
 		onadd
 	}: {
 		week: PlanState;
 		today: string;
+		/** A phone's week. */
+		monday: string;
+		/** The strip's first day in view. */
+		start: string;
+		onat?: (at: number) => void;
+		/** Columns in view from `md`. */
+		count?: number;
 		expanded?: boolean;
+		onsettle?: (first: string) => void;
 		/** Opens the add sheet on a day, or the tray (null). */
 		onadd: (day: string | null) => void;
 	} = $props();
 
+	let strip = $state<DayStrip>();
+	export const aim = (day: string) => strip?.aim(day);
+	export const scrollByDays = (by: number) => strip?.scrollByDays(by);
+	export const seekDay = (day: number) => strip?.seekDay(day);
+	export const aimed = () => strip?.aimed();
+	export const release = () => strip?.release();
+
 	applyDndAriaStrings();
 	const locale = getLocale();
-	const wide = new MediaQuery('min-width: 1200px');
-
 	const plan = $derived(week.plan);
-	const days = $derived(weekDays(plan.from));
+	const days = $derived(narrow.current ? weekDays(monday) : daysFrom(plan.from, plan.to));
+	/** The days in view: a phone's week, the strip's window. */
+	const shown = $derived(narrow.current ? days : daysFrom(start, shiftDay(start, count - 1)));
 	const zones = $derived(byZone(plan.entries, days));
-	const past = $derived(narrow.current ? pastDays(plan.from, today) : []);
+	const past = $derived(narrow.current ? pastDays(monday, today) : []);
 	const pastCount = $derived(past.reduce((n, day) => n + zones[day].length, 0));
 
 	/** While a card is dragged, the zones as the drag shows them. */
@@ -134,8 +161,8 @@
 		// Its ⋯ in the new place; moved out of the week, the "+" of the day it left.
 		afterMove = () => menuOf(entry.id) ?? addOf(entry.day);
 		move(entry, day);
-		// Out of the shown week, the card leaves the page: say where it went.
-		if (day !== null && !days.includes(day))
+		// Out of view, the card leaves the page: say where it went.
+		if (day !== null && !shown.includes(day))
 			toast.success(m.plan_moved({ title: entry.title, day: dayNames(day, locale).full }));
 		if (day !== null && past.includes(day)) expanded = true;
 	}
@@ -238,18 +265,14 @@
 		{@render zone(TRAY, 'chip', m.plan_tray())}
 	</TrayStrip>
 
-	{#if wide.current}
-		<!-- A column's drop zone runs on below its last card (`EntryZone`), past
-		     the row; clipped here, it takes a drop anywhere under a day without
-		     growing the page or today's frame. The margin keeps the cards'
-		     shadows and the frame's outline inside the clip. -->
-		<div class="-mx-3 -mt-1 -mb-8 grid grid-cols-7 items-start gap-2 overflow-clip px-3 pt-1 pb-8">
-			{#each days as day (day)}
-				<DayColumn {day} today={day === today} onadd={() => onadd(day)}>
+	{#if !narrow.current}
+		<DayStrip bind:this={strip} {days} free={dragged !== null} bind:start {onat} {count} {onsettle}>
+			{#snippet column(day)}
+				<DayColumn {day} today={day === today} past={day < today} onadd={() => onadd(day)}>
 					{@render zone(day, 'column', dayNames(day, locale).full)}
 				</DayColumn>
-			{/each}
-		</div>
+			{/snippet}
+		</DayStrip>
 	{:else}
 		<div class="flex flex-col gap-2.5">
 			{#if past.length > 0}
@@ -276,7 +299,7 @@
 <MoveSheet
 	bind:open={moveOpen}
 	entry={moving}
-	monday={plan.from}
+	monday={moving?.day ? mondayOf(moving.day) : narrow.current ? monday : mondayOf(start)}
 	{today}
 	onpick={moved}
 	onCloseAutoFocus={(event) => {

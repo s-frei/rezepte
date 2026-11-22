@@ -1,5 +1,5 @@
 import { resolve } from '$app/paths';
-import type { PlanEntry } from '#lib/api/mealplan.js';
+import type { LinkedList, PlanEntry } from '#lib/api/mealplan.js';
 
 /** The tray's key among the days: an entry with no day. */
 export const TRAY = 'tray';
@@ -64,4 +64,25 @@ export function addRows<R extends { id: string }>(
 		...recipes.map((recipe) => ({ id: `plan-add-${recipe.id}`, recipe })),
 		...(note ? [{ id: 'plan-add-note', note }] : [])
 	];
+}
+
+/** The entries on the tray or on a day from `from` to `to`: what a page shows. */
+export const shownEntries = (entries: PlanEntry[], from: string, to: string): PlanEntry[] =>
+	entries.filter((e) => e.day === null || (e.day >= from && e.day <= to));
+
+/**
+ * `MealPlan.unlisted`'s rule over `entries` (the server's `unlisted`): the
+ * recipes on no list, on the tray or on `today` or later.
+ */
+export const countUnlisted = (entries: PlanEntry[], today: string): number =>
+	entries.filter(
+		(e) => e.recipeId !== null && e.lists.length === 0 && (e.day === null || e.day >= today)
+	).length;
+
+/** The plan's `lists` that `entries` are on, each counting those entries. */
+export function listsOf(lists: LinkedList[], entries: PlanEntry[]): LinkedList[] {
+	const counts = new Map<string, number>();
+	for (const entry of entries)
+		for (const list of entry.lists) counts.set(list.id, (counts.get(list.id) ?? 0) + 1);
+	return lists.filter((l) => counts.has(l.id)).map((l) => ({ ...l, entries: counts.get(l.id) }));
 }

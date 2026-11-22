@@ -10,6 +10,7 @@
 
 	let {
 		label,
+		title,
 		href,
 		type = 'button',
 		disabled = false,
@@ -18,6 +19,8 @@
 		children
 	}: {
 		label: string;
+		/** A hint on hover, beyond the name (a shortcut). */
+		title?: string;
 		/** Makes it a link. */
 		href?: string;
 		type?: 'button' | 'submit' | 'reset';
@@ -39,6 +42,7 @@
 	{disabled}
 	{onclick}
 	aria-label={label}
+	{title}
 	class="{iconCircle} {background} {ink} disabled:pointer-events-none disabled:opacity-50 {className}"
 >
 	{@render children()}

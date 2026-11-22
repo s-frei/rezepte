@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { PlanEntry } from '#lib/api/mealplan.js';
-import { addRows, byZone, placeEntry, TRAY } from './entries';
+import { addRows, byZone, countUnlisted, listsOf, placeEntry, shownEntries, TRAY } from './entries';
 
 const entry = (id: string, day: string | null, position: number): PlanEntry => ({
 	id,
@@ -78,5 +78,48 @@ describe('addRows', () => {
 	it('cuts a note at 120 runes', () => {
 		const rows = addRows('ä'.repeat(130), null);
 		expect([...rows[0].note!]).toHaveLength(120);
+	});
+});
+
+describe('the days in view', () => {
+	const recipe = (id: string, day: string | null, lists: string[] = []): PlanEntry => ({
+		...entry(id, day, 0),
+		recipeId: `r-${id}`,
+		lists: lists.map((l) => ({ id: l, name: l, openCount: 1 }))
+	});
+	const all = [
+		recipe('gone', '2026-11-20'),
+		recipe('today', '2026-11-22'),
+		recipe('listed', '2026-11-23', ['week']),
+		recipe('later', '2026-11-29'),
+		recipe('beyond', '2026-12-01', ['market']),
+		recipe('tray', null),
+		{ ...entry('note', '2026-11-24', 0) }
+	];
+
+	it('keeps the days in view and the tray', () => {
+		expect(shownEntries(all, '2026-11-22', '2026-11-28').map((e) => e.id)).toEqual([
+			'today',
+			'listed',
+			'tray',
+			'note'
+		]);
+	});
+
+	it('counts the recipes on no list from today on, and the tray, as the server', () => {
+		const shown = shownEntries(all, '2026-11-19', '2026-11-25');
+		// "gone" lies before today, "listed" is on a list, the note is no recipe.
+		expect(countUnlisted(shown, '2026-11-22')).toBe(2);
+		expect(countUnlisted(shownEntries(all, '2026-11-26', '2026-12-02'), '2026-11-22')).toBe(2);
+	});
+
+	it('keeps the lists the days in view went to, counting their entries', () => {
+		const lists = [
+			{ id: 'week', name: 'week', openCount: 3, entries: 9 },
+			{ id: 'market', name: 'market', openCount: 1, entries: 4 }
+		];
+		expect(listsOf(lists, shownEntries(all, '2026-11-22', '2026-11-28'))).toEqual([
+			{ id: 'week', name: 'week', openCount: 3, entries: 1 }
+		]);
 	});
 });

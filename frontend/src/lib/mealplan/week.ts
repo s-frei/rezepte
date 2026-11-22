@@ -1,4 +1,5 @@
 import { getDayOfWeek, parseDate, type CalendarDate } from '@internationalized/date';
+import { m } from '#lib/paraglide/messages.js';
 import { getLocale, type Locale } from '#lib/paraglide/runtime.js';
 
 /**
@@ -15,6 +16,23 @@ export const mondayOf = (day: string): string => monday(parseDate(day)).toString
 export function weekDays(monday: string): string[] {
 	const start = parseDate(monday);
 	return Array.from({ length: 7 }, (_, i) => start.add({ days: i }).toString());
+}
+
+/** `day` moved by `by` days. */
+export const shiftDay = (day: string, by: number): string =>
+	parseDate(day).add({ days: by }).toString();
+
+const EPOCH = parseDate('2000-01-03');
+/** `day` as a count of days (a ruler's coordinate); `dayOf` turns it back. */
+export const dayNumber = (day: string): number => parseDate(day).compare(EPOCH);
+export const dayOf = (n: number): string => EPOCH.add({ days: Math.floor(n) }).toString();
+
+/** The days from `from` to `to`, both in. */
+export function daysFrom(from: string, to: string): string[] {
+	const days: string[] = [];
+	for (let day = parseDate(from); day.toString() <= to; day = day.add({ days: 1 }))
+		days.push(day.toString());
+	return days;
 }
 
 /** `monday` moved by `by` weeks. */
@@ -123,4 +141,36 @@ export function weekFromNow(monday: string, current: string, locale: Locale = ge
 	const by = parseDate(monday).compare(parseDate(current)) / 7;
 	const said = new Intl.RelativeTimeFormat(locale, { numeric: 'auto' }).format(by, 'week');
 	return said[0].toLocaleUpperCase(locale) + said.slice(1);
+}
+
+/**
+ * The first of `count` days in view with today in their middle (left of
+ * it when the middle falls between two): 3 days back from 7, 1 from 4.
+ */
+export const aroundToday = (today: string, count: number): string =>
+	shiftDay(today, -Math.floor((count - 1) / 2));
+
+/**
+ * Where `count` days shown from `start` lie, never to be misread for past
+ * or future: "Around today" with today in their middle (`aroundToday`); a
+ * whole Monday-to-Sunday week as that week (`weekFromNow`: "This week",
+ * "Next week"); else from their first day, "From today", "From tomorrow",
+ * "From yesterday", or by its date: "From Thu Nov 19".
+ */
+export function windowFromNow(
+	start: string,
+	today: string,
+	count: number,
+	locale: Locale = getLocale()
+): string {
+	if (start === aroundToday(today, count)) return m.week_around_today({}, { locale });
+	const date = parseDate(start);
+	if (count === 7 && getDayOfWeek(date, 'en', 'mon') === 0)
+		return weekFromNow(start, mondayOf(today), locale);
+	const by = date.compare(parseDate(today));
+	const day =
+		Math.abs(by) <= 1
+			? new Intl.RelativeTimeFormat(locale, { numeric: 'auto' }).format(by, 'day')
+			: dayLabel(start, locale);
+	return m.week_from_day({ day }, { locale });
 }

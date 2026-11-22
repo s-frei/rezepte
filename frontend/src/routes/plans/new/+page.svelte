@@ -125,6 +125,6 @@
 
 	<!-- What the plan will be, waiting until it exists. -->
 	<div inert class="opacity-40">
-		<WeekView week={preview} {today} onadd={() => {}} />
+		<WeekView week={preview} {today} monday={days[0]} start={days[0]} onadd={() => {}} />
 	</div>
 </div>
