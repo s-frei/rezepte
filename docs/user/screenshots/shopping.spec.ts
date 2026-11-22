@@ -80,9 +80,9 @@ test('list-shop', async ({ page }, testInfo) => {
 test('list-import', async ({ page }, testInfo) => {
   await prepare(page, testInfo, { login: true });
   await page.goto('/lists');
-  // The top bar's circle, or on a phone "+" and then "Import".
+  // The top bar's circle, or on a phone "+" ("New list") and then "Import".
   if (isMobile(testInfo)) {
-    await page.getByRole('button', { name: 'New', exact: true }).click();
+    await page.getByRole('button', { name: 'New list', exact: true }).click();
     await page.getByRole('dialog', { name: 'New list' }).getByRole('button', { name: /^Import/ }).click();
   } else {
     await page.getByRole('banner').getByRole('button', { name: 'Import list', exact: true }).click();
