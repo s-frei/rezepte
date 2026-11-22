@@ -154,6 +154,9 @@ type Card struct {
 	// Match says where a search found the recipe; it is there only on a
 	// search's results.
 	Match *Match `json:"match,omitempty" required:"false"`
+	// Pantry says how the recipe fits the ingredients searched for; it is
+	// there only when ListParams.Ingredients is set.
+	Pantry *CardPantry `json:"pantry,omitempty" required:"false"`
 }
 
 // TagCount is a tag name paired with how many recipes currently use it.

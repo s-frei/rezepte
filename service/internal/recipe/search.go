@@ -44,10 +44,16 @@ type ListParams struct {
 	// the filter off; an unknown name matches nothing, so a stale link
 	// shows an empty grid rather than silently dropping the filter.
 	Author string
-	Sort   string
-	Page   int
-	Limit  int
-	UserID string
+	// Ingredients are the ingredient chips, raw names: set, the list holds
+	// only recipes that use at least one and ranks them by how many (see
+	// listPantry). Have are the ingredients ticked as at hand, raw names;
+	// they lower a recipe's missing count, nothing else.
+	Ingredients []string
+	Have        []string
+	Sort        string
+	Page        int
+	Limit       int
+	UserID      string
 }
 
 // Page is one page of recipe cards plus the pagination state used to
@@ -61,6 +67,9 @@ type Page struct {
 	// names, over all pages; it is there only on a search in the best-match
 	// order, the one that is ordered by section.
 	Sections map[string]int `json:"sections,omitempty" required:"false"`
+	// Pantry is there only when ListParams.Ingredients is set; Sections is
+	// then left out.
+	Pantry *PagePantry `json:"pantry,omitempty" required:"false"`
 }
 
 // filter turns the narrowing half of p into the one RecipeFilter that List
@@ -104,6 +113,9 @@ func (s *Service) List(ctx context.Context, p ListParams) (Page, error) {
 
 	f := p.filter()
 	sort := normalizeSort(p.Sort)
+	if chips := pantryItems(p.Ingredients, maxChips, nil); len(chips) > 0 {
+		return s.listPantry(ctx, p, chips, f, sort, limit, page)
+	}
 	rows, err := s.q.ListRecipes(ctx, f, sort, int64(limit), offset)
 	if err != nil {
 		return Page{}, fmt.Errorf("list recipes: %w", err)
@@ -116,7 +128,7 @@ func (s *Service) List(ctx context.Context, p ListParams) (Page, error) {
 	if err != nil {
 		return Page{}, err
 	}
-	if err := s.matchCards(ctx, items, rows, searchWords(p.Query)); err != nil {
+	if err := s.matchCards(ctx, items, rows, searchWords(p.Query), nil); err != nil {
 		return Page{}, err
 	}
 	// Only the best-match order runs section by section; in any other a
@@ -181,29 +193,43 @@ func normalizeTagQuery(tags []string) []string {
 
 // matchCards fills Card.Match for a page of search results, from the rows
 // they were built from: the title, the tags already on each card, the
-// ingredient names in one batch, and the description. Without search words
-// it does nothing and costs no query.
-func (s *Service) matchCards(ctx context.Context, cards []Card, rows []sqlc.Recipe, words []string) error {
+// ingredient names, and the description. names holds the ingredient names
+// by recipe id when the caller has them already; nil loads them for the
+// page in one batch. Without search words it does nothing and costs no
+// query.
+func (s *Service) matchCards(ctx context.Context, cards []Card, rows []sqlc.Recipe, words []string, names map[string][]string) error {
 	if len(words) == 0 || len(cards) == 0 {
 		return nil
 	}
-	ids := make([]string, len(rows))
-	for i, r := range rows {
-		ids[i] = r.ID
-	}
-	ingRows, err := s.q.ListIngredientNamesForRecipes(ctx, ids)
-	if err != nil {
-		return fmt.Errorf("list ingredient names for recipes: %w", err)
-	}
-	ingredients := make(map[string][]string, len(rows))
-	for _, ir := range ingRows {
-		ingredients[ir.RecipeID] = append(ingredients[ir.RecipeID], ir.Name)
+	if names == nil {
+		ids := make([]string, len(rows))
+		for i, r := range rows {
+			ids[i] = r.ID
+		}
+		var err error
+		if names, err = s.ingredientNames(ctx, ids); err != nil {
+			return err
+		}
 	}
 	mw := matchWords(words)
 	for i, r := range rows {
-		cards[i].Match = matchCard(mw, r.Title, cards[i].Tags, ingredients[r.ID], r.Description)
+		cards[i].Match = matchCard(mw, r.Title, cards[i].Tags, names[r.ID], r.Description)
 	}
 	return nil
+}
+
+// ingredientNames loads the ingredient names of the recipes ids name, by
+// recipe id, in one batch.
+func (s *Service) ingredientNames(ctx context.Context, ids []string) (map[string][]string, error) {
+	rows, err := s.q.ListIngredientNamesForRecipes(ctx, ids)
+	if err != nil {
+		return nil, fmt.Errorf("list ingredient names for recipes: %w", err)
+	}
+	names := make(map[string][]string, len(ids))
+	for _, r := range rows {
+		names[r.RecipeID] = append(names[r.RecipeID], r.Name)
+	}
+	return names, nil
 }
 
 // toCards loads the tags, the authors' display names and colors, the tasty
