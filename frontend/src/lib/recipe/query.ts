@@ -21,6 +21,10 @@ export function isSort(value: string): value is Sort {
 export type ListQuery = {
 	q: string;
 	tags: string[];
+	/** Ingredient chips: recipes are ranked by how many of them they use. */
+	ingredients: string[];
+	/** Pantry staples: they count as in stock but are not chips. */
+	have: string[];
 	/** Maximum total time in minutes, 0 = off. */
 	maxMinutes: number;
 	/** Restrict to the caller's own favorites, off by default. */
@@ -38,6 +42,8 @@ export type ListQuery = {
  * - `q` is trimmed.
  * - every tag is normalized the way the editor normalizes a typed tag
  *   (trimmed and lower-cased, see `normalizeTag`), and blank ones are dropped.
+ * - `ingredients` and `have` keep their names as typed (trimmed), dropping
+ *   blanks and case-insensitive duplicates; a name in both stays a chip only.
  * - `author` is trimmed but keeps its case: the service stores usernames as
  *   they were typed (it only trims them too), so lower-casing here the way
  *   tags are would stop "Mara" from matching anything.
@@ -64,10 +70,27 @@ export type ListQuery = {
  * that narrower type, and this is what lets `parseListQuery` hand it
  * `searchParams.get('sort') ?? ''` straight through without a cast.
  */
+function names(list: string[], skip: Set<string> = new Set()): string[] {
+	const seen = new Set(skip);
+	return list
+		.map((name) => name.trim())
+		.filter((name) => {
+			const key = name.toLowerCase();
+			if (key === '' || seen.has(key)) {
+				return false;
+			}
+			seen.add(key);
+			return true;
+		});
+}
+
 function normalize(state: Omit<ListQuery, 'sort'> & { sort: string }): ListQuery {
+	const ingredients = names(state.ingredients);
 	return {
 		q: state.q.trim(),
 		tags: state.tags.map((tag) => normalizeTag(tag)).filter((tag) => tag.length > 0),
+		ingredients,
+		have: names(state.have, new Set(ingredients.map((name) => name.toLowerCase()))),
 		maxMinutes: snapMaxMinutes(state.maxMinutes),
 		favorites: Boolean(state.favorites),
 		author: state.author.trim(),
@@ -88,6 +111,8 @@ export function parseListQuery(url: ReadonlyURL): ListQuery {
 		tags: (url.searchParams.get('tags') ?? '').split(','),
 		// Number(null) and Number('') are 0, Number('abc') is NaN - all of
 		// which `normalize` turns into 0 (off).
+		ingredients: (url.searchParams.get('ingredients') ?? '').split(','),
+		have: (url.searchParams.get('have') ?? '').split(','),
 		maxMinutes: Number(url.searchParams.get('maxMinutes')),
 		favorites: url.searchParams.get('favorites') === 'true',
 		author: url.searchParams.get('author') ?? '',
@@ -101,17 +126,24 @@ export function parseListQuery(url: ReadonlyURL): ListQuery {
 /**
  * Serializes list state into a URL query string (no leading `?`), omitting
  * fields at their default value and keeping a stable `q`, `tags`,
- * `maxMinutes`, `favorites`, `author`, `sort`, `page` order so the
+ * `ingredients`, `have`, `maxMinutes`, `favorites`, `author`, `sort`, `page` order so the
  * resulting URL is predictable and diff-friendly.
  */
 export function buildListQuery(state: ListQuery): string {
-	const { q, tags, maxMinutes, favorites, author, sort, page } = normalize(state);
+	const { q, tags, ingredients, have, maxMinutes, favorites, author, sort, page } =
+		normalize(state);
 	const params = new URLSearchParams();
 	if (q) {
 		params.set('q', q);
 	}
 	if (tags.length > 0) {
 		params.set('tags', tags.join(','));
+	}
+	if (ingredients.length > 0) {
+		params.set('ingredients', ingredients.join(','));
+	}
+	if (have.length > 0) {
+		params.set('have', have.join(','));
 	}
 	if (maxMinutes > 0) {
 		params.set('maxMinutes', String(maxMinutes));

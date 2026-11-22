@@ -225,6 +225,8 @@
 		const qs = buildListQuery({
 			q,
 			tags,
+			ingredients: [], // the chip UI wires these in a later task
+			have: [],
 			maxMinutes,
 			favorites: favoritesOnly,
 			author,

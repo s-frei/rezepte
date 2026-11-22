@@ -10,6 +10,8 @@ describe('parseListQuery', () => {
 		expect(parseListQuery(urlWith(''))).toEqual({
 			q: '',
 			tags: [],
+			ingredients: [],
+			have: [],
 			maxMinutes: 0,
 			favorites: false,
 			author: '',
@@ -22,6 +24,8 @@ describe('parseListQuery', () => {
 		expect(parseListQuery(urlWith('q=%20pasta%20'))).toEqual({
 			q: 'pasta',
 			tags: [],
+			ingredients: [],
+			have: [],
 			maxMinutes: 0,
 			favorites: false,
 			author: '',
@@ -34,6 +38,8 @@ describe('parseListQuery', () => {
 		expect(parseListQuery(urlWith('tags=vegetarisch,schnell,'))).toEqual({
 			q: '',
 			tags: ['vegetarisch', 'schnell'],
+			ingredients: [],
+			have: [],
 			maxMinutes: 0,
 			favorites: false,
 			author: '',
@@ -46,6 +52,8 @@ describe('parseListQuery', () => {
 		expect(parseListQuery(urlWith('tags=%20a%20,b'))).toEqual({
 			q: '',
 			tags: ['a', 'b'],
+			ingredients: [],
+			have: [],
 			maxMinutes: 0,
 			favorites: false,
 			author: '',
@@ -58,6 +66,8 @@ describe('parseListQuery', () => {
 		expect(parseListQuery(urlWith('tags=Dessert,S%C3%9CSS'))).toEqual({
 			q: '',
 			tags: ['dessert', 'süss'],
+			ingredients: [],
+			have: [],
 			maxMinutes: 0,
 			favorites: false,
 			author: '',
@@ -70,6 +80,8 @@ describe('parseListQuery', () => {
 		expect(parseListQuery(urlWith('page=3'))).toEqual({
 			q: '',
 			tags: [],
+			ingredients: [],
+			have: [],
 			maxMinutes: 0,
 			favorites: false,
 			author: '',
@@ -82,6 +94,8 @@ describe('parseListQuery', () => {
 		expect(parseListQuery(urlWith('page=0'))).toEqual({
 			q: '',
 			tags: [],
+			ingredients: [],
+			have: [],
 			maxMinutes: 0,
 			favorites: false,
 			author: '',
@@ -91,6 +105,8 @@ describe('parseListQuery', () => {
 		expect(parseListQuery(urlWith('page=-1'))).toEqual({
 			q: '',
 			tags: [],
+			ingredients: [],
+			have: [],
 			maxMinutes: 0,
 			favorites: false,
 			author: '',
@@ -100,6 +116,8 @@ describe('parseListQuery', () => {
 		expect(parseListQuery(urlWith('page=abc'))).toEqual({
 			q: '',
 			tags: [],
+			ingredients: [],
+			have: [],
 			maxMinutes: 0,
 			favorites: false,
 			author: '',
@@ -109,6 +127,8 @@ describe('parseListQuery', () => {
 		expect(parseListQuery(urlWith('page=2.5'))).toEqual({
 			q: '',
 			tags: [],
+			ingredients: [],
+			have: [],
 			maxMinutes: 0,
 			favorites: false,
 			author: '',
@@ -121,6 +141,8 @@ describe('parseListQuery', () => {
 		expect(parseListQuery(urlWith('maxMinutes=30'))).toEqual({
 			q: '',
 			tags: [],
+			ingredients: [],
+			have: [],
 			maxMinutes: 30,
 			favorites: false,
 			author: '',
@@ -148,6 +170,8 @@ describe('parseListQuery', () => {
 		expect(parseListQuery(urlWith('sort=created'))).toEqual({
 			q: '',
 			tags: [],
+			ingredients: [],
+			have: [],
 			maxMinutes: 0,
 			favorites: false,
 			author: '',
@@ -172,6 +196,8 @@ describe('buildListQuery', () => {
 			buildListQuery({
 				q: '',
 				tags: [],
+				ingredients: [],
+				have: [],
 				maxMinutes: 0,
 				favorites: false,
 				author: '',
@@ -186,6 +212,8 @@ describe('buildListQuery', () => {
 			buildListQuery({
 				q: 'pasta',
 				tags: [],
+				ingredients: [],
+				have: [],
 				maxMinutes: 0,
 				favorites: false,
 				author: '',
@@ -200,6 +228,8 @@ describe('buildListQuery', () => {
 			buildListQuery({
 				q: '',
 				tags: ['a', 'b'],
+				ingredients: [],
+				have: [],
 				maxMinutes: 0,
 				favorites: false,
 				author: '',
@@ -214,6 +244,8 @@ describe('buildListQuery', () => {
 			buildListQuery({
 				q: '',
 				tags: [],
+				ingredients: [],
+				have: [],
 				maxMinutes: 30,
 				favorites: false,
 				author: '',
@@ -228,6 +260,8 @@ describe('buildListQuery', () => {
 			buildListQuery({
 				q: '',
 				tags: [],
+				ingredients: [],
+				have: [],
 				maxMinutes: 0,
 				favorites: false,
 				author: '',
@@ -242,6 +276,8 @@ describe('buildListQuery', () => {
 			buildListQuery({
 				q: '',
 				tags: [],
+				ingredients: [],
+				have: [],
 				maxMinutes: 0,
 				favorites: true,
 				author: '',
@@ -256,6 +292,8 @@ describe('buildListQuery', () => {
 			buildListQuery({
 				q: '',
 				tags: [],
+				ingredients: [],
+				have: [],
 				maxMinutes: 0,
 				favorites: false,
 				author: '',
@@ -270,6 +308,8 @@ describe('buildListQuery', () => {
 			buildListQuery({
 				q: '',
 				tags: [],
+				ingredients: [],
+				have: [],
 				maxMinutes: 0,
 				favorites: false,
 				author: '',
@@ -284,6 +324,8 @@ describe('buildListQuery', () => {
 			buildListQuery({
 				q: '',
 				tags: [],
+				ingredients: [],
+				have: [],
 				maxMinutes: 0,
 				favorites: false,
 				author: '',
@@ -298,6 +340,8 @@ describe('buildListQuery', () => {
 			buildListQuery({
 				q: '',
 				tags: [],
+				ingredients: [],
+				have: [],
 				maxMinutes: 0,
 				favorites: false,
 				author: '',
@@ -312,6 +356,8 @@ describe('buildListQuery', () => {
 			buildListQuery({
 				q: 'pasta',
 				tags: ['a', 'b'],
+				ingredients: [],
+				have: [],
 				maxMinutes: 30,
 				favorites: true,
 				author: 'mara',
@@ -326,6 +372,8 @@ describe('buildListQuery', () => {
 			buildListQuery({
 				q: '  pasta ',
 				tags: [' Dessert', '', 'B'],
+				ingredients: [],
+				have: [],
 				maxMinutes: -5,
 				favorites: false,
 				author: '',
@@ -339,10 +387,22 @@ describe('buildListQuery', () => {
 describe('round trip', () => {
 	it('parseListQuery(url with buildListQuery(state)) recovers the state', () => {
 		const states: ListQuery[] = [
-			{ q: '', tags: [], maxMinutes: 0, favorites: false, author: '', sort: 'updated', page: 1 },
+			{
+				q: '',
+				tags: [],
+				ingredients: [],
+				have: [],
+				maxMinutes: 0,
+				favorites: false,
+				author: '',
+				sort: 'updated',
+				page: 1
+			},
 			{
 				q: 'pasta',
 				tags: [],
+				ingredients: [],
+				have: [],
 				maxMinutes: 0,
 				favorites: false,
 				author: '',
@@ -352,6 +412,8 @@ describe('round trip', () => {
 			{
 				q: '',
 				tags: ['a', 'b'],
+				ingredients: [],
+				have: [],
 				maxMinutes: 0,
 				favorites: false,
 				author: '',
@@ -361,14 +423,36 @@ describe('round trip', () => {
 			{
 				q: 'suppe',
 				tags: ['vegetarisch'],
+				ingredients: [],
+				have: [],
 				maxMinutes: 30,
 				favorites: false,
 				author: '',
 				sort: 'updated',
 				page: 4
 			},
-			{ q: '', tags: [], maxMinutes: 0, favorites: false, author: '', sort: 'title', page: 1 },
-			{ q: '', tags: [], maxMinutes: 0, favorites: true, author: '', sort: 'updated', page: 1 }
+			{
+				q: '',
+				tags: [],
+				ingredients: [],
+				have: [],
+				maxMinutes: 0,
+				favorites: false,
+				author: '',
+				sort: 'title',
+				page: 1
+			},
+			{
+				q: '',
+				tags: [],
+				ingredients: [],
+				have: [],
+				maxMinutes: 0,
+				favorites: true,
+				author: '',
+				sort: 'updated',
+				page: 1
+			}
 		];
 		for (const state of states) {
 			expect(parseListQuery(urlWith(buildListQuery(state)))).toEqual(state);
@@ -383,6 +467,8 @@ describe('round trip', () => {
 			{
 				q: 'pasta ',
 				tags: [],
+				ingredients: [],
+				have: [],
 				maxMinutes: 0,
 				favorites: false,
 				author: '',
@@ -392,6 +478,8 @@ describe('round trip', () => {
 			{
 				q: '',
 				tags: ['Dessert'],
+				ingredients: [],
+				have: [],
 				maxMinutes: 0,
 				favorites: false,
 				author: '',
@@ -401,13 +489,25 @@ describe('round trip', () => {
 			{
 				q: ' suppe',
 				tags: [' Vegetarisch ', ''],
+				ingredients: [],
+				have: [],
 				maxMinutes: 45,
 				favorites: false,
 				author: '',
 				sort: 'created',
 				page: 2
 			},
-			{ q: '', tags: [], maxMinutes: 0, favorites: true, author: '', sort: 'updated', page: 1 }
+			{
+				q: '',
+				tags: [],
+				ingredients: [],
+				have: [],
+				maxMinutes: 0,
+				favorites: true,
+				author: '',
+				sort: 'updated',
+				page: 1
+			}
 		];
 		for (const state of states) {
 			const qs = buildListQuery(state);
@@ -420,6 +520,8 @@ describe('the author filter', () => {
 	const base: ListQuery = {
 		q: '',
 		tags: [],
+		ingredients: [],
+		have: [],
 		maxMinutes: 0,
 		favorites: false,
 		author: '',
@@ -440,5 +542,32 @@ describe('the author filter', () => {
 	// tag this must not be lower-cased - "Mara" would stop matching.
 	it('trims but keeps the case', () => {
 		expect(parseListQuery(urlWith('author=%20Mara%20')).author).toBe('Mara');
+	});
+});
+
+describe('ingredients and have', () => {
+	it('round-trip through the URL, names as typed', () => {
+		const url = urlWith('ingredients=Gurke,Ei&have=Salz');
+		expect(parseListQuery(url).ingredients).toEqual(['Gurke', 'Ei']);
+		expect(parseListQuery(url).have).toEqual(['Salz']);
+		expect(buildListQuery(parseListQuery(url))).toBe('ingredients=Gurke%2CEi&have=Salz');
+	});
+
+	it('trim names and drop blanks', () => {
+		const q = parseListQuery(urlWith('ingredients=%20Gurke%20,,%20&have=,Salz'));
+		expect(q.ingredients).toEqual(['Gurke']);
+		expect(q.have).toEqual(['Salz']);
+	});
+
+	it('drop case-insensitive duplicates', () => {
+		const q = parseListQuery(urlWith('ingredients=Gurke,gurke&have=Salz,SALZ'));
+		expect(q.ingredients).toEqual(['Gurke']);
+		expect(q.have).toEqual(['Salz']);
+	});
+
+	it('keep a name in both lists only in ingredients', () => {
+		const q = parseListQuery(urlWith('ingredients=Gurke&have=gurke,Salz'));
+		expect(q.ingredients).toEqual(['Gurke']);
+		expect(q.have).toEqual(['Salz']);
 	});
 });

@@ -12,7 +12,8 @@ export const SORT_STORAGE_KEY = 'rezepte-sort';
 
 /**
  * The order the overview opens with: the address's own when it names one,
- * the remembered one otherwise. Pure, so the rule is testable without a
+ * the remembered one otherwise. A search by ingredients opens with its own
+ * ranking, so the remembered order does not apply to it. Pure, so the rule is testable without a
  * browser; `readSort` supplies `remembered`.
  */
 export function applyRememberedSort(
@@ -20,7 +21,7 @@ export function applyRememberedSort(
 	url: ReadonlyURL,
 	remembered: Sort | null
 ): ListQuery {
-	return url.searchParams.has('sort') || remembered === null
+	return url.searchParams.has('sort') || remembered === null || parsed.ingredients.length > 0
 		? parsed
 		: { ...parsed, sort: remembered };
 }

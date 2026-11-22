@@ -50,7 +50,12 @@ export type RecipeCard = {
 	newComments: boolean;
 	/** Where a search found the recipe; only on a search's results. */
 	match?: SearchMatch;
+	/** How the recipe fits the ingredient chips; only when the search has chips or a pantry. */
+	pantry?: { chips: number; used: string[]; missing: PantryItem[] };
 };
+
+/** An ingredient by its display name and the key recipes are matched by. */
+export type PantryItem = { name: string; key: string };
 
 /** The fields a search finds a word in, strongest first. */
 export type SearchSection = 'title' | 'tags' | 'ingredients' | 'description';
@@ -182,6 +187,8 @@ export type RecipePage = {
 	total: number;
 	/** A search's results counted by section, over all pages; only on a search. */
 	sections?: Partial<Record<SearchSection, number>>;
+	/** Ingredient search: recipes per chips-used count, the shared missing row and the ticks. */
+	pantry?: { sections?: Record<number, number>; row: PantryItem[]; ticked: PantryItem[] };
 };
 
 export type Tag = { name: string; count: number };
@@ -219,6 +226,8 @@ export function listRecipes(
 		buildListQuery({
 			q: params.q ?? '',
 			tags: params.tags ?? [],
+			ingredients: params.ingredients ?? [],
+			have: params.have ?? [],
 			maxMinutes: params.maxMinutes ?? 0,
 			favorites: params.favorites ?? false,
 			author: params.author ?? '',
@@ -337,6 +346,8 @@ export async function listTags(
 	const qs = buildListQuery({
 		q: '',
 		tags: [],
+		ingredients: [],
+		have: [],
 		maxMinutes: 0,
 		favorites: false,
 		author: '',

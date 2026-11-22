@@ -20,3 +20,20 @@ describe('applyRememberedSort', () => {
 		expect(applyRememberedSort(parseListQuery(url), url, null)).toEqual(parseListQuery(url));
 	});
 });
+
+describe('applyRememberedSort with ingredient chips', () => {
+	it('ignores the remembered order while the address has chips and no sort', () => {
+		const url = at('?ingredients=Gurke');
+		expect(applyRememberedSort(parseListQuery(url), url, 'title').sort).toBe('updated');
+	});
+
+	it('keeps an order the address names next to chips', () => {
+		const url = at('?ingredients=Gurke&sort=title');
+		expect(applyRememberedSort(parseListQuery(url), url, 'tasty').sort).toBe('title');
+	});
+
+	it('still applies the remembered order without chips', () => {
+		const url = at('?have=Salz');
+		expect(applyRememberedSort(parseListQuery(url), url, 'title').sort).toBe('title');
+	});
+});
