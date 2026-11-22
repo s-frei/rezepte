@@ -691,10 +691,9 @@ test('"Start one yourself" hands the keyboard from the + sheet to the draft', as
 	const start = page
 		.getByRole('dialog', { name: 'New list' })
 		.getByRole('button', { name: /Start one yourself/ });
-	// The sheet opens on its grip; recording starts once it has.
-	await expect(
-		page.getByRole('dialog', { name: 'New list' }).getByRole('button', { name: 'Close' })
-	).toBeFocused();
+	// The sheet opens focused itself, no field and no keyboard yet;
+	// recording starts once it has.
+	await expect(page.getByRole('dialog', { name: 'New list' })).toBeFocused();
 	// iOS keeps the keyboard only while focus goes from field to field: after
 	// the tapped row, the stand-in and then the draft's name take it, never
 	// the sheet or "+" in between.

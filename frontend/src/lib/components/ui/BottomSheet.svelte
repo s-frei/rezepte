@@ -115,7 +115,7 @@
 		open?: boolean;
 		/** Accessible name of the handle, which closes the sheet. */
 		closeLabel: string;
-		/** Forwarded to Bits UI: where focus goes once the sheet has opened. */
+		/** Where focus goes once the sheet has opened; the sheet itself unless prevented and moved. */
 		onOpenAutoFocus?: (event: Event) => void;
 		/** Forwarded to Bits UI: where focus goes once the sheet has closed. */
 		onCloseAutoFocus?: (event: Event) => void;
@@ -328,7 +328,14 @@
 		<Dialog.Content
 			forceMount
 			preventScroll={false}
-			{onOpenAutoFocus}
+			onOpenAutoFocus={(event) => {
+				onOpenAutoFocus?.(event);
+				// Left to Bits, the first tabbable would be the handle, ringed in
+				// a square over the rounded sheet: the sheet itself takes the focus.
+				if (event.defaultPrevented) return;
+				event.preventDefault();
+				panel?.focus();
+			}}
 			{onCloseAutoFocus}
 			onInteractOutside={(event) => {
 				keepForToasts(event);

@@ -373,8 +373,16 @@ test('plans a recipe and a note on a day', async ({ page }) => {
 		page.getByRole('main').getByRole('button', { name: 'Plan a meal' }),
 		'Plan a meal'
 	);
+	// A phone's sheet opens on the recipes, with no keyboard over them; a desktop's on the field.
+	const field = sheet.getByRole('combobox', { name: 'Recipe or note' });
+	if (phone(page)) {
+		await expect(field).not.toBeFocused();
+		await expect(sheet).toBeFocused();
+		await field.click();
+	}
+	await expect(field).toBeFocused();
 	await sheet.getByRole('radio', { name: 'Wednesday, November 18' }).click();
-	await sheet.getByRole('combobox', { name: 'Recipe or note' }).fill(title.slice(0, 12));
+	await field.fill(title.slice(0, 12));
 	await sheet.getByRole('option', { name: title }).click();
 	await expect(sheet).toBeHidden();
 	const wednesday = day(page, 'Wednesday, November 18');
@@ -860,6 +868,21 @@ test('the dialog takes the tray along when it holds recipes on no list', async (
 	await expect(dialog.getByRole('switch', { name: 'Include Someday' })).toBeChecked();
 	await expect(dialog.getByText(`Pie ${t}`)).toBeVisible();
 	await expect(dialog.getByRole('button', { name: 'Add 1 recipe' })).toBeEnabled();
+});
+
+test('the chip of an unlisted meal gets the focus back from its dialog', async ({ page }) => {
+	await page.clock.setFixedTime(new Date('2026-11-18T10:00:00'));
+	await loginFresh(page);
+	const pie = await createRecipe(page, { ...loadFixture(0), title: `Pie ${uniqueToken()}` });
+	await plan(page, { day: '2026-11-19', recipeId: pie.id });
+	await openOwn(page);
+	const chip = page
+		.getByRole('button', { name: /is on no list: put it on one/ })
+		.filter({ visible: true });
+	const dialog = await openDialog(page, chip);
+	await page.keyboard.press('Escape');
+	await expect(dialog).toBeHidden();
+	await expect(chip).toBeFocused();
 });
 
 test('the badge counts what the dialog picks: no past day', async ({ page }) => {

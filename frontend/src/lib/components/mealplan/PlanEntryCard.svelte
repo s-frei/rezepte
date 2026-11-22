@@ -124,7 +124,12 @@
 			aria-label={m.link_not_listed_label({ title: entry.title })}
 			onmousedown={(event) => event.stopPropagation()}
 			ontouchstart={(event) => event.stopPropagation()}
-			onclick={() => toList(entry)}
+			onclick={(event) => {
+				// The card's drag swallows the press, so the click alone would leave
+				// the focus on the page; the dialog gives it back to what held it.
+				event.currentTarget.focus();
+				toList(entry);
+			}}
 			class="relative z-10 inline-flex h-6 max-w-full min-w-0 items-center gap-1 rounded-pill border border-dashed border-handle px-2 text-caption font-semibold whitespace-nowrap text-text-muted transition hover:border-primary hover:text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary max-md:after:absolute max-md:after:inset-x-0 max-md:after:inset-y-[calc(50%-22px)] dark:border-text-muted/60"
 		>
 			<ShoppingBasket class="size-3.5 shrink-0" aria-hidden="true" />

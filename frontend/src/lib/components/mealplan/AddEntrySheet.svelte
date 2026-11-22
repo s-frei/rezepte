@@ -9,6 +9,7 @@
 	import { m } from '#lib/paraglide/messages.js';
 	import { getLocale } from '#lib/paraglide/runtime.js';
 	import { initialFor, tintFor } from '#lib/recipe/placeholder.js';
+	import { softKeyboard } from '#lib/visible-area.js';
 
 	/**
 	 * Plans a meal: the day as chips (the week's seven and "Someday"), then
@@ -106,7 +107,10 @@
 		}
 	}
 
+	// A phone's (or a touch screen's) sheet opens on the recipes: a focused field would raise the
+	// keyboard over them. The sheet takes the focus; a tap on the field the rest.
 	function focusField(event: Event) {
+		if (softKeyboard.current) return;
 		event.preventDefault();
 		document.getElementById('plan-add-field')?.focus();
 	}
