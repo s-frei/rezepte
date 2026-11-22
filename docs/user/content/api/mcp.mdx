@@ -1,9 +1,9 @@
 ---
 title: Connect an AI assistant
-description: Let an MCP client search, read and edit your recipes and shopping lists
+description: Let an MCP client search, read and edit your recipes, shopping lists and meal plans
 ---
 
-Let an AI assistant search, read and, with the right token, edit your recipes and shopping lists. Rezepte serves a Model Context Protocol (MCP) endpoint at `https://<your instance>/mcp`, and the assistant signs in with an API token.
+Let an AI assistant search, read and, with the right token, edit your recipes, shopping lists and meal plans. Rezepte serves a Model Context Protocol (MCP) endpoint at `https://<your instance>/mcp`, and the assistant signs in with an API token.
 
 ## Create a token
 
@@ -16,6 +16,8 @@ Issue a token as described in [API tokens](/api/tokens). What the assistant may 
 | **Recipes: Delete** | Also delete recipes |
 | **Shopping lists: Read** | See your lists and their items |
 | **Shopping lists: Write** | Also create lists, add recipes and items, tick and remove items |
+| **Meal plans: Read** | See your plans and what is planned |
+| **Meal plans: Write** | Also plan, move and remove meals; with **Shopping lists: Write**, put them on a list |
 
 ## Connect a client
 
@@ -82,6 +84,8 @@ The assistant acts as the admin who issued the token, under the same [editing ri
 - **Look at a recipe's photos**, to check an upload or describe a dish.
 - **Work with your [shopping lists](/guide/shopping-lists)**: read them, create a list, add free items such as "2 l Milch", tick or remove items. Up to 50 items go in at once; if one fails, the ones before it stay on the list.
 - **Put a recipe on a list**, at the servings you name, with all or some of its ingredients. For example: "Put Königsberger Klopse for 6 on Wocheneinkauf".
+- **Plan meals** in your [meal plans](/guide/meal-plan): read a week, plan a recipe or a note on a day or for **Someday**, move a meal, change its servings or remove it. Reading or adding without a plan named uses your own plan.
+- **Put planned days on a list**, without the plan's staples, [as in the app](/guide/meal-plan#put-it-on-a-shopping-list). For example: "Put next week's meals on Wocheneinkauf".
 
 <Callout type="warn" title="Edits and deletes are final">
   Editing replaces the whole recipe, the same as saving in the editor. Deleting removes the recipe and its photos and cannot be undone. Only a **Recipes: Delete** token can delete.
@@ -90,6 +94,7 @@ The assistant acts as the admin who issued the token, under the same [editing ri
 ## What it cannot do
 
 - Share, rename or delete a shopping list, accept an invitation or leave one, change or remove a recipe on it, clear done items, or move an item to another department. Use the app, or the HTTP API with **Shopping lists: Write**.
+- Create, share, rename or delete a meal plan, accept a plan invitation, or change its staples. Use the app, or the HTTP API with **Meal plans: Write**.
 - Change the cover, reorder or delete photos. Use the app.
 - Edit or delete comments, or see or add photos on them.
 - Upload formats other than JPEG, PNG and WebP. The assistant converts others, such as HEIC, first.

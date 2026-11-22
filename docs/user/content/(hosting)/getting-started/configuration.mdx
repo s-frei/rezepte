@@ -15,7 +15,7 @@ Configure Rezepte with environment variables; there is no config file.
     REZEPTE_LOG_LEVEL: { description: 'debug, info, warn or error', type: 'string', default: 'info', required: true },
     REZEPTE_LOG_FORMAT: { description: 'text or json, see Logging below', type: 'string', default: 'text', required: true },
     REZEPTE_SECURE_COOKIES: { description: 'true sets Secure on the session cookie; enable behind TLS', type: 'boolean', default: 'false', required: true },
-    REZEPTE_PUBLIC_URL: { description: 'The address people open Rezepte at, such as https://rezepte.example.org, without a path. Required for single sign-on, mail and the photo upload links an AI assistant uses', type: 'string', required: true },
+    REZEPTE_PUBLIC_URL: { description: 'The address people open Rezepte at, such as https://rezepte.example.org, without a path. Required for single sign-on, mail and the photo upload links an AI assistant uses. Without it, the calendar feed link takes the address you open Rezepte at, and its meals carry no link to their recipe', type: 'string', required: true },
     REZEPTE_OIDC_ISSUER: { description: 'Issuer URL of the OpenID Connect provider people may sign in with; setting it turns that sign-in on and locks Settings → Sign-in to the environment', type: 'string', required: true },
     REZEPTE_OIDC_CLIENT_ID: { description: 'Client ID Rezepte is registered under at the provider', type: 'string', required: true },
     REZEPTE_OIDC_CLIENT_SECRET: { description: 'Client secret, if the provider issued one', type: 'string', required: true },

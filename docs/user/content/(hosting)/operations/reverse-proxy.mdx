@@ -36,8 +36,8 @@ Over plain HTTP, except on `localhost`, browsers withhold these features:
     }
     ```
 
-    ```nginx title="nginx: beside it, for live lists"
-    location ~ ^/api/v1/shopping-lists/[^/]+/events$ {
+    ```nginx title="nginx: beside it, for live lists and plans"
+    location ~ ^/api/v1/(shopping-lists|meal-plans)/[^/]+/events$ {
       proxy_pass http://127.0.0.1:8060;
       proxy_set_header Host $host;
       proxy_set_header Origin $http_origin;
@@ -46,7 +46,7 @@ Over plain HTTP, except on `localhost`, browsers withhold these features:
     }
     ```
 
-    The second block is for [live shopping lists](#live-lists). `client_max_body_size 10m` matches Rezepte's photo limit; with nginx's 1 MB default, most phone photos fail with `413 Request Entity Too Large`.
+    The second block is for [live lists and plans](#live-lists). `client_max_body_size 10m` matches Rezepte's photo limit; with nginx's 1 MB default, most phone photos fail with `413 Request Entity Too Large`.
 
   </Tab>
 </Tabs>
@@ -59,9 +59,9 @@ Once Rezepte is reachable over HTTPS, set `REZEPTE_SECURE_COOKIES=true`. The ses
 
 ## Live lists<NewIn release="v1.4.0" />
 
-An open [shopping list](/guide/shopping-lists#live) keeps one long-lived response at `/api/v1/shopping-lists/<id>/events` open. The proxy must pass it on as it arrives instead of buffering it.
+An open [shopping list](/guide/shopping-lists#live) keeps one long-lived response at `/api/v1/shopping-lists/<id>/events` open, an open [meal plan](/guide/meal-plan) one at `/api/v1/meal-plans/<id>/events`. The proxy must pass it on as it arrives instead of buffering it.
 
 - **nginx:** works as is; the second block above makes it independent of Rezepte's `X-Accel-Buffering` header.
 - **Caddy and Traefik:** stream by default and need nothing.
 
-Browsers allow six connections per host over HTTP/1.1, and each open list tab holds one. Serve HTTP/2 to lift that limit: Caddy does it automatically, nginx with `http2 on;` beside `listen 443 ssl;`.
+Browsers allow six connections per host over HTTP/1.1, and each open list or plan tab holds one. Serve HTTP/2 to lift that limit: Caddy does it automatically, nginx with `http2 on;` beside `listen 443 ssl;`.

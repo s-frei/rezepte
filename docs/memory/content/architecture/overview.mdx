@@ -36,9 +36,10 @@ The mux serves `/healthz`, the huma API under `/api/v1`, and the embedded SPA fo
     - `internal/userapi`, `internal/tokenapi` – the admin-only user and token operations, plus the people list every account reads; handlers only, in packages of their own because they need `auth` and `auth` already imports `user`
     - `internal/mail`, `internal/mailapi` – the SMTP sender, its templates and settings, and the owner-only HTTP surface for them; `userapi` reaches the sender through a small interface (see [Email](/features/email))
     - `internal/oidc` – sign-in through one OpenID Connect provider, ending in an ordinary session (see [OIDC](/features/oidc))
-    - `internal/notify` – who is told of a comment, a new recipe, a tasty mark, an accepted invitation or failing mail, by mail and push, and their preferences (see [Notifications](/features/notifications))
+    - `internal/notify` – who is told of a comment, a new recipe, a tasty mark, a list or plan invitation, an accepted invitation or failing mail, by mail and push, and their preferences (see [Notifications](/features/notifications))
     - `internal/push` – Web Push: devices, timer alarms and the sending (see [Cook timers](/features/cook-timers))
     - `internal/shopping` – shopping lists: entries copied from recipes, free items, departments, members and the live change stream (see [Shopping lists](/features/shopping-lists))
+    - `internal/mealplan` – meal plans: entries on days and the tray, members, staples, the link to shopping lists, the live stream and the calendar feed (see [Meal plan](/features/meal-plan))
     - `internal/ingredient` – the pure rules for ingredient names: the key shopping lists merge by and which name covers which (see [Ingredient search](/features/ingredient-search))
     - `internal/recipeimport` – turns a recipe page or pasted text into a draft recipe (see [Recipe import](/features/recipe-import))
     - `internal/transfer` – export and import of recipes between instances as a zip (see [Import and export](/features/import-export))
@@ -54,8 +55,9 @@ The mux serves `/healthz`, the huma API under `/api/v1`, and the embedded SPA fo
 
     - `src/lib/api` – fetch wrapper and per-resource functions with hand-written types; nothing generates them from the OpenAPI document, so a changed endpoint changes its type here by hand
     - `src/lib/components/ui` – styled wrappers around Bits UI
-    - `src/lib/components/recipe`, `editor`, `cook`, `import`, `nav`, `settings`, `shell`, `auth` – feature components; `brand` holds the wordmark lockup, `icons` the animated Lucide icons (see [Design system](/architecture/design-system))
+    - `src/lib/components/recipe`, `editor`, `cook`, `import`, `nav`, `settings`, `shell`, `auth`, `shopping`, `mealplan` – feature components; `brand` holds the wordmark lockup, `icons` the animated Lucide icons (see [Design system](/architecture/design-system))
     - `src/lib/recipe` – pure recipe logic (query state, form mapping, quantity formatting, servings scaling) and its rune stores
+    - `src/lib/shopping`, `src/lib/mealplan` – the list's and the plan's state, rows and links, beside their components
     - `src/routes` – file-based routes, `+layout.ts` sets `ssr = false`
     - `messages/en.json`, `de.json` – UI copy, one catalog per language
 
