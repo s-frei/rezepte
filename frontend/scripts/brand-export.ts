@@ -134,11 +134,11 @@ async function kitchen(): Promise<Buffer> {
 }
 
 // The mascot's poses (the error page's two, one each for the empty shopping
-// lists and the empty recipe overview):
+// lists, the empty recipe overview and the empty week plan):
 // each painting square, at twice the 320px a page shows it at, its ground
 // moved onto the app's background so the box around it melts into the page
 // and only its hairline shows.
-export const POSES = ['not-found', 'error', 'shopping', 'first-recipe'] as const;
+export const POSES = ['not-found', 'error', 'shopping', 'first-recipe', 'plan'] as const;
 export const POSE_SIZE = 640;
 
 async function pose(name: string): Promise<Buffer> {

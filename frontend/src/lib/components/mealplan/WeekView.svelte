@@ -268,7 +268,13 @@
 	{#if !narrow.current}
 		<DayStrip bind:this={strip} {days} free={dragged !== null} bind:start {onat} {count} {onsettle}>
 			{#snippet column(day)}
-				<DayColumn {day} today={day === today} past={day < today} onadd={() => onadd(day)}>
+				<DayColumn
+					{day}
+					today={day === today}
+					past={day < today}
+					empty={items(day).length === 0}
+					onadd={() => onadd(day)}
+				>
 					{@render zone(day, 'column', dayNames(day, locale).full)}
 				</DayColumn>
 			{/snippet}

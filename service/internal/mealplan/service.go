@@ -249,6 +249,14 @@ func get(ctx context.Context, q *sqlc.Queries, userID, id, from, to, today strin
 		p.Entries = append(p.Entries, e)
 	}
 	p.Lists = rankLists(perEntry)
+	p.HasEntries = len(p.Entries) > 0
+	if !p.HasEntries {
+		has, err := q.MealPlanHasEntries(ctx, id)
+		if err != nil {
+			return Plan{}, fmt.Errorf("meal plan has entries: %w", err)
+		}
+		p.HasEntries = has
+	}
 	return p, nil
 }
 

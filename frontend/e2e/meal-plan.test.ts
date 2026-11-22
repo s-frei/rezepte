@@ -167,9 +167,10 @@ test('a phone pages by weeks, says where it is, and Today leads back', async ({
 	).not.toHaveAttribute('aria-disabled');
 	await page.getByRole('button', { name: 'Next week' }).click();
 	await expect(page).toHaveURL(new RegExp(`/plans/${id}\\?from=2026-11-09$`));
-	await expect(
-		page.getByRole('heading', { level: 2, name: 'Nothing planned this week' })
-	).toBeVisible();
+	// An empty week shows its days all the same, each with its "+".
+	await expect(page.getByRole('button', { name: 'Plan for Wednesday, November 11' })).toBeVisible();
+	// The plan has a meal in another week: no hint how to begin.
+	await expect(hint(page)).toHaveCount(0);
 	// Paging replaced the plan's entry: one Back leaves the plan.
 	await page.goBack();
 	await expect(page).toHaveURL(/\/lists$/);
@@ -390,7 +391,8 @@ test('from md the badge and the dialog take the days in view from today on', asy
 	await expect(toListButton(page)).toHaveAccessibleName('Put on the list, 1 recipe on no list');
 	await back.click();
 	await expect(weekBar(page)).toContainText('November 23–29');
-	await expect(toListButton(page)).toHaveAccessibleName('Put on the list');
+	// Days without a recipe have nothing for a list: no button.
+	await expect(toListButton(page)).toHaveCount(0);
 	await next.click();
 	await expect(weekBar(page)).toContainText('November 24–30');
 	// The badge and the dialog follow the days once they rest (the address says so).
@@ -415,6 +417,7 @@ test('at 1024 five days sit around today, and the badge and words follow them', 
 	const t = uniqueToken();
 	const mash = await createRecipe(page, { ...loadFixture(2), title: `Mash ${t}` });
 	const fish = await createRecipe(page, { ...loadFixture(1), title: `Fish ${t}` });
+	await plan(page, { day: '2026-11-10', recipeId: mash.id });
 	await plan(page, { day: '2026-11-20', recipeId: mash.id });
 	await plan(page, { day: '2026-11-30', recipeId: fish.id });
 	const id = await openOwn(page);
@@ -430,10 +433,10 @@ test('at 1024 five days sit around today, and the badge and words follow them', 
 	// Five days from a Monday are no week: named by their first day.
 	await page.goto(`/plans/${id}?from=2026-11-23`);
 	await expect(where).toHaveText('From Mon Nov 23');
-	await expect(toListButton(page)).toHaveAccessibleName('Put on the list');
+	await expect(toListButton(page)).toHaveCount(0);
 	await page.getByRole('button', { name: 'One day ahead' }).click();
 	await expect(weekBar(page)).toContainText('Nov 24–28');
-	await expect(toListButton(page)).toHaveAccessibleName('Put on the list');
+	await expect(toListButton(page)).toHaveCount(0);
 	await page.getByRole('button', { name: 'One day ahead' }).click({ modifiers: ['Shift'] });
 	await expect(weekBar(page)).toContainText('Dec 1–5');
 	await page.getByRole('button', { name: 'One day back' }).click();
@@ -663,7 +666,18 @@ test('unknown and invited-only plan links land on the overview', async ({ page }
 	await page.goto('/plans');
 	const toast = page.getByText('You no longer have access to this plan.');
 	await expect(toast).toHaveCount(0);
-	expect((await page.request.delete(`/api/v1/meal-plans/${staleId}`)).ok()).toBe(true);
+	// Gone for the reader from now on, as the server would say it: a real
+	// deletion would reach the open overview by its live stream and could
+	// take the card away before the click (and a hover preloads the plan).
+	await page.route(`**/api/v1/meal-plans/${staleId}?*`, (route) =>
+		route.fulfill({ status: 404, json: { title: 'Not Found', status: 404 } })
+	);
+	await page.route('**/api/v1/meal-plans/week?*', async (route) => {
+		const response = await route.fetch();
+		const body = (await response.json()) as { plans: { id: string }[] };
+		body.plans = body.plans.filter((p) => p.id !== staleId);
+		await route.fulfill({ response, json: body });
+	});
 	await page.getByRole('article', { name: stale }).getByRole('link', { name: stale }).click();
 	await expect(page).toHaveURL(/\/plans$/);
 	await expect(toast).toHaveCount(1);
@@ -683,6 +697,13 @@ test('unknown and invited-only plan links land on the overview', async ({ page }
 // The week view. Entries are arranged through the API; what is tested is the page.
 
 type Plan = { id: string; entries: { id: string; title: string; day: string | null }[] };
+
+/** The week's "Plan a meal": the top bar's from md, the bottom bar's "+" (named alike) on a phone. */
+const emptyWeekAdd = (page: Page) =>
+	page.getByRole('button', { name: 'Plan a meal', exact: true }).filter({ visible: true });
+
+/** The empty plan's hint over the days. */
+const hint = (page: Page) => page.getByRole('complementary', { name: 'Nothing planned yet' });
 
 /** `YYYY-MM-DD` of the browser's today. */
 const today = () => new Date().toLocaleDateString('sv');
@@ -770,12 +791,8 @@ test('plans a recipe and a note on a day', async ({ page }) => {
 	await createRecipe(page, { ...loadFixture(1), title });
 	await openOwn(page);
 
-	// The empty week's button opens the sheet; the day is picked in it.
-	const sheet = await openDialog(
-		page,
-		page.getByRole('main').getByRole('button', { name: 'Plan a meal' }),
-		'Plan a meal'
-	);
+	// The empty week's button (the bar's "+" on a phone) opens the sheet; the day is picked in it.
+	const sheet = await openDialog(page, emptyWeekAdd(page), 'Plan a meal');
 	// A phone's sheet opens on the recipes, with no keyboard over them; a desktop's on the field.
 	const field = sheet.getByRole('combobox', { name: 'Recipe or note' });
 	if (phone(page)) {
@@ -847,11 +864,7 @@ test('a note typed fast and taken with Enter is the note, never a recipe', async
 	await loginFresh(page);
 	await createRecipe(page, { ...loadFixture(1), title: `Curry ${uniqueToken()}` });
 	await openOwn(page);
-	const sheet = await openDialog(
-		page,
-		page.getByRole('main').getByRole('button', { name: 'Plan a meal' }),
-		'Plan a meal'
-	);
+	const sheet = await openDialog(page, emptyWeekAdd(page), 'Plan a meal');
 	const field = sheet.getByRole('combobox', { name: 'Recipe or note' });
 	// The recently changed recipes are listed, but Enter on the empty field plans nothing.
 	await expect(sheet.getByRole('option').first()).toBeVisible();
@@ -924,12 +937,96 @@ test('the phone’s "+" plans a meal on the week', async ({ page, isMobile }) =>
 	test.skip(!isMobile, 'the bottom nav');
 	await loginFresh(page);
 	await openOwn(page);
-	// The nav's "+", named by its label (the empty week's button has the words).
+	// The nav's "+", named by its label (the days' own "+" name their day).
 	const plus = page.locator('button[aria-label="Plan a meal"]');
 	await expect(plus).toHaveAttribute('aria-expanded', 'false');
 	await plus.click();
 	await expect(page.getByRole('dialog', { name: 'Plan a meal' })).toBeVisible();
 	await expect(plus).toHaveAttribute('aria-expanded', 'true');
+});
+
+test('a phone plans an empty future week day by day, and its "+" stays in that week', async ({
+	page,
+	isMobile
+}) => {
+	test.skip(!isMobile, 'the day rows and the bottom nav');
+	await page.clock.setFixedTime(new Date('2026-11-16T10:00:00'));
+	await loginFresh(page);
+	const title = `Curry ${uniqueToken()}`;
+	await createRecipe(page, { ...loadFixture(1), title });
+	const id = await openOwn(page);
+	await page.getByRole('button', { name: 'Next week' }).click();
+	await page.getByRole('button', { name: 'Next week' }).click();
+	await expect(page).toHaveURL(new RegExp(`/plans/${id}\\?from=2026-11-30$`));
+
+	// The empty plan's hint heads the days, never stands in for them: every day has its "+".
+	await expect(hint(page)).toContainText('Plan a recipe or a note with a day’s “+”.');
+	await expect(page.locator('[data-day-add]')).toHaveCount(7);
+	await expect(toListButton(page)).toHaveCount(0);
+	const wednesday = day(page, 'Wednesday, December 2');
+	const sheet = await openDialog(
+		page,
+		wednesday.getByRole('button', { name: 'Plan for Wednesday, December 2' }),
+		'Plan a meal'
+	);
+	await expect(sheet.getByRole('radio', { name: 'Wednesday, December 2' })).toBeChecked();
+	await sheet.getByRole('combobox', { name: 'Recipe or note' }).fill(title.slice(0, 12));
+	await sheet.getByRole('option', { name: title }).click();
+	await expect(sheet).toBeHidden();
+	await expect(wednesday.getByRole('link', { name: title })).toBeVisible();
+	await expect(hint(page)).toHaveCount(0);
+
+	// The bar's "+" plans on the week shown: its Monday, since today is not in it.
+	await page.getByRole('button', { name: 'Next week' }).click();
+	await expect(page).toHaveURL(new RegExp(`/plans/${id}\\?from=2026-12-07$`));
+	const bar = await openDialog(
+		page,
+		page.locator('button[aria-label="Plan a meal"]'),
+		'Plan a meal'
+	);
+	await expect(bar.getByRole('radio', { name: 'Monday, December 7' })).toBeChecked();
+});
+
+test('from md an empty plan shows its days, one "+" an empty day, and plans through it', async ({
+	page,
+	isMobile
+}) => {
+	test.skip(isMobile, 'the strip is the desktop’s');
+	await page.clock.setFixedTime(new Date('2026-11-16T10:00:00'));
+	await loginFresh(page);
+	const title = `Curry ${uniqueToken()}`;
+	await createRecipe(page, { ...loadFixture(1), title });
+	await openOwn(page);
+
+	// A plan without a single entry is the strip and its timeline, never a note in their place.
+	await expect(strip(page)).toBeVisible();
+	await expect(lens(page)).toBeVisible();
+	await expect(hint(page)).toBeVisible();
+	// Nothing to put on a list: no "Put on the list".
+	await expect(toListButton(page)).toHaveCount(0);
+	const wednesday = day(page, 'Wednesday, November 18');
+	const add = wednesday.getByRole('button', { name: 'Plan for Wednesday, November 18' });
+	// An empty day has one "+", the dashed box; the header's comes with the first card.
+	await expect(add).toHaveCount(1);
+	await expect(add).toContainText('Plan a meal');
+
+	// A note alone is nothing for a list either.
+	const note = await openDialog(page, add, 'Plan a meal');
+	await expect(note.getByRole('radio', { name: 'Wednesday, November 18' })).toBeChecked();
+	await note.getByRole('combobox', { name: 'Recipe or note' }).fill('Pizza bestellen');
+	await note.getByRole('option', { name: 'Add “Pizza bestellen” as a note' }).click();
+	await expect(wednesday.getByText('Pizza bestellen')).toBeVisible();
+	// One entry anywhere, and the hint has done its work.
+	await expect(hint(page)).toHaveCount(0);
+	await expect(add).toHaveCount(1);
+	await expect(add).not.toContainText('Plan a meal');
+	await expect(toListButton(page)).toHaveCount(0);
+
+	const sheet = await openDialog(page, add, 'Plan a meal');
+	await sheet.getByRole('combobox', { name: 'Recipe or note' }).fill(title.slice(0, 12));
+	await sheet.getByRole('option', { name: title }).click();
+	await expect(wednesday.getByRole('link', { name: title })).toBeVisible();
+	await expect(toListButton(page)).toHaveAccessibleName('Put on the list, 1 recipe on no list');
 });
 
 test('drags an entry from the tray to a day', async ({ page, isMobile }) => {
@@ -1723,11 +1820,7 @@ test('creates a named plan and invites someone', async ({ page, browser }, testI
 		await expect(them.getByRole('button', { name: 'Share', exact: true })).toHaveCount(0);
 
 		// One plans, the other sees it without a reload.
-		const sheet = await openDialog(
-			page,
-			page.getByRole('main').getByRole('button', { name: 'Plan a meal' }),
-			'Plan a meal'
-		);
+		const sheet = await openDialog(page, emptyWeekAdd(page), 'Plan a meal');
 		await sheet.getByRole('combobox', { name: 'Recipe or note' }).fill('Pizza bestellen');
 		await sheet.getByRole('option', { name: 'Add “Pizza bestellen” as a note' }).click();
 		await expect(sheet).toBeHidden();

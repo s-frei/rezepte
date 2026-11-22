@@ -35,7 +35,6 @@
 	import WeekView from '#lib/components/mealplan/WeekView.svelte';
 	import Button from '#lib/components/ui/Button.svelte';
 	import IconButton, { iconCircle } from '#lib/components/ui/IconButton.svelte';
-	import NoteEmptyState from '#lib/components/ui/NoteEmptyState.svelte';
 	import { PlanState } from '#lib/mealplan/plan-state.svelte.js';
 	import { countUnlisted, listsOf, shownEntries } from '#lib/mealplan/entries.js';
 	import {
@@ -60,7 +59,7 @@
 	import { rememberPlan, shell } from '#lib/shell.svelte.js';
 	import { listHref } from '#lib/shopping/href.js';
 	import { byPlanUse } from '#lib/shopping/plan-ref.js';
-	import planArt from '$brand/lockups/rezepte-mascot-shopping.webp?url';
+	import planArt from '$brand/lockups/rezepte-mascot-plan.webp?url';
 	import type { PageProps } from './$types';
 
 	let { data }: PageProps = $props();
@@ -253,7 +252,7 @@
 	// side the week came from (a later week from the right), so the step
 	// shows; reduced motion only fades. Only the pager's turn (`turning`):
 	// not a refetch, nor the week moving on at midnight. The heading never
-	// goes blank, and an empty week skips its note's own entrance.
+	// goes blank.
 	let heading = $state<HTMLElement>();
 	let content = $state<HTMLElement>();
 	let shown = '';
@@ -271,14 +270,15 @@
 					{ opacity: 0.35, transform: from },
 					{ opacity: 1, transform: 'none' }
 				];
-		if (untrack(() => empty)) content?.getAnimations({ subtree: true }).forEach((a) => a.finish());
 		untrack(() => [heading, content]).forEach((el) =>
 			el?.animate(frames, { duration: still ? 160 : 260, easing: 'cubic-bezier(0.4, 0, 0.2, 1)' })
 		);
 	});
-	// A phone's week is empty without a meal on its days or the tray; the
-	// strip, without one in all its weeks (it scrolls past an empty week).
-	const empty = $derived((narrow.current ? inView : plan.entries).length === 0);
+	// Every week shows its days, each with its "+", however empty. "Auf die
+	// Liste" shows only with a recipe in the days at rest or on the tray.
+	const listable = $derived(inView.some((e) => e.recipeId !== null));
+	/** A plan without a single entry, anywhere: the mascot's hint heads its days. */
+	const blank = $derived(!plan.hasEntries);
 	/** Every list the days at rest and the tray went to, as far as the reader can open them; most used first (`byPlanUse`). */
 	const listStamps = $derived(
 		byPlanUse(listsOf(plan.lists, inView)).map((l) => ({
@@ -436,7 +436,7 @@
 	 * week even near the end of the loaded days.
 	 */
 	function stepBy(by: number) {
-		if (!view || empty) return jumpTo(shiftDay(rested, by));
+		if (!view) return jumpTo(shiftDay(rested, by));
 		const to = shiftDay(view.aimed() ?? rested, by);
 		if (reaches(to)) view.scrollByDays(by);
 		else jumpTo(to);
@@ -444,8 +444,8 @@
 	/** `day` first; loaded around it when it lies beyond the loaded weeks. */
 	function jumpTo(day: string) {
 		around = day === centered;
-		if (view && !empty) view.aim(day);
-		if (view && !empty && reaches(day)) return;
+		if (view) view.aim(day);
+		if (view && reaches(day)) return;
 		start = rested = day;
 		sync();
 	}
@@ -593,7 +593,7 @@
 			>
 				<span
 					data-week-from-now
-					class="mb-1 -ml-0.5 inline-flex items-center gap-1.5 rounded-pill py-px font-sans text-caption max-[359.98px]:text-micro {current
+					class="mb-1 -ml-0.5 inline-flex items-center gap-1.5 rounded-pill py-px font-sans text-caption max-[360px]:text-micro {current
 						? 'bg-accent pr-2 pl-1.5 font-semibold text-accent-foreground'
 						: 'bg-surface px-2 text-text ring-1 ring-border'}"
 				>
@@ -604,7 +604,7 @@
 				<span class="max-w-full truncate max-[1199.98px]:hidden"
 					>{dayRange(viewFrom, last(viewFrom), locale)}</span
 				>
-				<span class="max-w-full truncate max-[359.98px]:hidden min-[1200px]:hidden"
+				<span class="max-w-full truncate max-[360px]:hidden min-[1200px]:hidden"
 					>{dayRange(viewFrom, last(viewFrom), locale, 'short')}</span
 				>
 				<span class="max-w-full truncate min-[360px]:hidden"
@@ -647,7 +647,7 @@
 				</IconButton>
 			</div>
 		</div>
-		{#if listStamps.length > 0 || (!narrow.current && !empty)}
+		{#if listStamps.length > 0 || !narrow.current}
 			<!-- A row of their own under the date from md: the bar keeps the
 			     pager and the button, the lists get the width. From md the row
 			     keeps its line when the days at rest went to no list, so the
@@ -669,7 +669,7 @@
 				{/if}
 			</div>
 		{/if}
-		{#if !empty}
+		{#if listable}
 			<div class="flex min-w-0 flex-col gap-1 md:order-1 md:flex-row md:items-center md:gap-3">
 				<!-- The count is what the dialog would add for the shown week and the tray. -->
 				<Button
@@ -681,7 +681,7 @@
 						: undefined}
 					onclick={() => {
 						// The days the strip is on its way to, not the ones it left.
-						if (!narrow.current && view && !empty) rested = view.aimed() ?? rested;
+						if (!narrow.current && view) rested = view.aimed() ?? rested;
 						listingOne = null;
 						listing = true;
 					}}
@@ -700,7 +700,7 @@
 		{/if}
 	</div>
 
-	{#if !narrow.current && !empty}
+	{#if !narrow.current}
 		<div class="-mt-1 mb-3">
 			<DayTimeline
 				days={loaded}
@@ -722,45 +722,41 @@
 		aria-busy={pending || undefined}
 		class="transition-opacity {pending ? 'opacity-60' : ''}"
 	>
-		{#if empty}
-			<NoteEmptyState
-				art={planArt}
-				title={m.week_empty_title()}
-				steps={[
-					[m.week_empty_step_plan(), m.week_empty_step_plan_hint()],
-					[m.week_empty_step_list(), m.week_empty_step_list_hint()],
-					[m.week_empty_step_shop(), m.week_empty_step_shop_hint()]
-				]}
+		{#if blank}
+			<!-- How to begin, above the days and never instead of them; the
+			     first entry anywhere in the plan takes it away. The tray says
+			     on its own what lands there. -->
+			<aside
+				aria-labelledby="plan-hint"
+				class="mb-4 flex items-center gap-3 rounded-2xl bg-surface py-2 pr-4 pl-2 shadow-card max-[360px]:pl-4 md:mb-3"
 			>
-				<Button
-					variant="primary"
-					size="lg"
-					aria-haspopup="dialog"
-					onclick={() => openAdd()}
-					class="group shadow-cta md:h-12"
-				>
-					<Plus
-						aria-hidden="true"
-						strokeWidth={2.5}
-						class="size-5 transition-transform duration-300 ease-spring group-hover:rotate-90 motion-reduce:transition-none"
-					/>
-					{m.week_add()}
-				</Button>
-			</NoteEmptyState>
-		{:else}
-			<WeekView
-				bind:this={view}
-				{week}
-				today={data.today}
-				{monday}
-				bind:start
-				onat={(day) => (at = day)}
-				{count}
-				onsettle={settled}
-				bind:expanded={() => expandedWeek === monday, (open) => (expandedWeek = open ? monday : '')}
-				onadd={openAdd}
-			/>
+				<img
+					src={planArt}
+					alt=""
+					width="56"
+					height="56"
+					class="size-12 shrink-0 rounded-xl max-[360px]:hidden md:size-14 dark:opacity-90"
+				/>
+				<p class="min-w-0 text-body-sm text-pretty text-text-muted">
+					<span id="plan-hint" class="block font-display text-card font-medium text-text"
+						>{m.plan_hint_title()}</span
+					>
+					{m.plan_hint_text()}
+				</p>
+			</aside>
 		{/if}
+		<WeekView
+			bind:this={view}
+			{week}
+			today={data.today}
+			{monday}
+			bind:start
+			onat={(day) => (at = day)}
+			{count}
+			onsettle={settled}
+			bind:expanded={() => expandedWeek === monday, (open) => (expandedWeek = open ? monday : '')}
+			onadd={openAdd}
+		/>
 	</div>
 </div>
 

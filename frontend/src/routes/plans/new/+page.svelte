@@ -40,6 +40,7 @@
 			pending: [],
 			...range,
 			entries: [],
+			hasEntries: false,
 			unlisted: 0,
 			lists: []
 		} satisfies MealPlan,

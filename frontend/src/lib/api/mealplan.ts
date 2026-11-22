@@ -47,6 +47,8 @@ export type MealPlan = {
 	to: string;
 	/** The tray first, then by day and position. */
 	entries: PlanEntry[];
+	/** Whether the plan holds an entry anywhere, outside `from`–`to` too. */
+	hasEntries: boolean;
 	/** Recipe entries on no list the reader can access, on the tray or on the reader's today or later (`span` sends it). */
 	unlisted: number;
 	/** The accessible lists the entries are on, most entries first. */

@@ -3505,6 +3505,9 @@
           "from": {
             "type": "string"
           },
+          "hasEntries": {
+            "type": "boolean"
+          },
           "id": {
             "type": "string"
           },
@@ -3570,6 +3573,7 @@
           "from",
           "to",
           "entries",
+          "hasEntries",
           "unlisted",
           "lists"
         ],

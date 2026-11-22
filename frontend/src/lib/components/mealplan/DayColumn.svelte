@@ -10,18 +10,23 @@
 	 * over its cards, "MO 16." on a dotted rule. It runs to the strip's foot,
 	 * its drop zone with it. Today's header is an accent band and the column
 	 * is outlined, inside its edge, as the strip clips at its sides. A day
-	 * gone by sits back a little until the pointer or the focus comes.
+	 * gone by sits back a little until the pointer or the focus comes. An
+	 * empty day's one "+" is the dashed box under the header (`WeekView`'s
+	 * zone, with the same `data-day-add`), so the header's own shows only
+	 * above cards.
 	 */
 	let {
 		day,
 		today,
 		past,
+		empty,
 		onadd,
 		children
 	}: {
 		day: string;
 		today: boolean;
 		past: boolean;
+		empty: boolean;
 		onadd: () => void;
 		children: Snippet;
 	} = $props();
@@ -53,16 +58,18 @@
 		<span class="font-display text-heading leading-none font-medium {past ? 'text-text-muted' : ''}"
 			>{names.number}</span
 		>
-		<button
-			type="button"
-			aria-label={m.plan_day_add({ day: names.full })}
-			data-day-add={day}
-			aria-haspopup="dialog"
-			onclick={onadd}
-			class="ml-auto inline-flex size-7 shrink-0 items-center justify-center self-center rounded-full text-text-muted transition hover:bg-surface hover:text-text focus-visible:outline-2 focus-visible:outline-primary"
-		>
-			<Plus class="size-4" aria-hidden="true" />
-		</button>
+		{#if !empty}
+			<button
+				type="button"
+				aria-label={m.plan_day_add({ day: names.full })}
+				data-day-add={day}
+				aria-haspopup="dialog"
+				onclick={onadd}
+				class="ml-auto inline-flex size-7 shrink-0 items-center justify-center self-center rounded-full text-text-muted transition hover:bg-surface hover:text-text focus-visible:outline-2 focus-visible:outline-primary"
+			>
+				<Plus class="size-4" aria-hidden="true" />
+			</button>
+		{/if}
 	</header>
 	<div
 		class="flex flex-1 flex-col {today ? 'px-2' : ''} {past

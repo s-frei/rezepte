@@ -50,6 +50,9 @@ type Plan struct {
 	To      string   `json:"to"`
 	// Entries are the tray first, then by day and position.
 	Entries []PlanEntry `json:"entries"`
+	// HasEntries says whether the plan holds an entry on any day or the
+	// tray, also outside From and To.
+	HasEntries bool `json:"hasEntries"`
 	// Unlisted counts the recipe entries on no list the caller can access,
 	// on the tray or on the reader's today or later (see unlisted).
 	Unlisted int `json:"unlisted"`

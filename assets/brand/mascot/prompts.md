@@ -70,6 +70,16 @@ For the shopping lists overview while a person has no list yet (`NoteEmptyState`
 
 > Edit this illustration and keep the same cookbook character: same book, same amber-brown cover, same sage-green ribbon bookmark, same cream pages, same face style, same vintage-cookbook gouache style with dark ink outline, same flat cream background #f4ede2 edge to edge, same framing (full figure, centered, about 80% of the square). Change only the pose and props: the character carries a small empty woven wicker shopping basket over one arm, and with the other hand holds up a short blank slip of cream paper and a little pencil, as if about to write down what to buy. Expression: cheerful, eager, one eyebrow slightly raised, a warm lopsided grin, "let's see what we need". The basket is empty. No wooden spoon. No text, no letters or scribbles on the paper, no symbols, no blush, no sparkle highlights. Soft contact shadow.
 
+## The empty week pose
+
+### `rezepte-mascot-plan-original.jpg`
+
+For a plan's week while nothing is planned in it (`NoteEmptyState` on `/plans/<id>`). An edit of `rezepte-mascot-original.jpg` (`inputImagePaths`), `generate_image` of `mcp-image`, generator model `gemini-nano-banana-2.1`, `aspectRatio` `1:1`, `imageSize` `2K`, `maintainCharacterConsistency: true`, shown with its ground as a card like the shopping pose.
+
+**purpose**: Brand mascot pose for a recipe app's empty meal plan (no meals planned this week yet)
+
+> Edit this illustration and keep the same cookbook character: same book, same amber-brown cover, same sage-green ribbon bookmark, same cream pages, same face style, same vintage-cookbook gouache style with dark ink outline, same flat cream background #f4ede2 edge to edge, same framing (full figure, centered, about 80% of the square). Change only the pose and props: the character stands beside a simple wooden-framed cork pinboard showing a blank weekly grid of seven empty columns, and reaches up to pin a small cream recipe card onto the first column with a red push pin held between its fingers; two more blank recipe cards are tucked under its other arm. Expression: cheerful, focused, one eyebrow slightly raised, a warm lopsided grin, "let's plan the week". No wooden spoon. No text, no letters, no numbers, no day names, no scribbles on the cards or the board, no symbols, no blush, no sparkle highlights. Soft contact shadow.
+
 ## The empty recipe overview pose
 
 ### `rezepte-mascot-first-recipe-original.jpg`

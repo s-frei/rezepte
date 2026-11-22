@@ -106,6 +106,11 @@ WHERE e.plan_id = sqlc.arg(plan_id) AND e.removed_at IS NULL
   AND (e.day IS NULL OR (e.day >= sqlc.arg(from_day) AND e.day <= sqlc.arg(to_day)))
 ORDER BY e.day NULLS FIRST, e.position, e.created_at, e.id;
 
+-- name: MealPlanHasEntries :one
+SELECT EXISTS (
+  SELECT 1 FROM meal_plan_entries WHERE plan_id = sqlc.arg(plan_id) AND removed_at IS NULL
+) AS has_entries;
+
 -- name: GetMealPlanEntry :one
 SELECT id, day, position, recipe_id, servings, removed_at
 FROM meal_plan_entries WHERE id = sqlc.arg(id) AND plan_id = sqlc.arg(plan_id);

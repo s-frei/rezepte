@@ -1011,6 +1011,19 @@ func (q *Queries) ListRemovedMealPlanEntryIDs(ctx context.Context, arg ListRemov
 	return items, nil
 }
 
+const mealPlanHasEntries = `-- name: MealPlanHasEntries :one
+SELECT EXISTS (
+  SELECT 1 FROM meal_plan_entries WHERE plan_id = ?1 AND removed_at IS NULL
+) AS has_entries
+`
+
+func (q *Queries) MealPlanHasEntries(ctx context.Context, planID string) (bool, error) {
+	row := q.db.QueryRowContext(ctx, mealPlanHasEntries, planID)
+	var has_entries bool
+	err := row.Scan(&has_entries)
+	return has_entries, err
+}
+
 const nextMealPlanEntryPosition = `-- name: NextMealPlanEntryPosition :one
 SELECT COUNT(*) FROM meal_plan_entries
 WHERE plan_id = ?1 AND day IS ?2 AND removed_at IS NULL

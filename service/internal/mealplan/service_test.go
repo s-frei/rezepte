@@ -355,6 +355,51 @@ func TestRangeIncludesBothEnds(t *testing.T) {
 	}
 }
 
+func TestHasEntriesLooksBeyondTheRange(t *testing.T) {
+	ctx := context.Background()
+	e := setup(t)
+	id := e.plan(t).ID
+	has := func(want bool) {
+		t.Helper()
+		p, err := e.svc.Get(ctx, e.a.ID, id, mon, sun)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if p.HasEntries != want {
+			t.Fatalf("hasEntries = %v, want %v", p.HasEntries, want)
+		}
+	}
+	has(false)
+	title := "Later"
+	p, err := e.svc.Add(ctx, e.a.ID, id, "2026-12-07", "2026-12-07", mealplan.AddEntry{Day: ptr("2026-12-07"), Title: &title})
+	if err != nil || len(p.Entries) != 1 {
+		t.Fatalf("add = %+v, %v", p, err)
+	}
+	has(true)
+	later := p.Entries[0].ID
+	if _, err := e.svc.Remove(ctx, e.a.ID, id, later, mon, sun); err != nil {
+		t.Fatal(err)
+	}
+	has(false)
+	// Undone within the removal's window, it counts again.
+	if _, err := e.svc.Restore(ctx, e.a.ID, id, later, mon, sun); err != nil {
+		t.Fatal(err)
+	}
+	has(true)
+	if _, err := e.svc.Remove(ctx, e.a.ID, id, later, mon, sun); err != nil {
+		t.Fatal(err)
+	}
+	// The tray counts, in any span.
+	tray := e.add(t, id, nil, "Tray")
+	if p, err := e.svc.Get(ctx, e.a.ID, id, "2027-01-04", "2027-01-10"); err != nil || !p.HasEntries {
+		t.Fatalf("tray only: hasEntries = %v, %v", p.HasEntries, err)
+	}
+	if _, err := e.svc.Remove(ctx, e.a.ID, id, tray, mon, sun); err != nil {
+		t.Fatal(err)
+	}
+	has(false)
+}
+
 func TestRangeLimit(t *testing.T) {
 	ctx := context.Background()
 	e := setup(t)
