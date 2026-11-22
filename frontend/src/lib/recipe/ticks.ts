@@ -1,3 +1,4 @@
+import type { IngredientSuggestion } from '#lib/api/ingredients.js';
 import type { PantryItem } from '#lib/api/recipes.js';
 import { covers } from './covers.js';
 
@@ -28,4 +29,18 @@ export function withTicks(row: PantryItem[], ticked: PantryItem[]): PantryItem[]
 /** The pills a capped row hides: past `cap`, all but the ticked and covered ones. */
 export function beyondCap(items: PantryItem[], ticked: PantryItem[], cap: number): PantryItem[] {
 	return items.filter((item, i) => i >= cap && !ownTick(item, ticked) && !coveredBy(item, ticked));
+}
+
+/** Whether a tick covers this key, compared by keys: "Tomaten" ticked is "tomate". */
+export function tickCovers(ticked: PantryItem[], key: string): boolean {
+	return ticked.some((t) => covers(t.key, key));
+}
+
+/**
+ * The suggestions that are not a chip yet, by their own key or name: one
+ * whose "also" names a chip is still offered, it is another ingredient.
+ */
+export function notChips(items: IngredientSuggestion[], chips: string[]): IngredientSuggestion[] {
+	const names = new Set(chips.map((name) => name.toLocaleLowerCase()));
+	return items.filter((item) => !names.has(item.key) && !names.has(item.name.toLocaleLowerCase()));
 }

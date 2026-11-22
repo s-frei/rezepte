@@ -6,7 +6,18 @@
 	// Layout only - the caller decides what goes in each cell (real
 	// `RecipeCard`s or skeleton placeholders while loading), so both share
 	// the exact same grid.
-	let { children }: { children: Snippet } = $props();
+	let {
+		children,
+		frozen = false
+	}: {
+		children: Snippet;
+		/**
+		 * Holds the layout while a card is focused: every card keeps its
+		 * height (as a minimum) and its column, so ticking, which shortens
+		 * the missing lines, moves no card. Let go, the cards lay out afresh.
+		 */
+		frozen?: boolean;
+	} = $props();
 
 	// The fallback for browsers without `grid-lanes`: the cards leave the
 	// grid flow and `placeCards` names each one's column and `top`, which
@@ -26,10 +37,19 @@
 	// next. Reading the size also attaches the layout afresh on a change,
 	// which the observer below would miss: new tracks leave the grid's width
 	// alone, and the width is all it answers to.
+	//
+	// `frozen` is read here too, so freezing and letting go attach the
+	// layout afresh: the frozen one takes each card's height and column as
+	// they are now. The heights hold on the native path as well, which is
+	// what keeps it from moving a card; the columns are the fallback's own.
 	function masonry(grid: HTMLElement) {
 		grid.dataset.size = cardSize.desktop;
 		grid.toggleAttribute('data-wide', cardSize.phone === 1);
-		if (CSS.supports('display', 'grid-lanes')) return;
+		const held = frozen ? hold(grid) : null;
+		const release = () => {
+			for (const card of held?.keys() ?? []) card.style.removeProperty('min-height');
+		};
+		if (CSS.supports('display', 'grid-lanes')) return release;
 		grid.style.position = 'relative';
 
 		let frame = 0;
@@ -60,7 +80,15 @@
 			// tilted, and its box would be a few pixels taller.
 			const heights = cards.map((card) => Math.ceil(parseFloat(getComputedStyle(card).height)));
 			const bottoms = new Array<number>(columns).fill(0);
-			placeCards(heights, columns, gap).forEach(({ column, top }, i) => {
+			const places = held
+				? placeHeld(
+						cards.map((card) => held.get(card)?.column),
+						heights,
+						columns,
+						gap
+					)
+				: placeCards(heights, columns, gap);
+			places.forEach(({ column, top }, i) => {
 				cards[i].style.left = `${column * (track + columnGap)}px`;
 				cards[i].style.top = `${top}px`;
 				bottoms[column] = top + heights[i];
@@ -112,7 +140,45 @@
 			cancelAnimationFrame(frame);
 			resizes.disconnect();
 			mutations.disconnect();
+			release();
 		};
+	}
+
+	/** Each card's height now, held as its minimum, and the column it stands in. */
+	function hold(grid: HTMLElement) {
+		const cards = [...grid.children] as HTMLElement[];
+		const style = getComputedStyle(grid);
+		const step = parseFloat(style.gridTemplateColumns.split(' ')[0]) + parseFloat(style.columnGap);
+		// A plain Map: nothing renders from it.
+		return new Map(
+			cards.map((card) => {
+				card.style.minHeight = `${Math.ceil(parseFloat(getComputedStyle(card).height))}px`;
+				return [card, { column: Math.round(parseFloat(card.style.left || '0') / step) }] as const;
+			})
+		);
+	}
+
+	/**
+	 * Cards in the columns they were held in, stacked in DOM order; one that
+	 * joined since goes into the shortest column.
+	 */
+	function placeHeld(
+		held: (number | undefined)[],
+		heights: number[],
+		columns: number,
+		gap: number
+	): { column: number; top: number }[] {
+		const columnHeights = new Array<number>(columns).fill(0);
+		return heights.map((height, i) => {
+			const kept = held[i];
+			const column =
+				kept !== undefined && kept < columns
+					? kept
+					: columnHeights.indexOf(Math.min(...columnHeights));
+			const top = columnHeights[column];
+			columnHeights[column] = top + height + gap;
+			return { column, top };
+		});
 	}
 </script>
 

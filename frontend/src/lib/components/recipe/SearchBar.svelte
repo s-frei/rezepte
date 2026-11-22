@@ -9,13 +9,14 @@
 	import { cubicOut } from 'svelte/easing';
 	import { prefersReducedMotion } from 'svelte/motion';
 	import { fly } from 'svelte/transition';
+	import { untrack } from 'svelte';
 	import { listIngredients, type IngredientSuggestion } from '#lib/api/ingredients.js';
-	import type { Tag } from '#lib/api/recipes.js';
+	import type { PantryItem, Tag } from '#lib/api/recipes.js';
 	import { m } from '#lib/paraglide/messages.js';
 	import { palette } from '#lib/palette.svelte.js';
-	import { covers } from '#lib/recipe/covers.js';
 	import { matchedPart } from '#lib/recipe/step-references.js';
 	import { rankTags } from '#lib/recipe/tag-suggestions.js';
+	import { notChips, tickCovers } from '#lib/recipe/ticks.js';
 
 	let {
 		value = $bindable(''),
@@ -44,9 +45,9 @@
 		/** Ingredient chips, shown inside the field. */
 		ingredients: string[];
 		/** Ticked ingredients; a suggestion they cover says it is ticked. */
-		have: string[];
-		/** Adds a suggested ingredient as a chip. */
-		onaddingredient: (name: string) => void;
+		have: PantryItem[];
+		/** Adds a suggested ingredient as a chip, by its name and the key it matches by. */
+		onaddingredient: (name: string, key: string) => void;
 		/** Drops a chip, by its ✕ or Backspace in the empty field. */
 		onremoveingredient: (name: string) => void;
 		/** Id of the text field, for a label or a caller that needs to reach it. */
@@ -73,9 +74,42 @@
 	 * only while that is still the text, so an earlier word's suggestions
 	 * never stand under a later one. */
 	let suggested = $state<{ q: string; items: IngredientSuggestion[] }>({ q: '', items: [] });
-	/** What each chip picked here also covers, for its tooltip; a chip that
-	 * came with the URL has no entry and so no tooltip. */
+	/** What each chip also covers, for its tooltip: known from the pick, or
+	 * asked for once for a chip that came with the URL. */
 	let alsoOf = $state<Record<string, string[]>>({});
+	$effect(() => {
+		for (const name of ingredients) {
+			const lower = name.toLocaleLowerCase();
+			if (untrack(() => name in alsoOf)) continue;
+			alsoOf[name] = [];
+			listIngredients(lower, 4).then(
+				(items) => {
+					const item = items.find((i) => i.key === lower || i.name.toLocaleLowerCase() === lower);
+					if (item && item.also.length > 0) alsoOf[name] = item.also;
+				},
+				() => {
+					// Without it the chip has no tooltip, as before the fetch.
+				}
+			);
+		}
+	});
+
+	/** The chip a long press shows the tooltip of, on a touch screen, while
+	 * the finger stays and for 3 s at most. */
+	let pressed = $state<string | null>(null);
+	let pressTimer: ReturnType<typeof setTimeout> | undefined;
+	function press(event: PointerEvent, name: string) {
+		release();
+		if (event.pointerType !== 'touch') return;
+		pressTimer = setTimeout(() => {
+			pressed = name;
+			pressTimer = setTimeout(release, 3000);
+		}, 500);
+	}
+	function release() {
+		clearTimeout(pressTimer);
+		pressed = null;
+	}
 
 	$effect(() => {
 		const q = query;
@@ -101,15 +135,8 @@
 		};
 	});
 
-	const chipNames = $derived(new Set(ingredients.map((name) => name.toLocaleLowerCase())));
 	const ingredientSuggestions = $derived(
-		(suggested.q === query ? suggested.items : [])
-			.filter(
-				(item) =>
-					!chipNames.has(item.key) &&
-					![item.name, ...item.also].some((name) => chipNames.has(name.toLocaleLowerCase()))
-			)
-			.slice(0, 4)
+		notChips(suggested.q === query ? suggested.items : [], ingredients).slice(0, 4)
 	);
 
 	/** The text row first while there is text, then ingredients, then tags. */
@@ -158,10 +185,6 @@
 		document.getElementById(`${id}-option-${current}`)?.scrollIntoView({ block: 'nearest' });
 	});
 
-	function ticked(item: IngredientSuggestion) {
-		return have.some((name) => covers(name.toLocaleLowerCase(), item.key));
-	}
-
 	function handleInput() {
 		open = true;
 		highlighted = null;
@@ -204,11 +227,13 @@
 	function addIngredient(item: IngredientSuggestion) {
 		clearTimeout(debounceTimer);
 		value = '';
-		if (item.also.length > 0) {
-			alsoOf[item.name] = item.also;
-		}
-		onaddingredient(item.name);
+		alsoOf[item.name] = item.also;
+		onaddingredient(item.name, item.key);
 		close();
+		// A phone drops the keyboard, so the chips' cards come into view.
+		if (phone.current) {
+			inputNode?.blur();
+		}
 	}
 
 	function choose(index: number) {
@@ -348,6 +373,9 @@
 	</div>
 {/snippet}
 
+<!-- Capture, so a press on another chip starts after this has let go. -->
+<svelte:window onpointerdowncapture={release} />
+
 {#snippet heading(text: string, headingId: string)}
 	<div id={headingId} class="px-3 pt-2.5 pb-0.5 text-label font-bold text-text-muted uppercase">
 		{text}
@@ -375,17 +403,29 @@
 	56
 		? 'rounded-3xl'
 		: 'rounded-pill'} {ingredients.length > 0
-		? 'md:max-w-[640px] md:flex-1'
+		? 'max-md:pl-3 md:max-w-[640px] md:flex-1'
 		: 'md:w-[460px]'} {className}"
 >
-	<Search class="mr-0.5 size-5 shrink-0 text-text-muted" aria-hidden="true" />
-	{#each ingredients as name (name)}
-		{@const also = alsoOf[name]}
+	<!-- A phone's field is narrow: with chips it drops the magnifier, and
+	     they drop the carrot, so two short names share a line. -->
+	<Search
+		class="mr-0.5 size-5 shrink-0 text-text-muted {ingredients.length > 0 ? 'max-md:hidden' : ''}"
+		aria-hidden="true"
+	/>
+	{#each ingredients as name, i (name)}
+		{@const also = alsoOf[name] ?? []}
+		<!-- "Also covers" shows under the chip on hover, on focus of its ✕,
+		     which it describes, and on a long press. The press is the touch
+		     screen's way in; a keyboard gets the same through the ✕'s focus. -->
+		<!-- svelte-ignore a11y_no_static_element_interactions -->
 		<span
-			title={also ? m.search_ingredient_covers({ names: also.join(', ') }) : undefined}
-			class="inline-flex h-8 items-center gap-1.5 rounded-pill bg-accent pl-2.5 text-body-sm font-semibold whitespace-nowrap text-accent-foreground"
+			onpointerdown={(event) => press(event, name)}
+			onpointerup={release}
+			onpointercancel={release}
+			oncontextmenu={(event) => pressed === name && event.preventDefault()}
+			class="group/chip relative inline-flex h-8 items-center gap-1.5 rounded-pill bg-accent pl-2.5 text-body-sm font-semibold whitespace-nowrap text-accent-foreground select-none"
 		>
-			<Carrot class="size-3.5 shrink-0" aria-hidden="true" />
+			<Carrot class="size-3.5 shrink-0 max-md:hidden" aria-hidden="true" />
 			{name}
 			<!-- The hit area reaches 10px back over the chip's own name and 6px
 			     out over the gap: 44x44 without touching the next chip or the
@@ -394,10 +434,23 @@
 				type="button"
 				onclick={() => removeChip(name)}
 				aria-label={m.search_remove_ingredient({ name })}
+				aria-describedby={also.length > 0 ? `${id}-chip-${i}-also` : undefined}
 				class="relative grid h-8 w-7 place-items-center opacity-80 after:absolute after:-inset-y-1.5 after:-right-1.5 after:-left-2.5 after:content-['']"
 			>
 				<X class="size-3.5" aria-hidden="true" />
 			</button>
+			{#if also.length > 0}
+				<span
+					id="{id}-chip-{i}-also"
+					role="tooltip"
+					class="pointer-events-none absolute top-full left-0 z-30 mt-1.5 w-max max-w-64 rounded-md border border-popover-border bg-popover px-2.5 py-1.5 text-caption font-normal whitespace-normal text-text shadow-card group-focus-within/chip:block group-hover/chip:block {pressed ===
+					name
+						? 'block'
+						: 'hidden'}"
+				>
+					{m.search_ingredient_covers({ names: also.join(', ') })}
+				</span>
+			{/if}
 		</span>
 	{/each}
 	<input
@@ -512,7 +565,7 @@
 								{@render option(
 									index,
 									row.item.name,
-									ticked(row.item)
+									tickCovers(have, row.item.key)
 										? m.search_ingredient_ticked()
 										: row.item.also.length > 0
 											? m.search_ingredient_also({ names: row.item.also.join(', ') })

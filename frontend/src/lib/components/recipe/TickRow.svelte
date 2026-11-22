@@ -63,6 +63,16 @@
 				}).split('\u0000')
 	);
 
+	// The first tick takes the hint's line away; the row keeps the height it
+	// had with the hint, or the sticky row and the grid under it would jump.
+	// A new row (new chips, text or tags) starts over.
+	let height = $state(0);
+	let hinted = $state.raw<{ row: PantryItem[]; height: number } | null>(null);
+	$effect(() => {
+		if (hint && !focus && height > 0) hinted = { row, height };
+	});
+	const keep = $derived(!hint && !focus && hinted?.row === row ? hinted.height : 0);
+
 	// Up to five rows stand open; beyond that the focused row scrolls inside,
 	// the fifth row peeking under a fade until the end is reached.
 	function measure(el: HTMLElement) {
@@ -137,6 +147,8 @@
 	a two-column grid below `md`, a flex row from there with Done last.
 -->
 <div
+	bind:offsetHeight={height}
+	style:min-height={keep ? `${keep}px` : undefined}
 	class="grid grid-cols-[minmax(0,1fr)_auto] items-center md:flex md:items-start {focus
 		? 'gap-x-3'
 		: 'md:gap-x-3'}"
@@ -163,10 +175,6 @@
 	</div>
 
 	{#if focus}
-		<!-- 44px on a phone, a dense row's height; 40px beside the pills on a desktop. -->
-		<Button onclick={ondone} class="gap-1.5 font-bold max-md:h-11 md:order-last md:shadow-cta">
-			<Check class="size-4" strokeWidth={3} aria-hidden="true" />{m.ticks_done()}
-		</Button>
 		{#if items.length > 0}<div
 				role="group"
 				aria-labelledby="{id}-label"
@@ -177,6 +185,16 @@
 			>
 				{#each items as item (item.key)}{@render pill(item)}{/each}
 			</div>{/if}
+		<!-- After the pills in the document, so Tab reaches it last; on a
+		     phone it is placed back into the header's second column.
+		     44px on a phone, a dense row's height; 40px beside the pills on
+		     a desktop. -->
+		<Button
+			onclick={ondone}
+			class="gap-1.5 font-bold max-md:col-start-2 max-md:row-start-1 max-md:h-11 md:shadow-cta"
+		>
+			<Check class="size-4" strokeWidth={3} aria-hidden="true" />{m.ticks_done()}
+		</Button>
 	{:else}
 		<ScrollFade
 			frame="col-span-2 -m-1 min-w-0 md:flex-1"

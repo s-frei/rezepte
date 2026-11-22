@@ -136,7 +136,12 @@
 
 <!-- How much the recipe still needs; see PantryStamp. -->
 {#snippet stamp()}
-	<PantryStamp missing={missing.length} pressed={focused} onpress={onfocuspantry} />
+	<PantryStamp
+		title={recipe.title}
+		missing={missing.length}
+		pressed={focused}
+		onpress={onfocuspantry}
+	/>
 {/snippet}
 
 <!--
@@ -246,6 +251,14 @@
 		>
 			{initialFor(recipe.title)}
 		</span>
+	{/if}
+	<!-- On a photo the stamp mirrors the star into the top-left corner.
+	     Before the link in the document, so Tab reaches it first as the eye
+	     does; `z-10` lifts it over the link's `::after`, which comes later. -->
+	{#if recipe.pantry && photo}
+		<div class="absolute top-3 left-3 z-10 flex desk:top-3.5 desk:left-3.5">
+			{@render stamp()}
+		</div>
 	{/if}
 	<!-- One inner padding for the text of both shapes, 12px on a phone and
 	     16px from md up; the text card starts lower, where it has no photo
@@ -414,8 +427,4 @@
 	<div class="absolute {photo ? 'top-3 right-3' : 'top-2.5 right-2.5'} desk:top-3.5 desk:right-3.5">
 		<FavoriteStar id={recipe.id} active={recipe.favorite} card {photo} />
 	</div>
-	<!-- On a photo the stamp mirrors the star into the top-left corner. -->
-	{#if recipe.pantry && photo}
-		<div class="absolute top-3 left-3 flex desk:top-3.5 desk:left-3.5">{@render stamp()}</div>
-	{/if}
 </article>

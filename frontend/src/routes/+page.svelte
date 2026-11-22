@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { onMount, tick, untrack } from 'svelte';
 	import { prefersReducedMotion } from 'svelte/motion';
+	import { MediaQuery } from 'svelte/reactivity';
 	import ArrowDownWideNarrow from '@lucide/svelte/icons/arrow-down-wide-narrow';
 	import Columns2 from '@lucide/svelte/icons/columns-2';
 	import Grid3x3 from '@lucide/svelte/icons/grid-3x3';
@@ -16,6 +17,7 @@
 		listRecipes,
 		listTags,
 		type Author,
+		type PantryItem,
 		type RecipeCard as RecipeCardData,
 		type RecipePage,
 		type SearchSection,
@@ -40,6 +42,7 @@
 	import ResultCount from '#lib/components/recipe/ResultCount.svelte';
 	import SearchBar from '#lib/components/recipe/SearchBar.svelte';
 	import TagFilter from '#lib/components/recipe/TagFilter.svelte';
+	import TickRow from '#lib/components/recipe/TickRow.svelte';
 	import {
 		cardSize,
 		setCardSize,
@@ -47,6 +50,7 @@
 		type CardSize,
 		type PhoneColumns
 	} from '#lib/recipe/card-size.svelte.js';
+	import { missingAfterTicks } from '#lib/recipe/finds.js';
 	import { formatDay } from '#lib/recipe/format.js';
 	import { overviewViewState } from '#lib/recipe/overview-state.js';
 	import { buildListQuery, isSort, parseListQuery, type Sort } from '#lib/recipe/query.js';
@@ -66,6 +70,12 @@
 	let q = $state(untrack(() => data.q));
 	let tags = $state<string[]>(untrack(() => data.tags));
 	let ingredients = $state<string[]>(untrack(() => data.ingredients));
+	/**
+	 * The ticks, the user's own. A name from the URL has no key yet; the
+	 * first list keys it (`adoptTicks`), and until then its lower case
+	 * stands in.
+	 */
+	let have = $state<PantryItem[]>(untrack(() => untick(data.have, [])));
 	let maxMinutes = $state(untrack(() => data.maxMinutes));
 	let favoritesOnly = $state(untrack(() => data.favorites));
 	let author = $state(untrack(() => data.author));
@@ -87,6 +97,51 @@
 	let lastPage = $state(false);
 	/** A search's results counted by section; absent without a search. */
 	let sections = $state<RecipePage['sections']>();
+	/**
+	 * The ingredient search's sections, counted by how many chips a recipe
+	 * uses, with the chips they were counted for: the headings name those,
+	 * not chips added since.
+	 */
+	let pantrySections = $state<{ counts: Record<number, number>; chips: string[] }>();
+	/**
+	 * The tick row's order, what the ranked cards miss: frozen for the chips,
+	 * text and tags it was fetched for (`rowFor`), so a tick, a clear or an
+	 * undo never moves a pill.
+	 */
+	let row = $state.raw<PantryItem[]>([]);
+	let rowFor = '';
+	/** The card the tick row is focused on; view state, never in the URL. */
+	let focusedId = $state<string | null>(null);
+	/** The first-use hint, until the first tick or focus of this visit. */
+	let hint = $state(true);
+	/** The pill under the mouse, marked in every card's missing line. */
+	let hovered = $state<string | null>(null);
+	/**
+	 * Room kept under the results from the first focus until the query
+	 * changes: a re-sort or a shorter missing line would otherwise shorten
+	 * the page, and the browser would pull the pinned card up with it.
+	 */
+	let reserve = $state(0);
+	/**
+	 * The grids hold every card's height and column from a focus until the
+	 * next list is shown, so ticking moves no card, and "Done" lets go in
+	 * the same step the re-sort glides in (see RecipeGrid).
+	 */
+	let frozen = $state(false);
+	/**
+	 * The general row's height when a desktop card was focused: the focused
+	 * row keeps at least that, or the grid under it would rise (the hint
+	 * goes, the focused row is shorter) at the top of a page that cannot
+	 * scroll up to make up for it.
+	 */
+	let rowHeight = $state(0);
+	/** What the polite live region last said: the card a stamp focused. */
+	let announcement = $state('');
+	let resortTimer: ReturnType<typeof setTimeout> | undefined;
+	/** The controller of the list fetch under way when it is a quiet re-sort. */
+	let quietController: AbortController | null = null;
+	/** The ticks the cards on screen were ranked by, for the pages "Load more" adds. */
+	let rankedHave: string[] = [];
 	let allTags = $state<Tag[]>([]);
 	/**
 	 * The desktop row's tags while a search text is on, counted under it too:
@@ -178,7 +233,12 @@
 	// recipes at all" apart from "no recipes match". A later filter section
 	// adds its own clause here rather than teaching either of those about it.
 	const filtered = $derived(
-		q !== '' || tags.length > 0 || maxMinutes > 0 || favoritesOnly || author !== ''
+		q !== '' ||
+			tags.length > 0 ||
+			ingredients.length > 0 ||
+			maxMinutes > 0 ||
+			favoritesOnly ||
+			author !== ''
 	);
 	const viewState = $derived(
 		overviewViewState({
@@ -227,7 +287,7 @@
 			q,
 			tags,
 			ingredients,
-			have: [],
+			have: have.map((item) => item.name),
 			maxMinutes,
 			favorites: favoritesOnly,
 			author,
@@ -306,14 +366,39 @@
 	const suggestedTags = tagList((result) => (allTags = result));
 	const rowTags = tagList((result) => (textTags = result));
 
-	async function fetchPage(pageToFetch: number, append: boolean, animate = true) {
+	/**
+	 * `quiet`, for a re-sort after ticks: the same query, so the cards stay
+	 * on screen under no skeleton, and the room kept under them stays.
+	 * `anchor`: the card that keeps its place on screen while the others
+	 * glide (the one "Done" let go of).
+	 */
+	async function fetchPage(
+		pageToFetch: number,
+		append: boolean,
+		animate = true,
+		{ quiet = false, anchor }: { quiet?: boolean; anchor?: string } = {}
+	) {
 		abortController?.abort();
 		const controller = new AbortController();
 		abortController = controller;
+		quietController = quiet ? controller : null;
+		// "Load more" pages the ranking on screen, so a re-sort the ticks
+		// started still comes after it.
+		if (!append) clearTimeout(resortTimer);
+		const sentHave = append
+			? rankedHave
+			: ingredients.length > 0
+				? have.map((item) => item.name)
+				: [];
+		// What the row and the section headings are fetched for.
+		const sent = { q, tags, ingredients };
 
 		if (append) {
 			loadingMore = true;
+		} else if (quiet) {
+			loading = true;
 		} else {
+			reserve = 0;
 			refreshTags();
 			loading = true;
 			clearTimeout(skeletonTimer);
@@ -331,6 +416,9 @@
 						q: q || undefined,
 						tags,
 						ingredients,
+						// Ticks only count against chips; a page appended counts
+						// the ones the cards above it were ranked by.
+						have: sentHave,
 						maxMinutes,
 						favorites: favoritesOnly,
 						author: author || undefined,
@@ -354,8 +442,8 @@
 			const fetched = pages.flatMap((p) => p.items);
 			const show = () => {
 				// A glide hands this over a frame later, by when a newer
-				// request may have taken over.
-				if (controller !== abortController) {
+				// request may have taken over, or a focus aborted this one.
+				if (controller !== abortController || controller.signal.aborted) {
 					return;
 				}
 				arrival = !listed && 'arrival' in document.documentElement.dataset;
@@ -385,7 +473,23 @@
 				total = result.total;
 				lastPage = result.page * result.limit >= result.total;
 				sections = result.sections;
+				pantrySections = result.pantry?.sections && {
+					counts: result.pantry.sections,
+					chips: sent.ingredients
+				};
+				if (result.pantry) {
+					adoptTicks(result.pantry.ticked);
+				}
+				const frozenFor = JSON.stringify(sent);
+				if (!append && frozenFor !== rowFor) {
+					row = result.pantry?.row ?? [];
+					rowFor = frozenFor;
+				}
 				pageNum = result.page;
+				if (!append) {
+					frozen = false;
+					rankedHave = sentHave;
+				}
 				// Inside the update, so the glide's picture of the new state
 				// already has the skeleton or the empty state where it belongs.
 				settle();
@@ -403,13 +507,17 @@
 					restoreY = null;
 				}
 			} else {
-				await glide(show);
+				const pinned = anchor
+					? document.querySelector<HTMLElement>(`main [data-card="${anchor}"]`)
+					: null;
+				await glide(show, pinned ?? false);
 			}
 			listed = true;
 		} catch (err) {
 			if (err instanceof DOMException && err.name === 'AbortError') {
 				return;
 			}
+			frozen = false;
 			toast.error(m.overview_load_error());
 		} finally {
 			settle();
@@ -430,12 +538,15 @@
 	function handleSearch(value: string) {
 		q = value;
 		pageNum = 1;
+		focusedId = null;
 		void fetchPage(1, false, false);
 	}
 
-	/** A filter or the order changed: back to the first page. */
+	/** A filter, the chips or the order changed: back to the first page, and
+	 * the row lets go of its card. */
 	function refilter() {
 		pageNum = 1;
+		focusedId = null;
 		void fetchPage(1, false);
 	}
 
@@ -444,19 +555,211 @@
 		refilter();
 	}
 
-	function addIngredient(name: string) {
-		const key = name.toLocaleLowerCase();
-		if (ingredients.some((n) => n.toLocaleLowerCase() === key)) {
-			return;
+	/** Ticks named in a URL, keyed by their lower case until a list keys them. */
+	function untick(names: string[], known: PantryItem[]): PantryItem[] {
+		return names.map(
+			(name) => known.find((item) => item.name === name) ?? { name, key: name.toLocaleLowerCase() }
+		);
+	}
+
+	/** Takes the server's keys for the ticks, if they are still the ones it was sent. */
+	function adoptTicks(ticked: PantryItem[]) {
+		const names = (list: PantryItem[]) =>
+			list.map((item) => item.name.toLocaleLowerCase()).join('\n');
+		if (names(ticked) === names(have)) {
+			have = ticked;
 		}
-		ingredients = [...ingredients, name];
+	}
+
+	/**
+	 * The chips changed: the row lets go of its card. The first chip ranks
+	 * by how much of them a recipe uses, over a remembered order, without
+	 * forgetting it; the last one gives the remembered order back.
+	 */
+	function setIngredients(next: string[]) {
+		const remembered = readSort();
+		if (ingredients.length === 0 && next.length > 0 && remembered !== null && sort === remembered) {
+			sort = 'updated';
+		} else if (ingredients.length > 0 && next.length === 0 && sort === 'updated') {
+			sort = remembered ?? 'updated';
+		}
+		ingredients = next;
 		refilter();
 	}
 
-	function removeIngredient(name: string) {
-		ingredients = ingredients.filter((n) => n !== name);
-		refilter();
+	// A ticked suggestion becomes a chip and its own tick goes, so the URL
+	// never names one ingredient in both lists. A broader tick that covers
+	// it stays: picking "Rotweinessig" keeps "Essig" ticked.
+	function addIngredient(name: string, key = name.toLocaleLowerCase()) {
+		const lower = name.toLocaleLowerCase();
+		if (ingredients.some((n) => n.toLocaleLowerCase() === lower)) {
+			return;
+		}
+		have = have.filter((item) => item.key !== key && item.name.toLocaleLowerCase() !== lower);
+		setIngredients([...ingredients, name]);
 	}
+
+	function removeIngredient(name: string) {
+		setIngredients(ingredients.filter((n) => n !== name));
+	}
+
+	/**
+	 * A tick shows on every card at once; the order follows from the
+	 * server 0.9 s after the last one, or on "Done" while a card is focused,
+	 * which stays where the reader looks.
+	 */
+	function setTicks(next: PantryItem[]) {
+		have = next;
+		hint = false;
+		syncUrl();
+		clearTimeout(resortTimer);
+		// A re-sort under way for the last ticks would glide under this one.
+		if (abortController !== null && abortController === quietController) {
+			abortController.abort();
+		}
+		// `focusedCard`, not `focusedId`: a focus whose card left the list
+		// holds nothing still, and the re-sort would never come.
+		if (focusedCard === undefined) {
+			resortTimer = setTimeout(() => void fetchPage(pageNum, false, true, { quiet: true }), 900);
+		}
+	}
+
+	function toggleTick(item: PantryItem) {
+		setTicks(
+			have.some((t) => t.key === item.key)
+				? have.filter((t) => t.key !== item.key)
+				: [...have, item]
+		);
+	}
+
+	function clearTicks() {
+		const before = have;
+		setTicks([]);
+		toast(before.length === 1 ? m.ticks_cleared_one() : m.ticks_cleared({ count: before.length }), {
+			action: { label: m.ticks_undo(), onClick: () => setTicks(before) }
+		});
+	}
+
+	/** Where a card's top is on the page, which a scroll does not change. */
+	function cardY(id: string): number | null {
+		const el = document.querySelector(`main [data-card="${id}"]`);
+		return el ? el.getBoundingClientRect().top + window.scrollY : null;
+	}
+
+	/**
+	 * Focuses the tick row on a card, or lets go of it (a second tap, or
+	 * "Done"). The card keeps its place on screen as the row above it
+	 * changes; a focused card under the sticky row comes out below it, and
+	 * one let go of stays put while the others re-sort and glide.
+	 */
+	async function focusCard(id: string | null) {
+		const was = focusedId;
+		const pinned = id ?? was;
+		if (pinned === null) return;
+		const before = cardY(pinned);
+		if (id !== null) {
+			// The card holds still from here: a re-sort the last ticks
+			// started waits for "Done", which fetches anyway.
+			clearTimeout(resortTimer);
+			if (abortController !== null && abortController === quietController) {
+				abortController.abort();
+			}
+			if (results) reserve = Math.max(reserve, results.offsetHeight + 320);
+			frozen = true;
+			if (was === null) rowHeight = phone.current ? 0 : (tickRow?.offsetHeight ?? 0);
+		} else {
+			rowHeight = 0;
+		}
+		focusedId = id;
+		hint = false;
+		await tick();
+		const after = cardY(pinned);
+		if (before !== null && after !== null) {
+			window.scrollBy(0, after - before);
+		}
+		if (id !== null) {
+			// The keyboard follows the row: its first pill, or "Done" when
+			// nothing is missing, and a screen reader hears which card it is.
+			const target = focusedCard?.pantry && focusTarget();
+			target?.focus({ preventScroll: true });
+			if (focusedCard?.pantry) {
+				const { title } = focusedCard;
+				const count = missingAfterTicks(focusedCard.pantry.missing, have).length;
+				announcement =
+					count === 0
+						? m.ticks_focus_all_there({ title })
+						: count === 1
+							? m.ticks_focus_announce_one({ title })
+							: m.ticks_focus_announce({ title, count });
+			}
+			const card = document.querySelector(`main [data-card="${id}"]`);
+			const rowBottom = tickRow?.getBoundingClientRect().bottom ?? 0;
+			const gap = (card?.getBoundingClientRect().top ?? Infinity) - (rowBottom + 12);
+			// On a phone the card always comes to sit 12px under the sticky
+			// row; a desktop only lifts one the row would cover.
+			if (gap < 0 || (gap !== Infinity && phone.current)) {
+				window.scrollBy(0, gap);
+			}
+		} else if (was !== null) {
+			// Let go from the row, the keyboard goes back to the stamp it came from.
+			if (tickRow?.contains(document.activeElement)) {
+				document
+					.querySelector<HTMLElement>(`main [data-card="${was}"] [data-stamp]`)
+					?.focus({ preventScroll: true });
+			}
+			void fetchPage(pageNum, false, true, { quiet: true, anchor: was });
+		}
+	}
+
+	function focusTarget(): HTMLElement | null {
+		return (
+			tickRow?.querySelector<HTMLElement>('[role="group"] button') ??
+			[...(tickRow?.querySelectorAll<HTMLElement>('button') ?? [])].at(-1) ??
+			null
+		);
+	}
+
+	/** Escape in the focused row is "Done". */
+	function handleKeydown(event: KeyboardEvent) {
+		if (event.key !== 'Escape' || event.defaultPrevented || focusedId === null) return;
+		const id = focusedId;
+		void focusCard(null);
+		document
+			.querySelector<HTMLElement>(`main [data-card="${id}"] [data-stamp]`)
+			?.focus({ preventScroll: true });
+	}
+
+	let tickRow = $state<HTMLElement>();
+	const phone = new MediaQuery('max-width: 767.98px');
+
+	// While a card is focused it stays where it is on screen: whatever moves
+	// it on the page - a missing line above it shrinking as items are ticked,
+	// the masonry placing it anew - the window scrolls by as much. Its place
+	// on the page is read every frame and after every move the masonry
+	// writes, so the correction lands before the browser paints.
+	$effect(() => {
+		const id = focusedId;
+		if (id === null) return;
+		let y = cardY(id);
+		const hold = () => {
+			const now = cardY(id);
+			if (now !== null && y !== null && now !== y) {
+				window.scrollBy(0, now - y);
+			}
+			y = now;
+		};
+		let frame = requestAnimationFrame(function loop() {
+			hold();
+			frame = requestAnimationFrame(loop);
+		});
+		const moves = new MutationObserver(hold);
+		const card = document.querySelector(`main [data-card="${id}"]`);
+		if (card) moves.observe(card, { attributes: true, attributeFilter: ['style'] });
+		return () => {
+			cancelAnimationFrame(frame);
+			moves.disconnect();
+		};
+	});
 
 	function setMaxMinutes(value: number) {
 		maxMinutes = value;
@@ -488,9 +791,10 @@
 	// filterCount), so "reset filters" doesn't touch it - someone who wants
 	// the default order back uses the sort control itself, which is where
 	// they set it.
+	// The chips stay too: they narrow the list as well, but they are the
+	// search itself, not a filter on it.
 	function resetFilters() {
 		q = '';
-		ingredients = [];
 		clearFilters();
 	}
 
@@ -508,10 +812,10 @@
 		void fetchPage(pageNum + 1, true);
 	}
 
-	// With a search text the default order puts the best hits first (most
+	// With a search text or chips the default order puts the best hits first (most
 	// recently changed only breaks ties), so it is named for that then.
 	const defaultSortLabel = $derived(
-		q.trim() ? m.overview_sort_relevance() : m.overview_sort_updated()
+		q.trim() || ingredients.length > 0 ? m.overview_sort_relevance() : m.overview_sort_updated()
 	);
 	const sortOptions: { value: Sort; label: string }[] = $derived([
 		{ value: 'updated', label: defaultSortLabel },
@@ -534,17 +838,57 @@
 	// its rise. Only `sections` decides, never `sort`: the order changes on
 	// the click, the cards only when the new list arrives. The server
 	// sends sections only with the best-match order.
+	// The ingredient search groups the same way, by how many chips a card
+	// uses, most first, and leads over the text's sections.
 	const groups = $derived.by(() => {
-		if (!sections) return null;
-		const out: { section: SearchSection; cards: { recipe: RecipeCardData; at: number }[] }[] = [];
+		const pantry = pantrySections;
+		if (!pantry && !sections) return null;
+		const out: {
+			key: string;
+			label: string;
+			count: number;
+			cards: { recipe: RecipeCardData; at: number }[];
+		}[] = [];
 		items.forEach((recipe, at) => {
-			const section = recipe.match?.section ?? 'description';
-			let group = out.find((g) => g.section === section);
-			if (!group) out.push((group = { section, cards: [] }));
+			const key = pantry
+				? `used-${recipe.pantry?.chips ?? 0}`
+				: (recipe.match?.section ?? 'description');
+			let group = out.find((g) => g.key === key);
+			if (!group) {
+				let label: string;
+				let count: number | undefined;
+				if (pantry) {
+					const used = recipe.pantry?.chips ?? 0;
+					const n = pantry.chips.length;
+					label =
+						n === 1
+							? m.overview_section_one({ name: pantry.chips[0] })
+							: used === n
+								? m.overview_section_all({ n })
+								: m.overview_section_some({ k: used, n });
+					count = pantry.counts[used];
+				} else {
+					const section = key as SearchSection;
+					label = sectionLabels[section]();
+					count = sections?.[section];
+				}
+				out.push((group = { key, label, count: count ?? 0, cards: [] }));
+			}
 			group.cards.push({ recipe, at });
 		});
+		for (const group of out) group.count ||= group.cards.length;
 		return out;
 	});
+
+	const showTicks = $derived(ingredients.length > 0 && items.length > 0);
+	const focusedCard = $derived(
+		focusedId === null ? undefined : items.find((recipe) => recipe.id === focusedId)
+	);
+	// The row holds the card's missing items as the list last counted them,
+	// ticked ones included, so a tick never takes a pill away under the finger.
+	const focus = $derived(
+		focusedCard?.pantry ? { title: focusedCard.title, missing: focusedCard.pantry.missing } : null
+	);
 
 	const sizeOptions = [
 		{ value: 'small' as CardSize, label: m.overview_card_size_small(), icon: Grid3x3 },
@@ -587,7 +931,7 @@
 	 * already under way (a page change, a theme change, an earlier glide)
 	 * get the new state at once.
 	 */
-	async function glide(change: () => void, keepPlace = false) {
+	async function glide(change: () => void, keepPlace: boolean | HTMLElement = false) {
 		const root = document.documentElement;
 		const shown = () => [
 			...document.querySelectorAll<HTMLElement>('main [data-card], main [data-empty]')
@@ -607,11 +951,14 @@
 		};
 		const before = shown();
 		// A card cut off at the top is one the reader has already passed.
-		const anchor = keepPlace
-			? before
-					.filter((el) => el.dataset.card && el.getBoundingClientRect().top >= 0)
-					.sort((a, b) => a.getBoundingClientRect().top - b.getBoundingClientRect().top)[0]
-			: undefined;
+		const anchor =
+			keepPlace instanceof HTMLElement
+				? keepPlace
+				: keepPlace
+					? before
+							.filter((el) => el.dataset.card && el.getBoundingClientRect().top >= 0)
+							.sort((a, b) => a.getBoundingClientRect().top - b.getBoundingClientRect().top)[0]
+					: undefined;
 		const top = anchor?.getBoundingClientRect().top;
 		const animate =
 			'startViewTransition' in document &&
@@ -660,7 +1007,8 @@
 		// transition holds its scope at the old height until it ends, so the
 		// page could not scroll past the old bottom, and a phone going to one
 		// card per row (the list twice as tall) lost the reader's card.
-		const scoped = !keepPlace && results && 'startViewTransition' in results ? results : null;
+		const scoped =
+			keepPlace !== true && results && 'startViewTransition' in results ? results : null;
 		const marked = scoped ?? root;
 		marked.dataset.cardTransition = '';
 		named.forEach(name);
@@ -733,6 +1081,8 @@
 			q = next.q;
 			tags = next.tags;
 			ingredients = next.ingredients;
+			have = untick(next.have, have);
+			focusedId = null;
 			maxMinutes = next.maxMinutes;
 			favoritesOnly = next.favorites;
 			author = next.author;
@@ -761,11 +1111,13 @@
 			suggestedTags.abort();
 			rowTags.abort();
 			clearTimeout(riseTimer);
+			clearTimeout(resortTimer);
 		};
 	});
 </script>
 
 <svelte:head><title>{m.app_name()}</title></svelte:head>
+<svelte:window onkeydown={handleKeydown} />
 
 <section class="pt-5 md:pt-8">
 	<InstallBanner />
@@ -812,7 +1164,11 @@
 	<!-- The same dotted leader closes the filters off from the grid. -->
 	<!-- `gap`, not `space-y`: the phone's chip row stays in the DOM on desktop,
 	     hidden, and as the last child it gave the tag row above a margin. -->
-	<div class="mt-4 flex flex-col gap-3 border-b-2 border-dotted border-handle pb-4 md:mt-5">
+	<div
+		class="mt-4 flex flex-col gap-3 border-b-2 border-dotted border-handle pb-4 md:mt-5 {showTicks
+			? 'max-md:border-0 max-md:pb-0'
+			: ''}"
+	>
 		<div class="relative flex items-center gap-3">
 			<SearchBar
 				bind:value={q}
@@ -821,7 +1177,7 @@
 				active={tags}
 				ontoggle={toggleTag}
 				{ingredients}
-				have={[]}
+				{have}
 				onaddingredient={addIngredient}
 				onremoveingredient={removeIngredient}
 				class={ingredients.length > 0 ? '' : 'md:max-w-md'}
@@ -840,6 +1196,7 @@
 				onauthor={setAuthor}
 				onsort={setSort}
 				onreset={resetFilters}
+				compact={ingredients.length > 0}
 			/>
 			<!-- Desktop only: row 1 has room for search, the filter button and
 			     this control side by side. On phones the same control moves
@@ -924,7 +1281,40 @@
 		{/if}
 	</div>
 
-	<div bind:this={results} data-arrival={arrival || undefined} class="mt-7 md:mt-9">
+	<!-- The tick row, under the search: on a phone it always sticks to the
+	     top and takes over the dotted leader; on a desktop it sticks while
+	     a card is focused, as a sheet of its own over the cards. Dark mode
+	     has no card shadow, so there the sheet is a raised surface with an
+	     edge. -->
+	{#if showTicks}
+		<div
+			bind:this={tickRow}
+			data-tick-row
+			style:min-height={focus && rowHeight ? `${rowHeight}px` : undefined}
+			class="sticky top-0 z-20 -mx-5 mt-1.5 border-b-2 border-dotted bg-background px-5 pt-1.5 pb-2 md:mt-4.5 md:border-0 {focus
+				? 'border-primary md:-mx-4 md:rounded-b-2xl md:px-4 md:py-2.5 md:shadow-card dark:md:border dark:md:border-t-0 dark:md:border-border dark:md:bg-surface-elevated'
+				: 'border-handle md:static md:mx-0 md:p-0'}"
+		>
+			<p aria-live="polite" class="sr-only">{announcement}</p>
+			<TickRow
+				{row}
+				ticked={have}
+				{focus}
+				ontoggle={toggleTick}
+				onclear={clearTicks}
+				ondone={() => focusCard(null)}
+				{hint}
+				onhover={(item) => (hovered = item?.key ?? null)}
+			/>
+		</div>
+	{/if}
+
+	<div
+		bind:this={results}
+		data-arrival={arrival || undefined}
+		style:min-height={reserve ? `${reserve}px` : undefined}
+		class="mt-7 md:mt-9"
+	>
 		{#if bandPerson}
 			<AuthorBand
 				person={bandPerson}
@@ -991,64 +1381,92 @@
 			     them typed at all, the sentence used to close around an empty
 			     pair of quotation marks. Which tags are on is legible anyway:
 			     their chips sit above the grid with the active ones marked. -->
-			<EmptyState
-				title={m.overview_no_results_title()}
-				text={q ? m.overview_no_results_text({ query: q }) : m.overview_no_results_filtered()}
-			>
-				<Button variant="secondary" onclick={resetFilters}>{m.overview_reset_filters()}</Button>
-				<!-- Carrying the term over is a route param the editor reads, not
+			{#if ingredients.length > 0}
+				<!-- Chips are picked from the recipes there are, so mostly a filter
+				     or the text empties the grid: resetting those leads and the
+				     chips stay, dropping the chips comes second. A chip that
+				     matches nothing (a hand-written link) leaves only the second. -->
+				{@const narrowed = filterCount > 0 || q !== ''}
+				<EmptyState
+					title={m.overview_no_results_title()}
+					text={q
+						? m.empty_pantry_text({ names: ingredients.join(', '), query: q })
+						: filterCount > 0
+							? m.empty_pantry({ names: ingredients.join(', ') })
+							: m.empty_pantry_none({ names: ingredients.join(', ') })}
+				>
+					{#if narrowed}
+						<Button variant="primary" onclick={resetFilters}>{m.overview_reset_filters()}</Button>
+					{/if}
+					<Button variant={narrowed ? 'secondary' : 'primary'} onclick={() => setIngredients([])}>
+						{m.empty_remove_ingredients()}
+					</Button>
+				</EmptyState>
+			{:else}
+				<EmptyState
+					title={m.overview_no_results_title()}
+					text={q ? m.overview_no_results_text({ query: q }) : m.overview_no_results_filtered()}
+				>
+					<Button variant="secondary" onclick={resetFilters}>{m.overview_reset_filters()}</Button>
+					<!-- Carrying the term over is a route param the editor reads, not
 				     an API call, so this opens the editor with the search term
 				     already in the title. Without a term there is nothing to
 				     carry and the same button is simply the plain way on to a
 				     new recipe - an empty result is still a reason to write one,
 				     which is why it stays rather than disappearing. -->
-				<Button
-					variant="accent"
-					href={q ? resolve(`recipes/new?title=${encodeURIComponent(q)}`) : resolve('/recipes/new')}
-				>
-					{q ? m.overview_create_from_search() : m.overview_new_recipe()}
-				</Button>
-			</EmptyState>
+					<Button
+						variant="accent"
+						href={q
+							? resolve(`recipes/new?title=${encodeURIComponent(q)}`)
+							: resolve('/recipes/new')}
+					>
+						{q ? m.overview_create_from_search() : m.overview_new_recipe()}
+					</Button>
+				</EmptyState>
+			{/if}
 		{:else}
+			{#snippet card(recipe: RecipeCardData, at: number)}
+				<RecipeCard
+					{recipe}
+					rise={at >= appendedFrom ? at - appendedFrom : null}
+					ticked={have}
+					focused={recipe.id === focusedId}
+					onfocuspantry={() => focusCard(recipe.id === focusedId ? null : recipe.id)}
+					highlightKey={hovered}
+				/>
+			{/snippet}
 			{#if groups}
-				{#each groups as group (group.section)}
-					{@const count = sections?.[group.section] ?? group.cards.length}
+				{#each groups as group (group.key)}
 					<!-- A section's title is quiet, in the running head's italic: it
 					     orders the hits without outweighing the h1 or the cards'
 					     titles. In the text color, not the accent, which the text
 					     cards' titles already wear and which misses AA on the page's
-					     background at this size. -->
-					<section aria-labelledby="section-{group.section}" class="mt-8 first:mt-0 md:mt-10">
+					     background at this size. The count is all of the section's
+					     hits, not just the ones loaded. -->
+					<section aria-labelledby="section-{group.key}" class="mt-8 first:mt-0 md:mt-10">
 						<h2
-							id="section-{group.section}"
-							class="mb-2.5 flex items-baseline gap-2 font-display text-body-lg font-medium italic md:mb-3"
+							id="section-{group.key}"
+							class="mb-2.5 flex flex-wrap items-baseline gap-x-2 font-display text-body-lg font-medium italic md:mb-3"
 						>
-							{sectionLabels[group.section]()}
-							<!-- All of the section's hits, not just the ones loaded; a
-							     screen reader hears "2 recipes", not a bare number. -->
+							<span>{group.label}</span>
 							<span
-								aria-hidden="true"
 								class="font-sans text-caption font-medium text-text-muted not-italic tabular-nums"
-							>
-								{count}
-							</span>
-							<span class="sr-only"
-								>, {count === 1
-									? m.overview_result_count_one()
-									: m.overview_result_count({ count })}</span
+								>· {group.count === 1
+									? m.overview_section_count_one()
+									: m.overview_section_count({ count: group.count })}</span
 							>
 						</h2>
-						<RecipeGrid>
+						<RecipeGrid {frozen}>
 							{#each group.cards as { recipe, at } (recipe.id)}
-								<RecipeCard {recipe} rise={at >= appendedFrom ? at - appendedFrom : null} />
+								{@render card(recipe, at)}
 							{/each}
 						</RecipeGrid>
 					</section>
 				{/each}
 			{:else}
-				<RecipeGrid>
+				<RecipeGrid {frozen}>
 					{#each items as recipe, i (recipe.id)}
-						<RecipeCard {recipe} rise={i >= appendedFrom ? i - appendedFrom : null} />
+						{@render card(recipe, i)}
 					{/each}
 				</RecipeGrid>
 			{/if}

@@ -546,27 +546,37 @@ describe('the author filter', () => {
 });
 
 describe('ingredients and have', () => {
-	it('round-trip through the URL, names as typed', () => {
-		const url = urlWith('ingredients=Gurke,Ei&have=Salz');
+	it('round-trip through the URL as one parameter per name, names as typed', () => {
+		const url = urlWith('ingredients=Gurke&ingredients=Ei&have=Salz');
 		expect(parseListQuery(url).ingredients).toEqual(['Gurke', 'Ei']);
 		expect(parseListQuery(url).have).toEqual(['Salz']);
-		expect(buildListQuery(parseListQuery(url))).toBe('ingredients=Gurke%2CEi&have=Salz');
+		expect(buildListQuery(parseListQuery(url))).toBe('ingredients=Gurke&ingredients=Ei&have=Salz');
+	});
+
+	it('keep a comma inside a name', () => {
+		const state = parseListQuery(urlWith('ingredients=Gurke'));
+		const qs = buildListQuery({ ...state, ingredients: ['Milch 1,5 %'], have: ['Salz, grob'] });
+		const back = parseListQuery(urlWith(qs));
+		expect(back.ingredients).toEqual(['Milch 1,5 %']);
+		expect(back.have).toEqual(['Salz, grob']);
 	});
 
 	it('trim names and drop blanks', () => {
-		const q = parseListQuery(urlWith('ingredients=%20Gurke%20,,%20&have=,Salz'));
+		const q = parseListQuery(
+			urlWith('ingredients=%20Gurke%20&ingredients=&ingredients=%20&have=&have=Salz')
+		);
 		expect(q.ingredients).toEqual(['Gurke']);
 		expect(q.have).toEqual(['Salz']);
 	});
 
 	it('drop case-insensitive duplicates', () => {
-		const q = parseListQuery(urlWith('ingredients=Gurke,gurke&have=Salz,SALZ'));
+		const q = parseListQuery(urlWith('ingredients=Gurke&ingredients=gurke&have=Salz&have=SALZ'));
 		expect(q.ingredients).toEqual(['Gurke']);
 		expect(q.have).toEqual(['Salz']);
 	});
 
 	it('keep a name in both lists only in ingredients', () => {
-		const q = parseListQuery(urlWith('ingredients=Gurke&have=gurke,Salz'));
+		const q = parseListQuery(urlWith('ingredients=Gurke&have=gurke&have=Salz'));
 		expect(q.ingredients).toEqual(['Gurke']);
 		expect(q.have).toEqual(['Salz']);
 	});

@@ -543,8 +543,7 @@ test('groups search hits by where they were found', async ({ page, isMobile }) =
 		/^In the ingredients/,
 		/^In the description/
 	]);
-	// The badge's bare number is hidden; a screen reader hears the unit.
-	await expect(headings.first()).toHaveAccessibleName(/^In the title\s*, 1 recipe$/);
+	await expect(headings.first()).toHaveText('In the title · 1 found');
 	// A card is an article labeled by its title.
 	const finds = (title: string) =>
 		main.getByRole('article', { name: title, exact: true }).getByRole('listitem');
@@ -3486,7 +3485,7 @@ test.describe('ingredient search', () => {
 		await expect(field).toHaveValue('');
 		const chip = page.getByRole('button', { name: 'Remove Zwiebel' });
 		await expect(chip).toBeVisible();
-		await expect(chip.locator('..')).toHaveAttribute('title', 'Also covers: Frühlingszwiebeln');
+		await expect(chip).toHaveAccessibleDescription('Also covers: Frühlingszwiebeln');
 
 		// A chip already added is not suggested again.
 		await field.fill('zwie');
@@ -3549,5 +3548,507 @@ test.describe('ingredient search', () => {
 		await expect(add.getByRole('option')).toHaveCount(1);
 		await field.fill(`${token}x`);
 		await expect(add).toHaveCount(0, { timeout: 1_000 });
+	});
+	// The German recipes the service tests use, behind a tag of the test's
+	// own so other tests' recipes stay out of the grid, read by an account
+	// that reads German. Returns the tag.
+	async function kitchen(page: Page): Promise<string> {
+		const token = uniqueToken();
+		for (let i = 0; i < 12; i++) {
+			const recipe = loadFixture(i, 'de');
+			await createRecipe(page, { ...recipe, tags: [...recipe.tags, token] });
+		}
+		const username = `koch${token}`;
+		await createUser(page, { username, role: 'user', locale: 'de' });
+		await page.context().clearCookies();
+		await login(page, username);
+		return token;
+	}
+	const card = (page: Page, title: string) =>
+		page.getByRole('main').getByRole('article', { name: title, exact: true });
+	const general = (page: Page) => page.getByRole('group', { name: 'Hab ich schon' });
+	const field = (page: Page) => page.getByRole('combobox', { name: 'Rezepte durchsuchen' });
+	async function addChip(page: Page, typed: string, name: string) {
+		await field(page).fill(typed);
+		const add = page
+			.getByRole('listbox', { name: 'Vorschläge' })
+			.getByRole('group', { name: 'Zutat hinzufügen' });
+		await add
+			.getByRole('option', { name: new RegExp(`^${name}`) })
+			.first()
+			.click();
+	}
+	const hint = (page: Page) =>
+		page.getByText('für ein Rezept: auf der Karte').filter({ visible: true });
+	const haveParam = (page: Page) => new URL(page.url()).searchParams.getAll('have').join(',');
+
+	test('ticks off what one recipe still needs while its card stays put', async ({ page }) => {
+		const token = await kitchen(page);
+		await page.goto(`/?tags=${token}`);
+		await addChip(page, 'kartoff', 'Kartoffel');
+		await addChip(page, 'zwieb', 'Zwiebel');
+		const main = page.getByRole('main');
+		// Both chips used reads "with all", not "2 of 2" (ruling R3).
+		await expect(main.getByRole('heading', { level: 2 })).toHaveText([
+			'Mit allen 2 Zutaten · 4 Treffer',
+			'Mit 1 von 2 Zutaten · 7 Treffer'
+		]);
+
+		const salad = card(page, 'Kartoffelsalat');
+		await salad.getByRole('button', { name: '6 fehlen' }).click();
+		const focused = page.getByRole('group', { name: 'Fehlt bei Kartoffelsalat' });
+		await expect(focused.getByRole('button')).toHaveCount(6);
+		// Off the card, whose hover lift would move its box.
+		await page.mouse.move(0, 0);
+		await page.waitForTimeout(300);
+		const y = (await salad.boundingBox())!.y;
+
+		for (const pill of await focused.getByRole('button').all()) {
+			await pill.click();
+		}
+		await expect(salad.getByRole('button', { name: 'Alles da' })).toBeVisible();
+		// Give a late layout the chance to move it.
+		await page.waitForTimeout(1_200);
+		expect(Math.abs((await salad.boundingBox())!.y - y)).toBeLessThanOrEqual(1);
+
+		await page.getByRole('button', { name: 'Fertig' }).click();
+		await expect(general(page)).toBeVisible();
+		await expect(salad.getByRole('button', { name: 'Alles da' })).toBeVisible();
+		expect(haveParam(page).split(',')).toHaveLength(6);
+
+		// The ticks replaced the history entry instead of adding one each.
+		await page.goBack();
+		await expect(page).not.toHaveURL(/have=/);
+	});
+
+	// Ticking shortens the focused card and the ones around it; the masonry
+	// would move it to another column, a section above it would shrink. The
+	// layout is frozen while a card is focused, so nothing moves under the
+	// reader's eye.
+	test('a focused card holds still, x and y, through every tick', async ({ page, isMobile }) => {
+		test.skip(isMobile, 'sets its own phone and desktop widths');
+		const token = await kitchen(page);
+		const url = `/?tags=${token}&ingredients=Kartoffel&ingredients=Zwiebel`;
+		const cases: [number, number, string[]][] = [
+			[360, 780, ['Rinderrouladen', 'Sauerbraten']],
+			[1440, 900, ['Flammkuchen', 'Rinderrouladen']]
+		];
+		for (const [width, height, titles] of cases) {
+			await page.setViewportSize({ width, height });
+			for (const title of titles) {
+				await page.goto(url);
+				const box = card(page, title);
+				await box.scrollIntoViewIfNeeded();
+				await page.mouse.wheel(0, 150);
+				await box.getByRole('button', { name: /fehl/ }).click();
+				const pills = page.getByRole('group', { name: `Fehlt bei ${title}` }).getByRole('button');
+				await expect(pills.first()).toBeVisible();
+				// Off the card, whose hover lift would move its box.
+				await page.mouse.move(0, 0);
+				await page.waitForTimeout(400);
+				const at = (await box.boundingBox())!;
+				const moves: string[] = [];
+				for (const [i, pill] of (await pills.all()).entries()) {
+					await pill.click();
+					await page.mouse.move(0, 0);
+					await page.waitForTimeout(250);
+					const now = (await box.boundingBox())!;
+					if (Math.abs(now.x - at.x) > 1 || Math.abs(now.y - at.y) > 1) {
+						moves.push(`${width} ${title} tick ${i}: ${at.x},${at.y} -> ${now.x},${now.y}`);
+					}
+				}
+				expect(moves).toEqual([]);
+			}
+		}
+
+		// A stamp at the top of the page: the row above the grid changes from
+		// the general row to the focused one, and the card stays under the
+		// pointer, where the page cannot scroll up to make up for it.
+		await page.goto(url);
+		const first = page.getByRole('main').getByRole('article').first();
+		await expect(first).toBeVisible();
+		await page.mouse.move(0, 0);
+		await page.waitForTimeout(300);
+		const before = (await first.boundingBox())!.y;
+		await first.getByRole('button', { name: /fehl/ }).click();
+		await expect(page.getByRole('button', { name: 'Fertig' })).toBeVisible();
+		await page.mouse.move(0, 0);
+		await page.waitForTimeout(300);
+		expect(Math.abs((await first.boundingBox())!.y - before)).toBeLessThanOrEqual(1);
+	});
+
+	test('the focus flow works from the keyboard and tells a screen reader', async ({
+		page,
+		isMobile
+	}) => {
+		test.skip(isMobile, 'a keyboard');
+		const token = await kitchen(page);
+		await page.goto(`/?tags=${token}&ingredients=Kartoffel&ingredients=Zwiebel`);
+		const stamp = page.getByRole('button', { name: 'Kartoffelsalat: 6 fehlen' });
+		await stamp.focus();
+		await page.keyboard.press('Enter');
+		const pills = page.getByRole('group', { name: 'Fehlt bei Kartoffelsalat' }).getByRole('button');
+		await expect(pills.first()).toBeFocused();
+		await expect(page.locator('[aria-live="polite"]').filter({ hasText: /Fehlt bei/ })).toHaveText(
+			'Fehlt bei Kartoffelsalat, 6 Zutaten'
+		);
+		// "Done" comes after the pills.
+		await pills.last().focus();
+		await page.keyboard.press('Tab');
+		await expect(page.getByRole('button', { name: 'Fertig' })).toBeFocused();
+
+		await page.keyboard.press('Escape');
+		await expect(general(page)).toBeVisible();
+		await expect(stamp).toBeFocused();
+	});
+
+	test('a tick in the general row reaches every card at once', async ({ page }) => {
+		const token = await kitchen(page);
+		await page.goto(`/?tags=${token}&ingredients=Kartoffel&ingredients=Zwiebel`);
+		const missing = page.getByRole('main').locator('[data-missing]');
+		await expect(missing.filter({ hasText: 'Salz' }).first()).toBeVisible();
+		// The hint stands until the first tick.
+		await expect(hint(page)).toBeVisible();
+		const row = page.locator('[data-tick-row]');
+		const height = (await row.boundingBox())!.height;
+		// Nothing is fetched for a tick within 0.9 s, so this is the cards' own.
+		await general(page).getByRole('button', { name: 'Salz', exact: true }).click();
+		await expect(missing.filter({ hasText: /\bSalz\b/ })).toHaveCount(0, { timeout: 100 });
+		await expect(hint(page)).toHaveCount(0);
+		// The row keeps the hint's line, so nothing under it moves.
+		expect((await row.boundingBox())!.height).toBe(height);
+		await expect(page).toHaveURL(/have=Salz/);
+	});
+
+	test('a tick aborts the re-sort the last one started', async ({ page }) => {
+		const token = await kitchen(page);
+		await page.goto(`/?tags=${token}&ingredients=Kartoffel&ingredients=Zwiebel`);
+		await expect(general(page).getByRole('button').first()).toBeVisible();
+		// The re-sort for the first tick hangs until the second one lands.
+		await page.route(
+			(url) => url.pathname === '/api/v1/recipes' && url.searchParams.getAll('have').length === 1,
+			async (route) => {
+				await new Promise((resolve) => setTimeout(resolve, 3_000));
+				await route.continue().catch(() => {});
+			}
+		);
+		const first = page.waitForRequest(
+			(request) => new URL(request.url()).searchParams.getAll('have').length === 1
+		);
+		await general(page).getByRole('button', { name: 'Salz', exact: true }).click();
+		const hanging = await first;
+		// At once, not with the next re-sort 0.9 s later: an answer landing
+		// in between would glide the cards under the reader's next tick.
+		const failed = page.waitForEvent('requestfailed', {
+			predicate: (r) => r === hanging,
+			timeout: 600
+		});
+		await general(page).getByRole('button', { name: 'Senf', exact: true }).click();
+		await failed;
+	});
+
+	test('picking a ticked ingredient makes it a chip and drops the tick', async ({ page }) => {
+		const token = await kitchen(page);
+		await page.goto(`/?tags=${token}&ingredients=Kartoffel&have=Salz&have=Senf`);
+		await expect(general(page).getByRole('button', { name: 'Salz', exact: true })).toHaveAttribute(
+			'aria-pressed',
+			'true'
+		);
+		await field(page).fill('salz');
+		const option = page
+			.getByRole('listbox', { name: 'Vorschläge' })
+			.getByRole('option', { name: /^Salz\b/ });
+		await expect(option).toContainText('abgehakt – wird zur Zutat');
+		await option.click();
+		await expect(page.getByRole('button', { name: 'Salz entfernen' })).toBeVisible();
+		await expect(page).toHaveURL(/ingredients=Kartoffel&ingredients=Salz/);
+		expect(haveParam(page)).toBe('Senf');
+	});
+
+	test('clearing the ticks can be undone, and the row keeps its order', async ({ page }) => {
+		const token = await kitchen(page);
+		await page.goto(`/?tags=${token}&ingredients=Kartoffel&ingredients=Zwiebel`);
+		const pills = general(page).getByRole('button');
+		await expect(pills.first()).toBeVisible();
+		await pills.nth(1).click();
+		await pills.nth(3).click();
+		const before = await pills.allTextContents();
+		const pressed = () =>
+			pills.evaluateAll((all) => all.map((el) => el.getAttribute('aria-pressed')));
+		const was = await pressed();
+
+		await page.getByRole('button', { name: 'Haken entfernen' }).click();
+		await expect(pills.and(page.locator('[aria-pressed="true"]'))).toHaveCount(0);
+		await page.getByRole('button', { name: 'Rückgängig' }).click();
+		await expect.poll(pressed).toEqual(was);
+		// Wait out the re-sort, which never moves a pill.
+		await page.waitForTimeout(1_200);
+		expect(await pills.allTextContents()).toEqual(before);
+		// The hint does not come back after a clear or an undo.
+		await page.getByRole('button', { name: 'Haken entfernen' }).click();
+		await expect(hint(page)).toHaveCount(0);
+	});
+
+	test('a re-sort the ticks started waits while a card is focused', async ({ page }) => {
+		const token = await kitchen(page);
+		await page.goto(`/?tags=${token}&ingredients=Kartoffel&ingredients=Zwiebel`);
+		await general(page).getByRole('button', { name: 'Salz', exact: true }).click();
+		const salad = card(page, 'Kartoffelsalat');
+		await salad.getByRole('button', { name: '5 fehlen' }).click();
+		const focused = page.getByRole('group', { name: 'Fehlt bei Kartoffelsalat' });
+		// Off the card, whose hover lift would move its box.
+		await page.mouse.move(0, 0);
+		await expect(focused.getByRole('button')).toHaveCount(6);
+		await page.waitForTimeout(300);
+		const y = (await salad.boundingBox())!.y;
+		await page.waitForTimeout(1_200);
+		await expect(focused.getByRole('button')).toHaveCount(6);
+		expect(Math.abs((await salad.boundingBox())!.y - y)).toBeLessThanOrEqual(1);
+	});
+
+	test('a new order lets go of the focused card, and ticks re-sort again', async ({
+		page,
+		isMobile
+	}) => {
+		test.skip(isMobile, 'the sort control sits in the filter panel on a phone');
+		const token = await kitchen(page);
+		await page.goto(`/?tags=${token}&ingredients=Kartoffel&ingredients=Zwiebel`);
+		await card(page, 'Kartoffelsalat').getByRole('button', { name: '6 fehlen' }).click();
+		await expect(page.getByRole('button', { name: 'Fertig' })).toBeVisible();
+		await page.getByRole('button', { name: 'Sortierung' }).click();
+		await page.getByRole('option', { name: 'A–Z' }).click();
+		await expect(general(page)).toBeVisible();
+		await expect(page.getByRole('button', { name: 'Fertig' })).toHaveCount(0);
+		const lists = page.waitForRequest(
+			(request) => new URL(request.url()).searchParams.get('have') === 'Salz'
+		);
+		await general(page).getByRole('button', { name: 'Salz', exact: true }).click();
+		await lists;
+	});
+
+	test('changing the chips lets go of the focused card', async ({ page }) => {
+		const token = await kitchen(page);
+		await page.goto(`/?tags=${token}&ingredients=Kartoffel&ingredients=Zwiebel`);
+		await card(page, 'Kartoffelsalat').getByRole('button', { name: '6 fehlen' }).click();
+		await expect(page.getByRole('group', { name: 'Fehlt bei Kartoffelsalat' })).toBeVisible();
+		await page.getByRole('button', { name: 'Zwiebel entfernen' }).click();
+		await expect(general(page)).toBeVisible();
+		await expect(page.getByRole('button', { name: 'Fertig' })).toHaveCount(0);
+	});
+
+	test('chips rank by their own order and give the remembered one back', async ({ page }) => {
+		const token = await kitchen(page);
+		await page.evaluate(() => localStorage.setItem('rezepte-sort', 'title'));
+		await page.goto(`/?tags=${token}`);
+		const main = page.getByRole('main');
+		await expect(main.getByRole('article').first()).toHaveAccessibleName('Flammkuchen');
+		await expect(main.getByRole('heading', { level: 2 })).toHaveCount(0);
+
+		await addChip(page, 'zwieb', 'Zwiebel');
+		await expect(main.getByRole('heading', { level: 2 })).toHaveText([
+			/^Mit Zwiebeln? · 11 Treffer$/
+		]);
+		await expect(page).not.toHaveURL(/sort=/);
+
+		await page.getByRole('button', { name: /^Zwiebeln? entfernen$/ }).click();
+		await expect(main.getByRole('heading', { level: 2 })).toHaveCount(0);
+		await expect(main.getByRole('article').first()).toHaveAccessibleName('Flammkuchen');
+		expect(await page.evaluate(() => localStorage.getItem('rezepte-sort'))).toBe('title');
+	});
+
+	test('an empty result offers to reset the filters and keeps the chips', async ({ page }) => {
+		const token = await kitchen(page);
+		await page.goto(`/?tags=${token},vegetarisch&ingredients=Speck`);
+		await expect(
+			page.getByText('Kein Rezept mit Speck passt zu den gesetzten Filtern.')
+		).toBeVisible();
+		const actions = page.locator('[data-empty]').getByRole('button');
+		await expect(actions).toHaveText(['Filter zurücksetzen', 'Zutaten entfernen']);
+		await actions.first().click();
+		await expect(page).toHaveURL(/ingredients=Speck/);
+		await expect(page).not.toHaveURL(/tags=/);
+	});
+
+	test('a chip that matches nothing offers only to remove the chips', async ({ page }) => {
+		const chip = uniqueToken();
+		await page.goto(`/?ingredients=${chip}`);
+		await expect(page.getByText(`No recipe contains ${chip}.`)).toBeVisible();
+		const actions = page.locator('[data-empty]').getByRole('button');
+		await expect(actions).toHaveText(['Remove ingredients']);
+		await actions.click();
+		await expect(page).not.toHaveURL(/ingredients=/);
+	});
+
+	test('an empty result names the text it was searched for', async ({ page }) => {
+		const token = await kitchen(page);
+		await page.goto(`/?tags=${token}&q=zzzz&ingredients=Kartoffel`);
+		await expect(page.getByText('Kein Rezept mit Kartoffel für „zzzz“ gefunden.')).toBeVisible();
+	});
+
+	test('picking an ingredient a broader tick covers keeps that tick', async ({ page }) => {
+		const token = await kitchen(page);
+		await page.goto(`/?tags=${token}&ingredients=Kartoffel&have=Essig`);
+		await addChip(page, 'rotwein', 'Rotweinessig');
+		await expect(page.getByRole('button', { name: 'Rotweinessig entfernen' })).toBeVisible();
+		expect(haveParam(page)).toBe('Essig');
+	});
+
+	test('the missing line drops whole names, never ending in a comma', async ({ page }) => {
+		const token = await kitchen(page);
+		await page.goto(`/?tags=${token}&ingredients=Kartoffel&ingredients=Zwiebel`);
+		const lines = page.getByRole('main').locator('[data-missing]');
+		await expect(lines).toHaveCount(11);
+		for (const width of [1440, 360]) {
+			await page.setViewportSize({ width, height: 900 });
+			await expect
+				.poll(() =>
+					lines.evaluateAll(
+						(all) =>
+							all.filter(
+								(el) => el.scrollHeight > el.clientHeight + 1 || /,\s*$/.test(el.textContent ?? '')
+							).length
+					)
+				)
+				.toBe(0);
+		}
+	});
+
+	test('the row opens past its cap and marks a hovered item in the cards', async ({
+		page,
+		isMobile
+	}) => {
+		test.skip(isMobile, 'the cap and the hover are desktop-only');
+		const token = await kitchen(page);
+		await page.goto(`/?tags=${token}&ingredients=Kartoffel&ingredients=Zwiebel`);
+		const pills = general(page).locator('button[aria-pressed]');
+		await expect(pills.first()).toBeVisible();
+		const visible = () =>
+			pills.evaluateAll((all) => all.filter((el) => el.checkVisibility()).length);
+		expect(await visible()).toBe(11);
+		await general(page)
+			.getByRole('button', { name: /^\+\d+ weitere$/ })
+			.click();
+		await expect.poll(visible).toBeGreaterThan(11);
+
+		await general(page).getByRole('button', { name: 'Senf', exact: true }).hover();
+		await expect(
+			card(page, 'Kartoffelsalat').locator('[data-missing] b', { hasText: 'Senf' })
+		).toBeVisible();
+	});
+
+	test('a chip from the link says what else it covers, also on focus', async ({ page }) => {
+		await page.route(
+			(url) => url.pathname === '/api/v1/ingredients',
+			(route) =>
+				route.fulfill({
+					json: {
+						items: [{ name: 'Zwiebel', key: 'zwiebel', count: 7, also: ['Frühlingszwiebeln'] }]
+					}
+				})
+		);
+		await page.goto('/?ingredients=Zwiebel');
+		const remove = page.getByRole('button', { name: 'Remove Zwiebel' });
+		await expect(remove).toHaveAccessibleDescription('Also covers: Frühlingszwiebeln');
+		await remove.focus();
+		await expect(page.getByRole('tooltip')).toHaveText('Also covers: Frühlingszwiebeln');
+	});
+
+	test('phone chips share a line, keep a 44px ✕ and drop the keyboard on a pick', async ({
+		page,
+		isMobile
+	}) => {
+		test.skip(!isMobile, 'the phone layout');
+		await page.route(
+			(url) => url.pathname === '/api/v1/ingredients',
+			(route) =>
+				route.fulfill({
+					json: { items: [{ name: 'Essig', key: 'essig', count: 3, also: ['Rotweinessig'] }] }
+				})
+		);
+		await page.setViewportSize({ width: 360, height: 780 });
+		await page.goto('/?ingredients=Zwiebel&ingredients=Kartoffeln');
+		const remove = page.getByRole('button', { name: /^Remove (Zwiebel|Kartoffeln)$/ });
+		await expect(remove).toHaveCount(2);
+		const [a, b] = await Promise.all((await remove.all()).map((x) => x.boundingBox()));
+		expect(a!.y).toBe(b!.y);
+
+		// The ✕'s ::after reaches 44x44: its four corners land on the button.
+		const hit = await remove.first().evaluate((el) => {
+			const box = el.getBoundingClientRect();
+			const after = getComputedStyle(el, '::after');
+			const area = {
+				left: box.left + parseFloat(after.left),
+				right: box.right - parseFloat(after.right),
+				top: box.top + parseFloat(after.top),
+				bottom: box.bottom - parseFloat(after.bottom)
+			};
+			const points = [
+				[area.left + 1, area.top + 1],
+				[area.right - 1, area.top + 1],
+				[area.left + 1, area.bottom - 1],
+				[area.right - 1, area.bottom - 1]
+			];
+			return {
+				width: area.right - area.left,
+				height: area.bottom - area.top,
+				misses: points.filter(([x, y]) => document.elementFromPoint(x, y) !== el).length
+			};
+		});
+		expect(hit.width).toBeGreaterThanOrEqual(44);
+		expect(hit.height).toBeGreaterThanOrEqual(44);
+		expect(hit.misses).toBe(0);
+
+		const field = page.getByRole('combobox', { name: 'Search recipes' });
+		await field.tap();
+		await field.fill('ess');
+		await page.getByRole('option', { name: /^Essig/ }).tap();
+		await expect(page.getByRole('button', { name: 'Remove Essig' })).toBeVisible();
+		await expect(field).not.toBeFocused();
+	});
+
+	test('a long press on a chip shows what it covers until the finger lifts', async ({
+		page,
+		isMobile
+	}) => {
+		test.skip(!isMobile, 'a touch screen');
+		await page.route(
+			(url) => url.pathname === '/api/v1/ingredients',
+			(route) =>
+				route.fulfill({
+					json: {
+						items: [{ name: 'Zwiebel', key: 'zwiebel', count: 7, also: ['Frühlingszwiebeln'] }]
+					}
+				})
+		);
+		await page.goto('/?ingredients=Zwiebel');
+		const chip = page.getByRole('button', { name: 'Remove Zwiebel' }).locator('..');
+		const box = (await chip.boundingBox())!;
+		const tooltip = page.getByRole('tooltip').filter({ visible: true });
+		const touch = await page.context().newCDPSession(page);
+		const at = { x: box.x + 16, y: box.y + box.height / 2 };
+		await touch.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [at] });
+		await expect(tooltip).toHaveText('Also covers: Frühlingszwiebeln');
+		await touch.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+		await expect(tooltip).toHaveCount(0, { timeout: 500 });
+	});
+
+	test('a focused card sits below the sticky row on a phone', async ({ page }) => {
+		const token = await kitchen(page);
+		await page.setViewportSize({ width: 360, height: 780 });
+		await page.goto(`/?tags=${token}&ingredients=Kartoffel&ingredients=Zwiebel`);
+		const last = page.getByRole('main').getByRole('article').last();
+		await last.scrollIntoViewIfNeeded();
+		await last.getByRole('button', { name: /fehl/ }).click();
+		await expect(page.getByRole('button', { name: 'Fertig' })).toBeVisible();
+		await page.waitForTimeout(500);
+		const row = (await page.locator('[data-tick-row]').boundingBox())!;
+		const box = (await last.boundingBox())!;
+		expect(row.y).toBeLessThanOrEqual(1);
+		// 12px under the sticky row.
+		expect(Math.abs(box.y - (row.y + row.height) - 12)).toBeLessThanOrEqual(2);
+
+		// With chips the filter is an icon beside the field.
+		const filter = page.getByRole('button', { name: 'Filter', exact: true });
+		expect((await filter.boundingBox())!.width).toBeLessThanOrEqual(48);
 	});
 });

@@ -4,10 +4,13 @@
 	import { m } from '#lib/paraglide/messages.js';
 
 	let {
+		title,
 		missing,
 		pressed = false,
 		onpress
 	}: {
+		/** The recipe's, so the button names which card it focuses. */
+		title: string;
 		/** How many ingredients the recipe still needs. */
 		missing: number;
 		pressed?: boolean;
@@ -16,6 +19,13 @@
 	} = $props();
 
 	const all = $derived(missing === 0);
+	const state = $derived(
+		all
+			? m.pantry_all_there()
+			: missing === 1
+				? m.pantry_missing_count_one()
+				: m.pantry_missing_count({ count: missing })
+	);
 	const look = $derived(
 		`inline-flex h-6.5 shrink-0 items-center gap-1 rounded-pill text-micro font-bold whitespace-nowrap shadow-card ${
 			pressed
@@ -29,11 +39,9 @@
 
 {#snippet content()}
 	{#if all}
-		<Check class="size-3.5 stroke-3" aria-hidden="true" />{m.pantry_all_there()}
+		<Check class="size-3.5 stroke-3" aria-hidden="true" />{state}
 	{:else}
-		<List class="size-4" aria-hidden="true" />{missing === 1
-			? m.pantry_missing_count_one()
-			: m.pantry_missing_count({ count: missing })}
+		<List class="size-4" aria-hidden="true" />{state}
 	{/if}
 {/snippet}
 
@@ -46,6 +54,8 @@
 	<button
 		type="button"
 		aria-pressed={pressed}
+		aria-label={m.pantry_stamp_label({ title, state })}
+		data-stamp
 		onclick={(event) => {
 			event.preventDefault();
 			event.stopPropagation();

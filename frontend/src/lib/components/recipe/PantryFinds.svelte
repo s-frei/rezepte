@@ -40,7 +40,12 @@
 	// looks again. A new width or new names start over from all of them.
 	let box = $state<HTMLElement>();
 	let width = $state(0);
-	const key = $derived(`${width}\n${names.join('\n')}`);
+	// Fonts that land late set the names wider; the measure starts over then.
+	let fontsReady = $state(false);
+	$effect(() => {
+		void document.fonts.ready.then(() => (fontsReady = true));
+	});
+	const key = $derived(`${width}\n${fontsReady}\n${names.join('\n')}`);
 	let fit = $state({ key: '', fits: Infinity });
 	const clamped = $derived(clampNames(names, fit.key === key ? fit.fits : Infinity));
 	$effect(() => {
@@ -95,7 +100,7 @@
 			<!-- The separators are mustaches: Svelte trims a literal space at the
 			     edge of a block. -->
 			<!-- eslint-disable svelte/no-useless-mustaches -->
-			<span class="font-semibold desk:hidden">{m.pantry_missing()}{' '}</span
+			<span aria-hidden="true" class="font-semibold desk:hidden">{m.pantry_missing()}{' '}</span
 			>{#if names.length === 0}<span class="text-text-muted">{m.pantry_nothing_missing()}</span
 				>{:else}<FindParts
 					items={missingParts(missing.slice(0, clamped.shown.length), hits, highlightKey)}
