@@ -22,8 +22,10 @@ type queueSMTP struct {
 	conns atomic.Int32
 	rcpts atomic.Int32
 	rcpt  func(n int) string
-	mu    sync.Mutex
-	got   []string // recipients whose DATA was accepted
+	// hold, when set, keeps every greeting back until it is closed.
+	hold chan struct{}
+	mu   sync.Mutex
+	got  []string // recipients whose DATA was accepted
 }
 
 func startQueueSMTP(t *testing.T, f *queueSMTP) Config {
@@ -49,6 +51,9 @@ func startQueueSMTP(t *testing.T, f *queueSMTP) Config {
 func (f *queueSMTP) serve(c net.Conn) {
 	defer func() { _ = c.Close() }()
 	tp := textproto.NewConn(c)
+	if f.hold != nil {
+		<-f.hold
+	}
 	_ = tp.PrintfLine("220 fake")
 	var to string
 	for {
@@ -129,7 +134,10 @@ func reset(to string) Reset { return Reset{To: to, Username: "lea", Path: "/setu
 // Mails queued together go out over one connection, and the call returns
 // before the server has seen them.
 func TestQueueSendsOverOneConnection(t *testing.T) {
-	f := &queueSMTP{}
+	// The server greets only once all three are queued: otherwise the first
+	// mail can finish its session before the next one is queued, and a slow
+	// runner then opens one connection per mail.
+	f := &queueSMTP{hold: make(chan struct{})}
 	s := queued(t, f)
 	ctx := context.Background()
 	for _, to := range []string{"a@example.org", "b@example.org", "c@example.org"} {
@@ -137,14 +145,14 @@ func TestQueueSendsOverOneConnection(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
+	close(f.hold)
 	h := settled(t, s, 3)
 	for _, m := range h {
 		if m.Status != "sent" || m.Attempts != 1 || m.Kind != "reset" || m.Subject == "" {
 			t.Fatalf("history %+v", m)
 		}
 	}
-	if n := f.conns.Load(); n > 2 {
-		// The first mail may start its session before the others are queued.
+	if n := f.conns.Load(); n != 1 {
 		t.Fatalf("%d connections for 3 queued mails", n)
 	}
 }

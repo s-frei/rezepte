@@ -1189,8 +1189,11 @@ test('a held finger on a card gets no link menu, a tap opens the recipe', async 
 	await expect
 		.poll(async () => (await order()).map((t) => t.includes(title)))
 		.toEqual([true, false]);
+	// After the reload the day fills in only once the week has loaded.
 	await openOwn(page);
-	expect((await order()).map((t) => t.includes(title))).toEqual([true, false]);
+	await expect
+		.poll(async () => (await order()).map((t) => t.includes(title)))
+		.toEqual([true, false]);
 });
 
 test('a card is a real link without a touch screen', async ({ page, isMobile }) => {
