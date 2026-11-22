@@ -199,6 +199,25 @@ function rowsOf(list: ShoppingList, items: ShoppingItem[], at: Now): Row[] {
 	});
 }
 
+/**
+ * The plans the reader is in that the list's items named `key` came from,
+ * each once, whichever view the row was tapped in: "Haben wir immer" on a
+ * list item acts on these only. "Mein Plan" first, then by name.
+ */
+export function stapleOrigins(list: ShoppingList, key: string): PlanRef[] {
+	const entries = new Map(list.entries.map((e) => [e.id, e]));
+	const out = new Map<string, PlanRef>();
+	for (const it of list.items) {
+		const e = it.nameKey === key && it.entryId ? entries.get(it.entryId) : undefined;
+		if (e?.planId && e.planMember && !out.has(e.planId)) out.set(e.planId, e);
+	}
+	return [...out.values()].sort(
+		(a, b) =>
+			Number(b.planPersonal) - Number(a.planPersonal) ||
+			(a.planName ?? '').localeCompare(b.planName ?? '', getLocale())
+	);
+}
+
 /** Open rows by department, in aisle order; empty departments are omitted. */
 export function groupByDepartment(
 	list: ShoppingList,

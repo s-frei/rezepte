@@ -22,6 +22,7 @@
 		setDepartment,
 		setEntryServings,
 		type Department,
+		type PlanRef,
 		type ShoppingEntry,
 		type ShoppingList
 	} from '#lib/api/shopping.js';
@@ -46,7 +47,7 @@
 	import { session } from '#lib/auth.svelte.js';
 	import { copyText } from '#lib/recipe/share.svelte.js';
 	import { departmentLabel } from '#lib/shopping/departments.js';
-	import { listText, listViews, type Row } from '#lib/shopping/rows.js';
+	import { listText, listViews, stapleOrigins, type Row } from '#lib/shopping/rows.js';
 	import { failList } from '#lib/shopping/fail.js';
 	import { ListState } from '#lib/shopping/list-state.svelte.js';
 	import { shopHref } from '#lib/shopping/href.js';
@@ -144,6 +145,8 @@
 
 	let sheetOpen = $state(false);
 	let sheetRow = $state<Row | null>(null);
+	/** Its name's plans across the whole list, whichever view it was tapped in; taken with the row. */
+	let sheetPlans = $state<PlanRef[]>([]);
 	const sheetDepartment = $derived<Department>(
 		list.items.find((i) => i.id === sheetRow?.itemIds[0])?.department ?? 'other'
 	);
@@ -164,6 +167,7 @@
 
 	function openSheet(row: Row) {
 		sheetRow = row;
+		sheetPlans = stapleOrigins(list, row.key);
 		sheetOpen = true;
 	}
 
@@ -449,6 +453,7 @@
 <ItemSheet
 	bind:open={sheetOpen}
 	row={sheetRow}
+	plans={sheetPlans}
 	department={sheetDepartment}
 	onpick={pickDepartment}
 	onremove={removeSheetRow}

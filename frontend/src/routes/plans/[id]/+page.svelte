@@ -402,6 +402,7 @@
 				{/if}
 			{/if}
 			<PlanMenu
+				planId={plan.id}
 				personal={plan.personal}
 				name={planName}
 				{owner}

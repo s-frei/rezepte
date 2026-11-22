@@ -381,6 +381,30 @@ func TestStaplesOverHTTP(t *testing.T) {
 	if len(st.Staples) != 1 {
 		t.Fatalf("get staples %+v", st)
 	}
+	// Ben is not in the plan: whatever list he shares with Anna, he neither reads nor marks its staples.
+	ben := a.login(t, "ben")
+	a.send(t, ben, http.MethodGet, plans+"/"+p.ID+"/staples", nil, http.StatusNotFound, nil)
+	a.send(t, ben, http.MethodPut, plans+"/"+p.ID+"/staples", map[string]any{"name": "Salz", "staple": true}, http.StatusNotFound, nil)
+	if a.send(t, c, http.MethodGet, plans+"/"+p.ID+"/staples", nil, http.StatusOK, &st); len(st.Staples) != 1 {
+		t.Fatalf("refused staple stored: %+v", st)
+	}
+	// Staples ride on the plan scopes alone: a list token reaches neither route.
+	path, body := plans+"/"+p.ID+"/staples", `{"name":"Salz","staple":true}`
+	for _, c := range []struct {
+		scopes       []string
+		method, body string
+		want         int
+	}{
+		{[]string{auth.ScopeListsRead, auth.ScopeListsWrite}, http.MethodGet, "", http.StatusForbidden},
+		{[]string{auth.ScopeListsRead, auth.ScopeListsWrite}, http.MethodPut, body, http.StatusForbidden},
+		{[]string{auth.ScopePlanRead}, http.MethodGet, "", http.StatusOK},
+		{[]string{auth.ScopePlanRead}, http.MethodPut, body, http.StatusForbidden},
+		{[]string{auth.ScopePlanRead, auth.ScopePlanWrite}, http.MethodPut, body, http.StatusOK},
+	} {
+		if rec := a.bearer(t, c.scopes, c.method, path, c.body); rec.Code != c.want {
+			t.Errorf("%s %v = %d, want %d: %s", c.method, c.scopes, rec.Code, c.want, rec.Body.String())
+		}
+	}
 }
 
 func TestToListOverHTTP(t *testing.T) {

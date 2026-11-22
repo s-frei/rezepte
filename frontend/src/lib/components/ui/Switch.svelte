@@ -8,11 +8,16 @@
 	let {
 		checked,
 		label,
+		disabled = false,
+		describedby,
 		onchange
 	}: {
 		checked: boolean;
 		/** Accessible name; the visible text belongs to the caller's own row. */
 		label: string;
+		disabled?: boolean;
+		/** Id of the row's hint, read after the name. */
+		describedby?: string;
 		onchange: (checked: boolean) => void;
 	} = $props();
 </script>
@@ -35,8 +40,10 @@
 <BitsSwitch.Root
 	{checked}
 	onCheckedChange={onchange}
+	{disabled}
 	aria-label={label}
-	class="group -mx-2 -my-[11px] inline-flex h-11 shrink-0 items-center px-2 outline-none md:-my-[7px] md:h-9"
+	aria-describedby={describedby}
+	class="group -mx-2 -my-[11px] inline-flex h-11 shrink-0 items-center px-2 outline-none disabled:opacity-50 md:-my-[7px] md:h-9"
 >
 	<span
 		class="inline-flex h-4 w-7 items-center rounded-pill bg-border px-0.5 transition group-focus-visible:outline-2 group-focus-visible:outline-offset-2 group-focus-visible:outline-primary group-data-[state=checked]:bg-primary"

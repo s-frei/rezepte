@@ -1,7 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import type { PlanRef, ShoppingItem, ShoppingList } from '#lib/api/shopping.js';
 import { DEPARTMENTS } from './departments';
-import { checkedRows, groupByDepartment, groupByRecipe, listText, tickedItemRows } from './rows';
+import {
+	checkedRows,
+	groupByDepartment,
+	groupByRecipe,
+	listText,
+	stapleOrigins,
+	tickedItemRows
+} from './rows';
 
 /** The plan fields of an entry added by hand. */
 const noPlan: PlanRef = {
@@ -399,5 +406,27 @@ describe('planned entries', () => {
 		expect(dep.rows[0].sources.map((s) => s.plan?.planId)).toEqual(['p', 'p']);
 		const [byHand] = groupByDepartment(list(items), { locale: 'de', today });
 		expect(byHand.rows[0].sources.map((s) => s.plan)).toEqual([null, null]);
+	});
+
+	it("names each of the reader's plans the name came from once, and no plan they are not in", () => {
+		const three: ShoppingList = {
+			...list([
+				item({ id: 'a', entryId: 'e1' }),
+				item({ id: 'b', entryId: 'e2' }),
+				item({ id: 'c', entryId: 'e3' }),
+				item({ id: 'd', entryId: 'e4' }),
+				item({ id: 'e', entryId: 'e4', name: 'Salt', nameKey: 'salt' }),
+				item({ id: 'f' })
+			]),
+			entries: [
+				{ ...entry('e1', 'Curry'), planId: 'p', planMember: true, planName: 'Home' },
+				{ ...entry('e2', 'Curry'), planId: 'p', planMember: true, planName: 'Home' },
+				{ ...entry('e3', 'Stew'), planId: 'q', planMember: false },
+				{ ...entry('e4', 'Soup'), planId: 'm', planMember: true, planPersonal: true }
+			]
+		};
+		expect(stapleOrigins(three, 'onion').map((p) => p.planId)).toEqual(['m', 'p']);
+		expect(stapleOrigins(three, 'salt').map((p) => p.planId)).toEqual(['m']);
+		expect(stapleOrigins(list(items), 'onion')).toEqual([]);
 	});
 });

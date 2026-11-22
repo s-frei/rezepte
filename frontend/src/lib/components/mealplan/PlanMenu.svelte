@@ -1,6 +1,7 @@
 <script lang="ts">
 	import CalendarSync from '@lucide/svelte/icons/calendar-sync';
 	import Ellipsis from '@lucide/svelte/icons/ellipsis';
+	import House from '@lucide/svelte/icons/house';
 	import LogOut from '@lucide/svelte/icons/log-out';
 	import Pencil from '@lucide/svelte/icons/pencil';
 	import Share2 from '@lucide/svelte/icons/share-2';
@@ -13,14 +14,16 @@
 	import { iconCircle } from '#lib/components/ui/IconButton.svelte';
 	import Input from '#lib/components/ui/Input.svelte';
 	import CalendarFeedDialog from './CalendarFeedDialog.svelte';
+	import StaplesDialog from './StaplesDialog.svelte';
 	import { m } from '#lib/paraglide/messages.js';
 
 	/**
-	 * A plan's ⋯. Every plan offers the calendar, one feed over all plans the
-	 * reader is in. A named plan's, as a list's: everyone renames; the creator
+	 * A plan's ⋯. Every plan offers its staples ("Haben wir immer") and the
+	 * calendar, one feed over all plans the reader is in. A named plan's, as a list's: everyone renames; the creator
 	 * shares and deletes, a member leaves. The personal plan has only the calendar.
 	 */
 	let {
+		planId,
 		personal = false,
 		name,
 		owner,
@@ -29,6 +32,7 @@
 		ondelete,
 		onleave
 	}: {
+		planId: string;
 		personal?: boolean;
 		name: string;
 		owner: boolean;
@@ -41,6 +45,7 @@
 
 	let renameOpen = $state(false);
 	let calendarOpen = $state(false);
+	let staplesOpen = $state(false);
 	let confirmOpen = $state(false);
 	let draft = $state('');
 	let saving = $state(false);
@@ -96,6 +101,10 @@
 					</DropdownMenu.Item>
 				{/if}
 			{/if}
+			<DropdownMenu.Item onSelect={() => (staplesOpen = true)} class={item}>
+				<House class="size-4" aria-hidden="true" />
+				{m.plan_staple()}
+			</DropdownMenu.Item>
 			<DropdownMenu.Item onSelect={() => (calendarOpen = true)} class={item}>
 				<CalendarSync class="size-4" aria-hidden="true" />
 				{m.plan_calendar()}
@@ -118,6 +127,8 @@
 		</DropdownMenu.Content>
 	</DropdownMenu.Portal>
 </DropdownMenu.Root>
+
+<StaplesDialog bind:open={staplesOpen} {planId} />
 
 <CalendarFeedDialog bind:open={calendarOpen} />
 

@@ -4,7 +4,11 @@ import { ingredientKey } from '#lib/recipe/checked.js';
 /** Selection keys use the same `group:index` shape as the recipe page's checks. */
 export const pickKey = (group: number, index: number) => `${group}:${index}`;
 
-/** Everything not yet ticked on the recipe page: what is still to buy. */
+/**
+ * Everything not yet ticked on the recipe page: what is still to buy. No
+ * staple is left out: "Haben wir immer" belongs to a plan, and this recipe
+ * comes from none.
+ */
 export function preselected(
 	recipeId: string,
 	groups: IngredientGroup[],

@@ -1311,9 +1311,12 @@ test('personal plan has no share or rename', async ({ page }) => {
 	await expect(planTitle(page)).toHaveText('My plan');
 	const main = page.getByRole('main');
 	await expect(main.getByRole('button', { name: 'Share', exact: true })).toHaveCount(0);
-	// Its ⋯ holds only the calendar, the same feed every plan offers.
+	// Its ⋯ holds only its staples and the calendar, the same feed every plan offers.
 	await main.getByRole('button', { name: 'More actions' }).click();
-	await expect(page.getByRole('menuitem')).toHaveText(['Subscribe in calendar']);
+	await expect(page.getByRole('menuitem')).toHaveText([
+		'We always have it',
+		'Subscribe in calendar'
+	]);
 	await page.keyboard.press('Escape');
 	// Nor does the API rename it.
 	const own = await ownPlan(page);
@@ -1334,6 +1337,7 @@ test('the owner renames and deletes a plan', async ({ page }) => {
 	await expect(page.getByRole('menuitem')).toHaveText([
 		'Rename',
 		'Share',
+		'We always have it',
 		'Subscribe in calendar',
 		'Delete plan'
 	]);
@@ -1391,6 +1395,7 @@ test('member leaves a plan', async ({ page }) => {
 	await page.getByRole('main').getByRole('button', { name: 'More actions' }).click();
 	await expect(page.getByRole('menuitem')).toHaveText([
 		'Rename',
+		'We always have it',
 		'Subscribe in calendar',
 		'Leave plan'
 	]);
@@ -1531,6 +1536,14 @@ test('a list member outside the plan sees who planned it, and no way to the plan
 		await expect(main.getByText(`Planned by ${owner}`).first()).toBeVisible();
 		await expect(main.getByText('My plan')).toHaveCount(0);
 		await expect(main.getByRole('link', { name: /^Plan / })).toHaveCount(0);
+		// Nor its staples: the item sheet has no "We always have it" for a plan they are not in.
+		await other.page.getByRole('radio', { name: 'Department' }).click();
+		const sheet = await openDialog(
+			other.page,
+			main.getByRole('button', { name: 'salt', exact: true }),
+			'salt'
+		);
+		await expect(sheet.getByRole('switch')).toHaveCount(0);
 	} finally {
 		await other.context.close();
 	}
@@ -1635,6 +1648,274 @@ test('one meal goes on a second list from its menu', async ({ page }) => {
 		.click();
 	await expect(page).toHaveURL(`/lists/${second}`);
 	await expect(page.getByRole('radio', { name: 'Department' })).toBeChecked();
+});
+
+/** The staple names of one plan, by key. */
+async function stapleKeys(page: Page, planId: string) {
+	const got = await page.request.get(`/api/v1/meal-plans/${planId}/staples`);
+	expect(got.ok()).toBe(true);
+	return ((await got.json()) as { staples: { nameKey: string }[] }).staples.map((s) => s.nameKey);
+}
+
+test("a list item's staple acts on the plans its recipes came from, no other", async ({ page }) => {
+	await page.clock.setFixedTime(new Date('2026-11-18T10:00:00'));
+	await loginFresh(page);
+	const t = uniqueToken();
+	const pie = await createRecipe(page, { ...loadFixture(0), title: `Pie ${t}` });
+	const own = await ownPlan(page);
+	const made = await page.request.post('/api/v1/meal-plans', { data: { name: `Home ${t}` } });
+	const home = ((await made.json()) as { id: string }).id;
+	for (const id of [own, home]) {
+		const entry = await page.request.post(`/api/v1/meal-plans/${id}/entries`, {
+			data: { day: '2026-11-19', recipeId: pie.id }
+		});
+		expect(entry.ok()).toBe(true);
+	}
+	const listId = await planOnList(page, home, '2026-11-16', '2026-11-22', `L ${t}`);
+	const typed = await page.request.post(`/api/v1/shopping-lists/${listId}/items`, {
+		data: { text: 'tahini' }
+	});
+	expect(typed.ok()).toBe(true);
+
+	await page.goto(`/lists/${listId}`);
+	const row = (name: string) => page.getByRole('main').getByRole('button', { name, exact: true });
+	let sheet = await openDialog(page, row('salt'), 'salt');
+	await expect(sheet.getByText(`We always have it · Home ${t}`)).toBeVisible();
+	const always = sheet.getByRole('switch', { name: `We always have salt in Home ${t}` });
+	await expect(always).not.toBeChecked();
+	await always.click();
+	await expect(always).toBeChecked();
+	await expect.poll(() => stapleKeys(page, home)).toEqual(['salt']);
+	// The reader's other plan, which holds the same recipe, is left alone.
+	expect(await stapleKeys(page, own)).toEqual([]);
+	await page.keyboard.press('Escape');
+	await expect(sheet).toBeHidden();
+
+	// A name typed in comes from no plan: no switch, and no gap where it was.
+	sheet = await openDialog(page, row('tahini'), 'tahini');
+	await expect(sheet.getByRole('switch')).toHaveCount(0);
+	await expect(sheet.getByText('We always have it')).toHaveCount(0);
+	await page.keyboard.press('Escape');
+	await expect(sheet).toBeHidden();
+
+	// From two plans, the switch names both, is on only when both have it, and sets both.
+	const range = 'from=2026-11-16&to=2026-11-22';
+	const preview = (await (
+		await page.request.get(`/api/v1/meal-plans/${own}/shopping-preview?${range}&tray=false`)
+	).json()) as { entries: { entryId: string; ingredients: { group: number; index: number }[] }[] };
+	const second = await page.request.post(`/api/v1/meal-plans/${own}/shopping?${range}`, {
+		data: {
+			listId,
+			picks: preview.entries.map((e) => ({
+				entryId: e.entryId,
+				ingredients: e.ingredients.map(({ group, index }) => ({ group, index }))
+			}))
+		}
+	});
+	expect(second.ok(), await second.text()).toBe(true);
+	await page.reload();
+	sheet = await openDialog(page, row('salt'), 'salt');
+	// One switch per plan, each for its own: Home has salt, My plan not yet.
+	const mine = sheet.getByRole('switch', { name: 'We always have salt in My plan' });
+	await expect(sheet.getByRole('switch')).toHaveCount(2);
+	await expect(always).toBeChecked();
+	await expect(mine).not.toBeChecked();
+	await always.click();
+	await expect(always).not.toBeChecked();
+	await expect.poll(() => stapleKeys(page, home)).toEqual([]);
+	expect(await stapleKeys(page, own)).toEqual([]);
+	await mine.click();
+	await expect(mine).toBeChecked();
+	await expect.poll(() => stapleKeys(page, own)).toEqual(['salt']);
+	expect(await stapleKeys(page, home)).toEqual([]);
+	await page.keyboard.press('Escape');
+	await expect(sheet).toBeHidden();
+	// The recipe view offers the same plans for the name as the department view.
+	await page.getByRole('radio', { name: 'Recipe' }).click();
+	sheet = await openDialog(page, row('salt').first(), 'salt');
+	await expect(sheet.getByRole('switch')).toHaveCount(2);
+	await expect(mine).toBeChecked();
+	await page.keyboard.press('Escape');
+
+	// A recipe's own "Add to shopping list" belongs to no plan: no house, salt picked.
+	await page.goto(`/recipes/${pie.slug}`);
+	const basket = await openDialog(
+		page,
+		page.getByRole('button', { name: 'Add to shopping list' }),
+		'Add to shopping list'
+	);
+	await expect(basket.getByRole('checkbox', { name: 'salt', exact: true }).first()).toBeChecked();
+	await expect(basket.getByRole('button', { name: /^We always have/ })).toHaveCount(0);
+	await expect(basket.getByText('We always have it')).toHaveCount(0);
+});
+
+test('a plan shows its staples and takes one off', async ({ page }) => {
+	await page.clock.setFixedTime(new Date('2026-11-18T10:00:00'));
+	await loginFresh(page);
+	const t = uniqueToken();
+	const pie = await createRecipe(page, { ...loadFixture(0), title: `Pie ${t}` });
+	await plan(page, { day: '2026-11-19', recipeId: pie.id });
+	const own = await ownPlan(page);
+	for (const name of ['salt', 'pepper']) {
+		const put = await page.request.put(`/api/v1/meal-plans/${own}/staples`, {
+			data: { name, staple: true }
+		});
+		expect(put.ok()).toBe(true);
+	}
+	await openOwn(page);
+
+	await page.getByRole('main').getByRole('button', { name: 'More actions' }).click();
+	await page.getByRole('menuitem', { name: 'We always have it' }).click();
+	const sheet = page.getByRole('dialog', { name: 'We always have it' });
+	await expect(sheet.getByRole('listitem')).toHaveText(['pepper', 'salt']);
+	// How else they get here stays said beside the list, not only when it is empty.
+	await expect(sheet.getByText('You can also mark ingredients with the house')).toBeVisible();
+	await sheet.getByRole('button', { name: 'Remove salt' }).click();
+	await expect(sheet.getByRole('listitem')).toHaveText(['pepper']);
+	// The keyboard stays in the list.
+	await expect(sheet.getByRole('button', { name: 'Remove pepper' })).toBeFocused();
+	await page.getByRole('button', { name: 'Undo' }).click();
+	await expect(sheet.getByRole('listitem')).toHaveText(['pepper', 'salt']);
+	await sheet.getByRole('button', { name: 'Remove salt' }).click();
+	await sheet.getByRole('button', { name: 'Remove pepper' }).click();
+	await expect(sheet.getByRole('listitem')).toHaveCount(0);
+	await expect(sheet.getByRole('button', { name: 'Done' })).toBeFocused();
+	// A real tap: while the sheet is open a phone shows the removal toasts at
+	// the top, clear of Done.
+	await sheet.getByRole('button', { name: 'Done' }).click();
+	await expect(sheet).toBeHidden();
+
+	// Taken off, salt is picked again.
+	const dialog = await openDialog(page, toListButton(page), 'Put on the list');
+	await dialog.getByRole('button', { name: `Ingredients of Pie ${t}` }).click();
+	await expect(dialog.getByRole('checkbox', { name: 'salt', exact: true }).first()).toBeChecked();
+});
+
+test('a plan adds a staple from the ingredient search, folded until asked', async ({ page }) => {
+	await page.clock.setFixedTime(new Date('2026-11-18T10:00:00'));
+	await loginFresh(page);
+	const t = uniqueToken();
+	await createRecipe(page, { ...loadFixture(0), title: `Pie ${t}` });
+	// A longer name starting the same, so the search offers more than salt.
+	const pie = loadFixture(0);
+	await createRecipe(page, {
+		...pie,
+		title: `Soup ${t}`,
+		ingredientGroups: pie.ingredientGroups.map((g) => ({
+			...g,
+			ingredients: g.ingredients.map((i) => ({
+				...i,
+				name: i.name.replace(/^salt$/, 'salt to taste')
+			}))
+		}))
+	});
+	const own = await ownPlan(page);
+	await openOwn(page);
+
+	await page.getByRole('main').getByRole('button', { name: 'More actions' }).click();
+	await page.getByRole('menuitem', { name: 'We always have it' }).click();
+	const sheet = page.getByRole('dialog', { name: 'We always have it' });
+	await expect(sheet.getByText('You can also mark ingredients with the house')).toBeVisible();
+	// Folded on opening: the sheet looks as it always did, with one way to add.
+	await expect(sheet.getByRole('combobox')).toHaveCount(0);
+	await sheet.getByRole('button', { name: 'Add ingredient' }).click();
+	const field = sheet.getByRole('combobox', { name: 'Search ingredients' });
+	await expect(field).toBeFocused();
+
+	// A name in use: Enter takes it, and the field is ready for the next.
+	await field.fill('salt');
+	await expect(sheet.getByRole('option', { name: 'salt', exact: true })).toBeVisible();
+	await field.press('Enter');
+	await expect(sheet.getByRole('listitem')).toHaveText(['salt']);
+	await expect(field).toHaveValue('');
+	await expect(field).toBeFocused();
+	// The same key again is shown as in already, never added twice.
+	await field.fill('Salt');
+	await expect(sheet.getByRole('option', { name: /salt.*Already in/ })).toBeVisible();
+	// Enter on it says so, never takes "salt to taste" instead.
+	await field.press('Enter');
+	await expect(sheet.getByText('salt is already in')).toBeAttached();
+	await expect(sheet.getByRole('listitem')).toHaveText(['salt']);
+	// A name nobody uses yet goes in as typed.
+	const sumac = `Sumac ${t}`;
+	await field.fill(sumac);
+	await sheet.getByRole('option', { name: `Add “${sumac}”` }).click();
+	await expect(sheet.getByRole('listitem')).toHaveText(['salt', sumac]);
+	await expect.poll(() => stapleKeys(page, own)).toHaveLength(2);
+	// Taking one off while searching keeps the field focused (a phone keeps its keyboard).
+	await sheet.getByRole('button', { name: `Remove ${sumac}` }).click();
+	await expect(sheet.getByRole('listitem')).toHaveText(['salt']);
+	await expect(field).toBeFocused();
+
+	// Escape folds the search first, from its close button too; the sheet stays.
+	await sheet.getByRole('button', { name: 'Close search' }).focus();
+	await page.keyboard.press('Escape');
+	await expect(sheet.getByRole('combobox')).toHaveCount(0);
+	await expect(sheet.getByRole('button', { name: 'Add ingredient' })).toBeFocused();
+	await page.keyboard.press('Escape');
+	await expect(sheet).toBeHidden();
+});
+
+test('on a phone, the keyboard leaves the search and its names in view', async ({
+	page,
+	isMobile
+}) => {
+	test.skip(!isMobile, 'a phone path');
+	await page.clock.setFixedTime(new Date('2026-11-18T10:00:00'));
+	await loginFresh(page);
+	// Three names of its own, so the rows under the field are the same in any run.
+	const t = uniqueToken().toLowerCase();
+	const base = loadFixture(0);
+	await createRecipe(page, {
+		...base,
+		title: `Pie ${t}`,
+		ingredientGroups: [
+			{
+				name: null,
+				ingredients: ['one', 'two', 'three'].map((n) => ({
+					quantity: 1,
+					unit: null,
+					name: `zq${t} ${n}`,
+					note: null
+				}))
+			}
+		],
+		steps: [{ text: 'Mix.', references: [], times: [] }]
+	});
+	const own = await ownPlan(page);
+	for (const name of ['salt', 'pepper', 'oil', 'flour', 'sugar']) {
+		const put = await page.request.put(`/api/v1/meal-plans/${own}/staples`, {
+			data: { name, staple: true }
+		});
+		expect(put.ok()).toBe(true);
+	}
+	for (const width of [320, 390]) {
+		await page.setViewportSize({ width, height: 700 });
+		await openOwn(page);
+		await page.getByRole('main').getByRole('button', { name: 'More actions' }).click();
+		await page.getByRole('menuitem', { name: 'We always have it' }).click();
+		const sheet = page.getByRole('dialog', { name: 'We always have it' });
+		await sheet.getByRole('button', { name: 'Add ingredient' }).click();
+		const field = sheet.getByRole('combobox', { name: 'Search ingredients' });
+		await expect(field).toBeFocused();
+		// A phone's keyboard comes up after the tap and takes its height from the view.
+		await page.setViewportSize({ width, height: 380 });
+		// Three names in use, the typed text last.
+		await field.fill(`zq${t}`);
+		await expect(sheet.getByRole('option')).toHaveCount(4);
+		const typed = sheet.getByRole('option', { name: `Add “zq${t}”` });
+		await expect(typed).toBeVisible();
+		await expect
+			.poll(async () => {
+				const box = await typed.boundingBox();
+				const view = await page.evaluate(() => window.visualViewport?.height ?? innerHeight);
+				return !!box && box.y >= 0 && box.y + box.height <= view;
+			})
+			.toBe(true);
+		await page.keyboard.press('Escape');
+		await page.keyboard.press('Escape');
+		await expect(sheet).toBeHidden();
+	}
 });
 
 test('creates and replaces the calendar link', async ({ page }) => {
