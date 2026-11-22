@@ -1,9 +1,49 @@
+<script lang="ts" module>
+	import { on } from 'svelte/events';
+	import { DRAGGED_ELEMENT_ID, SOURCES, type DndEvent } from 'svelte-dnd-action';
+
+	// iOS clicks the link under the finger when it lifts from a long press
+	// (with the callout off, the press ends as a tap), wherever the drag took
+	// it: a trusted click on the dropped card or the lifted copy. So from a
+	// pointer drag's start until shortly after its drop, the window swallows
+	// every click, before the link or the router hear it. One for the whole
+	// week: the drag runs across zones. Only a pointer's: a keyboard drop
+	// sends no finalize. And while no lifted copy is left, a second at most.
+	let swallowing: (() => void) | undefined;
+	let settle: ReturnType<typeof setTimeout> | undefined;
+	function unswallow() {
+		swallowing?.();
+		swallowing = undefined;
+	}
+	function backstop() {
+		if (document.getElementById(DRAGGED_ELEMENT_ID)) settle = setTimeout(backstop, 1000);
+		else unswallow();
+	}
+	function swallowClicks(event: CustomEvent<DndEvent<unknown>>) {
+		if (event.detail.info.source !== SOURCES.POINTER) return dropped();
+		clearTimeout(settle);
+		settle = setTimeout(backstop, 1000);
+		swallowing ??= on(
+			window,
+			'click',
+			(event) => {
+				event.preventDefault();
+				event.stopPropagation();
+			},
+			{ capture: true }
+		);
+	}
+	function dropped() {
+		clearTimeout(settle);
+		settle = setTimeout(unswallow, 400);
+	}
+</script>
+
 <script lang="ts">
 	import type { Snippet } from 'svelte';
 	import { flip } from 'svelte/animate';
-	import { on } from 'svelte/events';
 	import { prefersReducedMotion } from 'svelte/motion';
-	import { DRAGGED_ELEMENT_ID, dndzone, type DndEvent } from 'svelte-dnd-action';
+	import { dndzone } from 'svelte-dnd-action';
 	import type { PlanEntry } from '#lib/api/mealplan.js';
 	import { isShadow, zoneOptions } from '#lib/recipe/dnd.js';
 	import PlanEntryCard from './PlanEntryCard.svelte';
@@ -68,7 +108,12 @@
 	function consider(event: CustomEvent<DndEvent<PlanEntry>>) {
 		const dragged = document.getElementById(DRAGGED_ELEMENT_ID);
 		if (dragged) slot = dragged.getBoundingClientRect().height;
+		swallowClicks(event);
 		onconsider(event);
+	}
+	function finalize(event: CustomEvent<DndEvent<PlanEntry>>) {
+		dropped();
+		onfinalize(event);
 	}
 
 	// A finger held on a card: the zone's drag, not the browser's link menu
@@ -127,7 +172,7 @@
 			useCursorForDetection: true
 		}}
 		onconsider={consider}
-		{onfinalize}
+		onfinalize={finalize}
 		{@attach guard}
 		class="min-h-11 {cover ? 'absolute inset-0 z-10' : reach} {layout === 'column'
 			? '-mb-[60vh] flex flex-col gap-2 pb-[60vh]'

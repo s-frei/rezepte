@@ -311,6 +311,17 @@ async function touchDrag(page: Page, from: Locator, to: Locator) {
 	await cdp.detach();
 }
 
+/** Whether a click on the page still reaches the document: a drop's click guard swallows it on the window. */
+const clicksHeard = (page: Page) =>
+	page.evaluate(() => {
+		let heard = false;
+		const hear = () => (heard = true);
+		document.addEventListener('click', hear, { capture: true });
+		document.body.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+		document.removeEventListener('click', hear, { capture: true });
+		return heard;
+	});
+
 test('plans a recipe and a note on a day', async ({ page }) => {
 	await page.clock.setFixedTime(new Date('2026-11-16T10:00:00'));
 	await loginFresh(page);
@@ -592,13 +603,75 @@ test('a held finger on a card gets no link menu, a tap opens the recipe', async 
 		duration: 1200,
 		gestureSourceType: 'touch'
 	});
+	// The held press became a drag: the click at its lift is swallowed.
+	expect(await clicksHeard(page)).toBe(false);
 	await cdp.detach();
 	const menu = await page.evaluate(() => (window as unknown as { menu?: object }).menu);
 	expect(menu).toEqual({ prevented: true, inList: false });
 	await expect(page).toHaveURL(/\/plans\//);
 
+	// The held press was a drag too: the click after it is swallowed for a
+	// moment, then a tap is a tap again.
+	await expect.poll(() => clicksHeard(page)).toBe(true);
 	await link.tap();
 	await expect(page.getByRole('heading', { level: 1, name: title })).toBeVisible();
+});
+
+test('the click that ends a long drag never opens the recipe, a tap does', async ({
+	page,
+	isMobile
+}) => {
+	test.skip(!isMobile, 'a long press is a touch gesture');
+	await page.clock.setFixedTime(new Date('2026-11-16T10:00:00'));
+	await loginFresh(page);
+	const title = `Klopse ${uniqueToken()}`;
+	const recipe = await createRecipe(page, { ...loadFixture(0), title });
+	await plan(page, { day: '2026-11-17', recipeId: recipe.id });
+	await plan(page, { day: '2026-11-18', title: 'Pizza bestellen' });
+	await openOwn(page);
+	const card = day(page, 'Tuesday, November 17').getByRole('link', { name: title });
+	await card.scrollIntoViewIfNeeded();
+	await touchDrag(page, card, day(page, 'Wednesday, November 18').getByText('Pizza bestellen'));
+	// iOS lifts the finger from a long press as a tap: a trusted click on the
+	// link under it, the dropped card's, right after the drop.
+	const link = day(page, 'Wednesday, November 18').getByRole('link', { name: title });
+	const box = (await link.boundingBox())!;
+	await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
+	await page.waitForTimeout(600);
+	await expect(page).toHaveURL(/\/plans\//);
+
+	// Past the moment after the drop, a tap is a tap again.
+	await expect.poll(() => clicksHeard(page)).toBe(true);
+	await link.tap();
+	await expect(page.getByRole('heading', { level: 1, name: title })).toBeVisible();
+});
+
+test('a keyboard drag leaves the clicks alone', async ({ page }) => {
+	await page.clock.setFixedTime(new Date('2026-11-16T10:00:00'));
+	await loginFresh(page);
+	const title = `Klopse ${uniqueToken()}`;
+	const recipe = await createRecipe(page, { ...loadFixture(0), title });
+	await plan(page, { day: '2026-11-18', title: 'Pizza bestellen' });
+	await plan(page, { day: '2026-11-18', recipeId: recipe.id });
+	await openOwn(page);
+	const wednesday = day(page, 'Wednesday, November 18');
+	// The library still drags a focused card by Space, and its drop sends no finalize.
+	await wednesday.locator('li', { hasText: 'Pizza bestellen' }).focus();
+	await page.keyboard.press('Space');
+	await page.keyboard.press('ArrowDown');
+	await page.keyboard.press('Space');
+	const order = () => wednesday.locator('li').allInnerTexts();
+	await expect
+		.poll(async () => (await order()).map((t) => t.includes(title)))
+		.toEqual([true, false]);
+	expect(await clicksHeard(page)).toBe(true);
+	await wednesday.getByRole('link', { name: title }).click();
+	await expect(page.getByRole('heading', { level: 1, name: title })).toBeVisible();
+	// The move was a real one: the server has the new order.
+	await openOwn(page);
+	await expect
+		.poll(async () => (await order()).map((t) => t.includes(title)))
+		.toEqual([true, false]);
 });
 
 test('removes and undoes', async ({ page }) => {
