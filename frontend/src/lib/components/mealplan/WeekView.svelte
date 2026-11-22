@@ -163,7 +163,15 @@
 			failed
 		);
 		if (!done) return;
-		toast.success(m.plan_entry_removed({ title: entry.title }), {
+		// Lists follow the plan: say which of the reader's lost it too.
+		const { title, lists } = entry;
+		const said =
+			lists.length === 0
+				? m.plan_entry_removed({ title })
+				: lists.length === 1
+					? m.plan_entry_removed_listed({ title, list: lists[0].name })
+					: m.plan_entry_removed_lists({ title, count: lists.length });
+		toast.success(said, {
 			action: {
 				label: m.common_undo(),
 				onClick: () =>

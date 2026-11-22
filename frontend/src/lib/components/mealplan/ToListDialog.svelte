@@ -5,14 +5,14 @@
 	import ChevronRight from '@lucide/svelte/icons/chevron-right';
 	import House from '@lucide/svelte/icons/house';
 	import ShoppingBasket from '@lucide/svelte/icons/shopping-basket';
-	import { parseDate } from '@internationalized/date';
+	import { parseDate, type DateValue } from '@internationalized/date';
 	import { Dialog, RangeCalendar, type DateRange } from 'bits-ui';
 	import { tick, untrack } from 'svelte';
 	import { on } from 'svelte/events';
 	import { SvelteMap, SvelteSet } from 'svelte/reactivity';
 	import { toast } from 'svelte-sonner';
 	import { goto } from '$app/navigation';
-	import { isSignedOut } from '#lib/api/client.js';
+	import { ApiError, isSignedOut } from '#lib/api/client.js';
 	import {
 		getShoppingPreview,
 		putPlanOnList,
@@ -76,7 +76,8 @@
 
 	let entries = $state<PreviewEntry[]>([]);
 	let previewLoaded = $state(false);
-	let previewFailed = $state(false);
+	/** Why the preview is missing: the request failed, or the days span too far (a 422). */
+	let previewFailed = $state<'' | 'error' | 'range'>('');
 	/** A changed range, tray or staple is being fetched: the recipes shown are the old ones. */
 	let refreshing = $state(false);
 	/** Picked ingredients per entry; an entry with none stays off the list. */
@@ -186,7 +187,7 @@
 		const mine = ++previewReq;
 		if (!keep) previewLoaded = false;
 		refreshing = keep;
-		previewFailed = false;
+		previewFailed = '';
 		const before = new Map(entries.map((e) => [e.entryId, e]));
 		try {
 			const answer = (await getShoppingPreview(plan.id, span, tray)).entries;
@@ -216,10 +217,11 @@
 			}
 			entries = answer;
 			previewLoaded = true;
-		} catch {
+		} catch (error) {
 			if (mine !== previewReq) return;
 			// Said in place, with its retry: recipes of the days before must not stay.
-			previewFailed = true;
+			// A range the server refuses gets no retry; other days are the way out.
+			previewFailed = error instanceof ApiError && error.status === 422 ? 'range' : 'error';
 		} finally {
 			if (mine === previewReq) refreshing = false;
 		}
@@ -234,6 +236,12 @@
 			void tick().then(() => document.getElementById(`${uid}-days`)?.focus());
 		});
 	}
+
+	/** The server takes ranges up to 62 days apart; the calendar offers 62 days, both ends counted. */
+	const MAX_DAYS = 62;
+	/** With one end picked, the days that would make the range too long. */
+	const tooFar = (date: DateValue) =>
+		!!calendar.start && !calendar.end && Math.abs(date.compare(calendar.start)) >= MAX_DAYS;
 
 	function pickRange(next: DateRange) {
 		calendar = next;
@@ -372,6 +380,7 @@
 						id="{uid}-calendar"
 						value={calendar}
 						onValueChange={pickRange}
+						isDateDisabled={tooFar}
 						weekStartsOn={1}
 						{locale}
 						fixedWeeks
@@ -407,7 +416,7 @@
 												{#each days as date (date.toString())}
 													<RangeCalendar.Cell {date} month={month.value} class="flex-1 p-0">
 														<RangeCalendar.Day
-															class="flex h-11 w-full items-center justify-center text-body-sm text-text tabular-nums transition-colors focus-visible:relative focus-visible:z-10 focus-visible:outline-2 focus-visible:outline-primary data-[outside-month]:text-text-muted/60 data-[range-middle]:bg-accent data-[range-middle]:text-accent-foreground data-[selected]:bg-accent data-[selection-end]:rounded-r-md data-[selection-end]:bg-primary data-[selection-end]:font-semibold data-[selection-end]:text-primary-foreground data-[selection-start]:rounded-l-md data-[selection-start]:bg-primary data-[selection-start]:font-semibold data-[selection-start]:text-primary-foreground data-[today]:font-bold data-[today]:underline data-[today]:decoration-2 data-[today]:underline-offset-4 md:h-10 [&:not([data-selected])]:rounded-md [&:not([data-selected])]:hover:bg-background"
+															class="flex h-11 w-full items-center justify-center text-body-sm text-text tabular-nums transition-colors focus-visible:relative focus-visible:z-10 focus-visible:outline-2 focus-visible:outline-primary data-[disabled]:cursor-not-allowed data-[disabled]:text-text-muted/40 data-[outside-month]:text-text-muted/60 data-[range-middle]:bg-accent data-[range-middle]:text-accent-foreground data-[selected]:bg-accent data-[selection-end]:rounded-r-md data-[selection-end]:bg-primary data-[selection-end]:font-semibold data-[selection-end]:text-primary-foreground data-[selection-start]:rounded-l-md data-[selection-start]:bg-primary data-[selection-start]:font-semibold data-[selection-start]:text-primary-foreground data-[today]:font-bold data-[today]:underline data-[today]:decoration-2 data-[today]:underline-offset-4 md:h-10 [&:not([data-selected])]:rounded-md [&:not([data-selected])]:hover:bg-background"
 														/>
 													</RangeCalendar.Cell>
 												{/each}
@@ -479,7 +488,13 @@
 					>{m.plan_to_list_recipes({ selected: chosen.length, total: fresh.length })}</span
 				>
 			{/if}
-			{#if previewFailed}
+			{#if previewFailed === 'range'}
+				<p
+					class="flex min-h-11 items-center rounded-md border border-border bg-surface-elevated px-4 py-1.5 text-caption leading-tight text-text-muted"
+				>
+					{m.plan_to_list_range_error()}
+				</p>
+			{:else if previewFailed}
 				{@render retry(m.plan_to_list_load_error(), () => loadPreview())}
 			{:else if !previewLoaded}
 				<div class="h-28 animate-pulse rounded-2xl bg-skeleton" aria-hidden="true"></div>

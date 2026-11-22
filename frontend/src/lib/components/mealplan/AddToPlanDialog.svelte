@@ -83,7 +83,7 @@
 		} catch (error) {
 			if (mine !== req) return;
 			plansFailed = true;
-			if (!isSignedOut(error)) toast.error(m.week_load_error());
+			if (!isSignedOut(error)) toast.error(m.plan_plans_load_error());
 		}
 	}
 
@@ -195,7 +195,7 @@
 				onclick={loadPlans}
 				class="flex min-h-11 w-full items-center justify-between rounded-md border border-border bg-surface-elevated px-4 py-1.5 text-left text-caption text-text-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
 			>
-				<span class="min-w-0 leading-tight">{m.week_load_error()}</span>
+				<span class="min-w-0 leading-tight">{m.plan_plans_load_error()}</span>
 				<span class="shrink-0 pl-3 font-semibold whitespace-nowrap text-primary"
 					>{m.add_to_list_retry()}</span
 				>

@@ -373,6 +373,20 @@ test('removes and undoes', async ({ page }) => {
 	await expect(day(page, 'Wednesday, November 18').getByText('Reste vom Sonntag')).toBeVisible();
 });
 
+test('removing a listed recipe says the list lost it too', async ({ page }) => {
+	await page.clock.setFixedTime(new Date('2026-11-16T10:00:00'));
+	await loginFresh(page);
+	const t = uniqueToken();
+	const pie = await createRecipe(page, { ...loadFixture(0), title: `Pie ${t}` });
+	await plan(page, { day: '2026-11-18', recipeId: pie.id });
+	await planOnList(page, await ownPlan(page), '2026-11-16', '2026-11-22', `Week ${t}`);
+	await page.goto('/week');
+	const wednesday = day(page, 'Wednesday, November 18');
+	await wednesday.getByRole('button', { name: `Actions for Pie ${t}` }).click();
+	await page.getByRole('menuitem', { name: 'Remove' }).click();
+	await expect(page.getByText(`Pie ${t} removed – from “Week ${t}” too`)).toBeVisible();
+});
+
 test('collapses past days on a phone', async ({ page, isMobile }) => {
 	test.skip(!isMobile, 'the desktop shows every day');
 	await page.clock.setFixedTime(new Date('2026-11-20T10:00:00'));
@@ -571,6 +585,19 @@ test('a changed range waits for its recipes before it goes on a list', async ({ 
 		'Shopping Nov\u00A023–29'
 	);
 	await expect(submit).toBeEnabled();
+
+	// With one end picked, the calendar offers 62 days at most: the server's limit.
+	await days.click();
+	await dialog.locator('[data-bits-day][data-value="2026-11-18"]').click();
+	const next = dialog.getByRole('button', { name: 'Next', exact: true });
+	await next.click();
+	await next.click();
+	await expect(dialog.locator('[data-bits-day][data-value="2027-01-18"]')).not.toHaveAttribute(
+		'data-disabled'
+	);
+	await expect(dialog.locator('[data-bits-day][data-value="2027-01-19"]')).toHaveAttribute(
+		'data-disabled'
+	);
 });
 
 test('plans a recipe from its page for Wednesday at 6 servings', async ({ page }) => {
@@ -726,7 +753,7 @@ test('creates a named plan and invites someone', async ({ page, browser }, testI
 			.getByRole('button', { name: `Remove ${guest}` })
 			.click();
 		await expect(page.getByRole('dialog').getByText(guest)).toHaveCount(0);
-		await expect(them.getByText('This plan is no longer there for you')).toBeVisible();
+		await expect(them.getByText('You no longer have access to this plan.')).toBeVisible();
 		await expect(picker(them)).toHaveText('My plan');
 	} finally {
 		await other.context.close();
@@ -950,7 +977,7 @@ test('creates and replaces the calendar link', async ({ page }) => {
 
 	// Opened again: the link is not shown again, the subscription is.
 	dialog = await open();
-	await expect(dialog.getByText(/^Subscribed since /)).toBeVisible();
+	await expect(dialog.getByText(/^Link active since /)).toBeVisible();
 	await expect(dialog.getByRole('textbox')).toHaveCount(0);
 	await dialog.getByRole('button', { name: 'Make a new link' }).click();
 	const confirm = page.getByRole('dialog', { name: 'Make a new link?' });
