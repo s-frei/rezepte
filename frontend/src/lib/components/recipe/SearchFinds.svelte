@@ -4,7 +4,17 @@
 	import { m } from '#lib/paraglide/messages.js';
 	import { findIcons, findLabel, findText } from '#lib/recipe/finds.js';
 
-	let { finds, photo = false }: { finds: SearchFind[]; photo?: boolean } = $props();
+	let {
+		finds,
+		photo = false,
+		pantry = false
+	}: {
+		finds: SearchFind[];
+		photo?: boolean;
+		/** Below the pantry lines, whose two-column phone look it takes: one
+		 * line, the field's icon in place of its label row. */
+		pantry?: boolean;
+	} = $props();
 </script>
 
 <!-- One find per field the words the title does not show were found in:
@@ -15,18 +25,25 @@
      where the muted gray misses AA. The find stays on one line; the server
      starts an excerpt at the word the match is in, so the ellipsis cuts
      after it, and the tooltip has the rest. -->
-<ul class="mt-2.5 flex flex-col gap-2 desk:mt-3">
+<ul class="flex flex-col {pantry ? 'desk:mt-2 desk:gap-2' : 'mt-2.5 gap-2 desk:mt-3'}">
 	{#each finds as find, i (i)}
 		{@const Icon = findIcons[find.field]}
-		<li class="@container flex min-w-0 flex-col gap-0.5 border-l-2 border-primary/45 py-px pl-2.5">
+		<li
+			class="@container flex min-w-0 {pantry
+				? 'items-center gap-1 desk:flex-col desk:items-stretch desk:gap-0.5 desk:border-l-2 desk:border-primary/45 desk:py-px desk:pl-2.5'
+				: 'flex-col gap-0.5 border-l-2 border-primary/45 py-px pl-2.5'}"
+		>
 			<!-- The count sits at the end of the field's line, where it costs
 			     the find nothing; a screen reader hears it after the find. A
 			     box too narrow for "Beschreibung" (a two-column card at 320px)
 			     drops the icon before a letter of the name. -->
+			{#if pantry}
+				<Icon class="size-3.5 shrink-0 desk:hidden" aria-hidden="true" />
+			{/if}
 			<span
-				class="flex min-w-0 items-center gap-1 text-micro font-medium {photo
-					? 'text-text-muted'
-					: 'text-text/75'}"
+				class="flex min-w-0 items-center gap-1 text-micro font-medium {pantry
+					? 'sr-only desk:not-sr-only desk:flex'
+					: ''} {photo ? 'text-text-muted' : 'text-text/75'}"
 			>
 				<Icon class="size-3.5 shrink-0 @max-[6.5rem]:hidden" aria-hidden="true" />
 				<span class="truncate">{findLabel(find)}<span class="sr-only">:</span></span>

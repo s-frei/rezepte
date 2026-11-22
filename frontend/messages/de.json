@@ -1717,5 +1717,13 @@
 	"search_ingredient_covers": "Deckt auch ab: {names}",
 	"search_placeholder_chips": "Zutat oder Suchwort",
 	"search_placeholder_short": "+ Zutat",
-	"search_remove_ingredient": "{name} entfernen"
+	"search_remove_ingredient": "{name} entfernen",
+	"pantry_missing_count_one": "1 fehlt",
+	"pantry_missing_count": "{count} fehlen",
+	"pantry_all_there": "Alles da",
+	"pantry_yours": "Deine Zutaten",
+	"pantry_missing_label": "Fehlt",
+	"pantry_missing": "Fehlt:",
+	"pantry_nothing_missing": "nichts",
+	"pantry_more": "+{count}"
 }

@@ -1,22 +1,38 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
-	import { imageUrl, type RecipeCard as RecipeCardData } from '#lib/api/recipes.js';
+	import {
+		imageUrl,
+		type PantryItem,
+		type RecipeCard as RecipeCardData
+	} from '#lib/api/recipes.js';
 	import { session } from '#lib/auth.svelte.js';
+	import { dedupeTextFinds, missingAfterTicks } from '#lib/recipe/finds.js';
 	import { formatMinutes } from '#lib/recipe/format.js';
 	import { initialFor, tintFor } from '#lib/recipe/placeholder.js';
 	import AuthorInitials from './AuthorInitials.svelte';
 	import SearchFinds from './SearchFinds.svelte';
 	import FavoriteStar from './FavoriteStar.svelte';
+	import PantryFinds from './PantryFinds.svelte';
+	import PantryStamp from './PantryStamp.svelte';
 	import TastyButton from './TastyButton.svelte';
 
 	let {
 		recipe,
-		rise = null
+		rise = null,
+		ticked = [],
+		focused = false,
+		onfocuspantry
 	}: {
 		recipe: RecipeCardData;
 		/** Set on a card "Load more" brought: its place in that batch, which
 		 * staggers its rise into the list. */
 		rise?: number | null;
+		/** The ingredient search's ticks, which cover what they serve. */
+		ticked?: PantryItem[];
+		/** The tick row shows this card's missing ingredients alone. */
+		focused?: boolean;
+		/** Makes the pantry stamp a button that focuses the tick row here. */
+		onfocuspantry?: () => void;
 	} = $props();
 
 	const time = $derived(formatMinutes(recipe.totalMinutes));
@@ -37,8 +53,20 @@
 	// own chance without an effect resetting a flag.
 	let failed = $state<string | null>(null);
 	const photo = $derived(recipe.coverImageId !== null && failed !== recipe.coverImageId);
+	// With ingredient chips: what the recipe still needs once the ticks
+	// have covered what they serve, and the text finds without the
+	// ingredients its pantry lines already name.
+	const missing = $derived(recipe.pantry ? missingAfterTicks(recipe.pantry.missing, ticked) : []);
+	const finds = $derived(
+		recipe.pantry && recipe.match
+			? dedupeTextFinds(recipe.match.finds, [
+					...recipe.pantry.used,
+					...missing.map((item) => item.name)
+				])
+			: (recipe.match?.finds ?? [])
+	);
 	// Find boxes under the title take the text card's wider gap to the tags.
-	const hasFinds = $derived((recipe.match?.finds.length ?? 0) > 0);
+	const hasFinds = $derived(finds.length > 0 || recipe.pantry !== undefined);
 	// The tag line leaves out the tags a find already names, so a search for
 	// "brot" does not show "brotzeit" twice, one line apart.
 	const tags = $derived.by(() => {
@@ -103,6 +131,11 @@
 	{/if}
 {/snippet}
 
+<!-- How much the recipe still needs; see PantryStamp. -->
+{#snippet stamp()}
+	<PantryStamp missing={missing.length} pressed={focused} onpress={onfocuspantry} />
+{/snippet}
+
 <!--
 	The card is a stretched link, not a link wrapped around the card: the
 	anchor holds the title alone and grows an `::after` over the whole card
@@ -156,7 +189,9 @@
 	bind:this={cardEl}
 	data-card={recipe.id}
 	aria-labelledby={titleId}
-	class="group @container relative isolate origin-bottom overflow-hidden rounded-3xl shadow-card transition-[translate,rotate,box-shadow] duration-160 ease-out has-[a:focus-visible]:outline-2 has-[a:focus-visible]:outline-offset-2 has-[a:focus-visible]:outline-primary motion-reduce:transition-none card-hover:shadow-lift card-hover:delay-90 card-hover:duration-420 card-hover:ease-spring motion-safe:card-hover:-translate-y-1 motion-safe:card-hover:-rotate-[1.2deg] desk:rounded-4xl {rise ===
+	class="group @container relative isolate origin-bottom overflow-hidden rounded-3xl shadow-card transition-[translate,rotate,box-shadow] duration-160 ease-out has-[a:focus-visible]:outline-2 has-[a:focus-visible]:outline-offset-2 has-[a:focus-visible]:outline-primary {focused
+		? 'outline-2 outline-primary'
+		: ''} motion-reduce:transition-none card-hover:shadow-lift card-hover:delay-90 card-hover:duration-420 card-hover:ease-spring motion-safe:card-hover:-translate-y-1 motion-safe:card-hover:-rotate-[1.2deg] desk:rounded-4xl {rise ===
 	null
 		? ''
 		: '[animation-delay:calc(var(--rise)*50ms)] motion-safe:animate-rise'} {photo
@@ -223,6 +258,10 @@
 		     and with a line of its own, the longest time the service allows
 		     ("47 Std 59 Min" - prep and cook are capped at 1440 each) still
 		     fits a 320px phone's card. Without a time there is no line. -->
+		{#if recipe.pantry && !photo}
+			<!-- Lifted over the link's `::after` like the star. -->
+			<div class="relative z-10 mb-2 flex">{@render stamp()}</div>
+		{/if}
 		{#if time}
 			<!-- The text card's gap is wider: its display title has more
 			     internal leading (1.15 at up to 30px) than the photo card's 1.2
@@ -284,8 +323,11 @@
 		</div>
 		<!-- On a search's results: where each word the title does not show
 		     was found. -->
-		{#if recipe.match && hasFinds}
-			<SearchFinds finds={recipe.match.finds} {photo} />
+		{#if recipe.pantry}
+			<PantryFinds used={recipe.pantry.used} {missing} finds={recipe.match?.finds} {photo} />
+		{/if}
+		{#if finds.length > 0}
+			<SearchFinds {finds} {photo} pantry={recipe.pantry !== undefined} />
 		{/if}
 		<!-- From md up the tags sit left of the marks and give way: two lines
 		     at most, ending in an ellipsis. A phone card has no room beside
@@ -363,4 +405,8 @@
 	<div class="absolute {photo ? 'top-3 right-3' : 'top-2.5 right-2.5'} desk:top-3.5 desk:right-3.5">
 		<FavoriteStar id={recipe.id} active={recipe.favorite} card {photo} />
 	</div>
+	<!-- On a photo the stamp mirrors the star into the top-left corner. -->
+	{#if recipe.pantry && photo}
+		<div class="absolute top-3 left-3 flex desk:top-3.5 desk:left-3.5">{@render stamp()}</div>
+	{/if}
 </article>
