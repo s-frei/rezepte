@@ -2544,13 +2544,32 @@ test('the staples search holds its height while the names change under the typin
 		await page.waitForTimeout(60);
 	}
 	// 6, then 0 once "x" answers, and a key at once: the box waits for the next answer.
+	// The page itself takes the key back, 60ms after the answer lands - well
+	// inside the box's 180ms settle, and not hostage to how long a Playwright
+	// key press takes to arrive on a loaded CI runner.
 	await field.press('x');
-	await page.waitForFunction(
-		() => document.querySelectorAll('#staple-options [role=option]').length === 1,
-		undefined,
-		{ polling: 'raf' }
+	await page.evaluate(
+		() =>
+			new Promise<void>((resolve) => {
+				const back = () => {
+					if (document.querySelectorAll('#staple-options [role=option]').length !== 1) {
+						requestAnimationFrame(back);
+						return;
+					}
+					setTimeout(() => {
+						const input = document.querySelector<HTMLInputElement>(
+							'[role=dialog] [role=combobox]'
+						)!;
+						input.value = input.value.slice(0, -1);
+						input.dispatchEvent(
+							new InputEvent('input', { bubbles: true, inputType: 'deleteContentBackward' })
+						);
+						resolve();
+					}, 60);
+				};
+				back();
+			})
 	);
-	await field.press('Backspace');
 	await expect(options).toHaveCount(7);
 	await page.waitForTimeout(400);
 	expect(await lowest()).toBeGreaterThanOrEqual(full - 1);
