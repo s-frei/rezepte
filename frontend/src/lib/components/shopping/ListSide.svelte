@@ -2,6 +2,7 @@
 	import Share2 from '@lucide/svelte/icons/share-2';
 	import type { ShoppingEntry, ShoppingList } from '#lib/api/shopping.js';
 	import { servingsUnit } from '#lib/recipe/format.js';
+	import { plannedDay } from '#lib/shopping/rows.js';
 	import { m } from '#lib/paraglide/messages.js';
 	import EntryCover from './EntryCover.svelte';
 	import EntryMenu from './EntryMenu.svelte';
@@ -32,12 +33,16 @@
 			<h2 class="mb-1 font-display text-heading font-medium">{m.list_side_recipes()}</h2>
 			<ul>
 				{#each list.entries as entry (entry.id)}
+					{@const day = plannedDay(entry)}
 					<li
 						class="flex items-center gap-3 border-b border-dashed border-border py-2.5 last:border-b-0"
 					>
 						<EntryCover {entry} class="size-11 text-body-lg" />
 						<div class="min-w-0 flex-1">
-							<p class="text-body font-semibold text-pretty break-words">{entry.title}</p>
+							<p class="text-body font-semibold text-pretty break-words">
+								{#if day}<span class="font-normal text-text-muted">{day}&nbsp;·</span>{/if}
+								{entry.title}
+							</p>
 							<p class="truncate text-caption text-text-muted">
 								{entry.servings}
 								{servingsUnit(entry.servings)} · {itemCount(entry)}

@@ -1,7 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import type { ShoppingItem, ShoppingList } from '#lib/api/shopping.js';
 import { DEPARTMENTS } from './departments';
-import { checkedRows, groupByDepartment, groupByRecipe, listText, tickedItemRows } from './rows';
+import {
+	checkedRows,
+	groupByDepartment,
+	groupByRecipe,
+	listText,
+	tickedItemRows,
+	weekHref
+} from './rows';
 
 const entry = (id: string, title: string) => ({
 	id,
@@ -10,7 +17,9 @@ const entry = (id: string, title: string) => ({
 	coverImageId: null,
 	title,
 	baseServings: 4,
-	servings: 4
+	servings: 4,
+	planId: null as string | null,
+	planDay: null as string | null
 });
 
 const item = (over: Partial<ShoppingItem> & { id: string }): ShoppingItem => ({
@@ -350,5 +359,43 @@ describe('amounts', () => {
 			])
 		);
 		expect(row.total).toBe('4 Stück');
+	});
+});
+
+describe('planned entries', () => {
+	const planned = (items: ShoppingItem[]): ShoppingList => ({
+		...list(items),
+		entries: [
+			{ ...entry('e1', 'Curry'), planId: 'p', planDay: '2026-11-18' },
+			{ ...entry('e2', 'Stew'), planId: 'p', planDay: '2026-11-25' }
+		]
+	});
+	const items = [
+		item({ id: 'a', entryId: 'e1', quantity: 1 }),
+		item({ id: 'b', entryId: 'e2', quantity: 2 })
+	];
+	const today = '2026-11-20';
+
+	it('names the day in the source, with the date beyond this week', () => {
+		const [de] = groupByDepartment(planned(items), { locale: 'de', today });
+		expect(de.rows[0].sources.map((s) => s.recipe)).toEqual(['Mi · Curry', 'Mi 25. · Stew']);
+		const [en] = groupByDepartment(planned(items), { locale: 'en', today });
+		expect(en.rows[0].sources.map((s) => s.recipe)).toEqual(['Wed · Curry', 'Wed 25 · Stew']);
+	});
+
+	it('gives the recipe block its day', () => {
+		const groups = groupByRecipe(planned(items), { locale: 'de', today });
+		expect(groups.map((g) => g.day)).toEqual(['Mi', 'Mi 25.']);
+		expect(groupByRecipe(list(items), { locale: 'de', today })[0].day).toBeNull();
+	});
+
+	it('links back only to a plan the reader is in', () => {
+		const entries = planned([]).entries;
+		expect(weekHref(entries, new Set(['p']))).toBe('/week?plan=p&from=2026-11-16');
+		expect(weekHref(entries, new Set(['other']))).toBeNull();
+		expect(weekHref(list([]).entries, new Set(['p']))).toBeNull();
+		// A tray entry links to the plan's current week.
+		const tray = [{ ...entry('e3', 'Soup'), planId: 'p', planDay: null }];
+		expect(weekHref(tray, new Set(['p']))).toBe('/week?plan=p');
 	});
 });

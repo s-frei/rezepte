@@ -817,3 +817,86 @@ test('invitation dot shows on the place and the Woche segment', async ({ page })
 	await expect(side(page, 'Week')).not.toHaveAccessibleName(/invitation/);
 	await expect(placeLink(page)).not.toHaveAccessibleName(/invitation/);
 });
+
+// The list side: the planned day, the way back to the week, staples from the list.
+
+/** Every recipe of the plan's `from`–`to` on a new list, all ingredients picked, through the API. */
+async function planOnList(page: Page, planId: string, from: string, to: string, name: string) {
+	const range = `from=${from}&to=${to}`;
+	const preview = (await (
+		await page.request.get(`/api/v1/meal-plans/${planId}/shopping-preview?${range}&tray=false`)
+	).json()) as { entries: { entryId: string; ingredients: { group: number; index: number }[] }[] };
+	const picks = preview.entries.map((e) => ({
+		entryId: e.entryId,
+		ingredients: e.ingredients.map(({ group, index }) => ({ group, index }))
+	}));
+	const made = await page.request.post(`/api/v1/meal-plans/${planId}/shopping?${range}`, {
+		data: { newListName: name, picks }
+	});
+	expect(made.ok(), await made.text()).toBe(true);
+	return ((await made.json()) as { listId: string }).listId;
+}
+
+test('list shows the planned day and links back to the week', async ({ page }) => {
+	await page.clock.setFixedTime(new Date('2026-11-18T10:00:00'));
+	await loginFresh(page);
+	const t = uniqueToken();
+	const pie = await createRecipe(page, { ...loadFixture(0), title: `Pie ${t}` });
+	const mash = await createRecipe(page, { ...loadFixture(2), title: `Mash ${t}` });
+	await plan(page, { day: '2026-11-18', recipeId: pie.id });
+	await plan(page, { day: '2026-11-25', recipeId: mash.id });
+	const planId = await ownPlan(page);
+	const listId = await planOnList(page, planId, '2026-11-16', '2026-11-29', `Week ${t}`);
+
+	await page.goto(`/lists/${listId}`);
+	// By department, each source line names the day; beyond this week, the date too.
+	await page.getByRole('radio', { name: 'Department' }).click();
+	const main = page.getByRole('main');
+	await expect(main.getByText(`Wed · Pie ${t}`).first()).toBeVisible();
+	await expect(main.getByText(`Wed 25 · Mash ${t}`).first()).toBeVisible();
+	// By recipe, the block's head.
+	await page.getByRole('radio', { name: 'Recipe' }).click();
+	await expect(main.getByRole('heading', { level: 2, name: `Wed · Pie ${t}` })).toBeVisible();
+	await expect(main.getByRole('heading', { level: 2, name: `Wed 25 · Mash ${t}` })).toBeVisible();
+
+	await main.getByRole('link', { name: 'from the week' }).click();
+	await expect(page).toHaveURL(`/week?plan=${planId}&from=2026-11-16`);
+	await expect(page.getByText(`Pie ${t}`).first()).toBeVisible();
+});
+
+test('a list member outside the plan sees the day but no way to the week', async ({
+	page,
+	browser
+}, testInfo) => {
+	test.skip(testInfo.project.name.startsWith('mobile'), 'two browsers; runs once, on desktop');
+	await page.clock.setFixedTime(new Date('2026-11-18T10:00:00'));
+	const { token, guest, guestId } = await twoPeople(page);
+	const pie = await createRecipe(page, { ...loadFixture(0), title: `Pie ${token}` });
+	await plan(page, { day: '2026-11-18', recipeId: pie.id });
+	const listId = await planOnList(
+		page,
+		await ownPlan(page),
+		'2026-11-16',
+		'2026-11-22',
+		`W ${token}`
+	);
+	const invited = await page.request.post(`/api/v1/shopping-lists/${listId}/invitations`, {
+		data: { userId: guestId }
+	});
+	expect(invited.ok()).toBe(true);
+
+	const other = await signedInAs(browser, guest);
+	try {
+		await other.page.clock.setFixedTime(new Date('2026-11-18T10:00:00'));
+		expect(
+			(await other.page.request.post(`/api/v1/shopping-lists/${listId}/membership`)).ok()
+		).toBe(true);
+		await other.page.goto(`/lists/${listId}`);
+		await other.page.getByRole('radio', { name: 'Recipe' }).click();
+		const main = other.page.getByRole('main');
+		await expect(main.getByRole('heading', { level: 2, name: `Wed · Pie ${token}` })).toBeVisible();
+		await expect(main.getByRole('link', { name: 'from the week' })).toHaveCount(0);
+	} finally {
+		await other.context.close();
+	}
+});

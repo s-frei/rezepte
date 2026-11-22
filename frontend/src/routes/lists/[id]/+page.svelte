@@ -1,5 +1,6 @@
 <script lang="ts">
 	import ArrowLeft from '@lucide/svelte/icons/arrow-left';
+	import ChevronRight from '@lucide/svelte/icons/chevron-right';
 	import ShoppingBasket from '@lucide/svelte/icons/shopping-basket';
 	import Share2 from '@lucide/svelte/icons/share-2';
 	import { toast } from 'svelte-sonner';
@@ -41,7 +42,7 @@
 	import { session } from '#lib/auth.svelte.js';
 	import { copyText } from '#lib/recipe/share.svelte.js';
 	import { departmentLabel } from '#lib/shopping/departments.js';
-	import { listText, listViews, type Row } from '#lib/shopping/rows.js';
+	import { listText, listViews, weekHref, type Row } from '#lib/shopping/rows.js';
 	import { failList } from '#lib/shopping/fail.js';
 	import { ListState } from '#lib/shopping/list-state.svelte.js';
 	import { shopHref } from '#lib/shopping/href.js';
@@ -69,6 +70,8 @@
 		listViews(list, listView.current)
 	);
 	const empty = $derived(list.items.length === 0 && list.entries.length === 0);
+	// Back to the week the planned entries came from, if the reader is in that plan.
+	const week = $derived(data.plans ? weekHref(list.entries, new Set(data.plans)) : null);
 
 	let sheetOpen = $state(false);
 	let sheetRow = $state<Row | null>(null);
@@ -192,6 +195,16 @@
 			<h1 class="font-display text-display-md font-medium wrap-break-word md:text-display-lg">
 				{list.name}
 			</h1>
+			{#if week}
+				<!-- A 44px target that keeps the line's height: padding out, margin back. -->
+				<a
+					href={resolve(week)}
+					class="-my-3 -ml-1 inline-flex min-h-11 items-center gap-0.5 rounded-md px-1 py-3 text-body-sm font-semibold text-primary hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+				>
+					{m.list_from_week()}
+					<ChevronRight class="size-4" aria-hidden="true" />
+				</a>
+			{/if}
 			<!--
 				Phone: "Shop" is the page's main action, a wide button that also
 				carries the counts and fills along its foot as items are ticked.

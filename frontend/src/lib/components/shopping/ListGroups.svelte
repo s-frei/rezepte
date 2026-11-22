@@ -81,7 +81,10 @@
 					{#if group.entry}
 						<EntryCover entry={group.entry} class="size-10 text-body-lg" />
 						<div class="min-w-0 flex-1">
-							<h2 class="font-display text-card font-medium text-pretty">
+							<!-- A planned block names its day: "Mi · Curry". -->
+							<h2 class="font-display text-card font-medium text-pretty hyphens-auto">
+								<!-- "Mi ·" stays one piece; a long first word may still push the title below it. -->
+								{#if group.day}<span class="text-text-muted">{group.day}&nbsp;·</span>{/if}
 								{group.entry.title}
 							</h2>
 							<p class="text-caption text-text-muted">

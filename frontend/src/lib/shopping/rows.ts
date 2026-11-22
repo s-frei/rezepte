@@ -5,6 +5,9 @@ import type {
 	ShoppingItem,
 	ShoppingList
 } from '#lib/api/shopping.js';
+import { getLocalTimeZone, today } from '@internationalized/date';
+import { dayNames, mondayOf } from '#lib/mealplan/week.js';
+import { getLocale, type Locale } from '#lib/paraglide/runtime.js';
 import { formatQuantity } from '#lib/recipe/format.js';
 import { dimensionOf, fromBase, toBase } from '#lib/recipe/measures.js';
 import { holderNames } from '#lib/user/holders.js';
@@ -49,6 +52,43 @@ export type Row = {
 	/** Who ticked its items, each person once. */
 	checkedBy: ListPerson[];
 };
+
+/** What a planned day is read against: the reader's language and today. */
+export type Now = { locale: Locale; today: string };
+
+const now = (): Now => ({ locale: getLocale(), today: today(getLocalTimeZone()).toString() });
+
+/**
+ * The day a planned entry is for: "Mi" / "Wed" in this week, with the date
+ * beyond it ("Mi 25." / "Wed 25"); null for one added by hand or from the tray.
+ */
+export function plannedDay(entry: ShoppingEntry, at: Now = now()): string | null {
+	if (!entry.planDay) return null;
+	const names = dayNames(entry.planDay, at.locale);
+	return mondayOf(entry.planDay) === mondayOf(at.today)
+		? names.weekday
+		: `${names.weekday} ${names.number}`;
+}
+
+/** "Mi · Curry": an entry's title after its planned day, when it has one. */
+export function entryTitle(entry: ShoppingEntry, at: Now = now()): string {
+	const day = plannedDay(entry, at);
+	return day ? `${day} · ${entry.title}` : entry.title;
+}
+
+/**
+ * Where "aus der Woche" leads: the week of the first planned entry whose plan
+ * the reader is in (`plans`); null when none is. Another member's plan would
+ * answer 404, so it is never linked.
+ */
+export function weekHref(entries: ShoppingEntry[], plans: Set<string>): `/week?${string}` | null {
+	const mine = entries.filter((e) => e.planId && plans.has(e.planId));
+	const entry = mine.find((e) => e.planDay) ?? mine[0];
+	if (!entry?.planId) return null;
+	const query = new URLSearchParams({ plan: entry.planId });
+	if (entry.planDay) query.set('from', mondayOf(entry.planDay));
+	return `/week?${query.toString()}`;
+}
 
 const amountText = (quantity: number | null, unit: string) =>
 	[formatQuantity(quantity), unit].filter(Boolean).join(' ');
@@ -100,9 +140,9 @@ function namesOf(list: ShoppingList): Map<string, string> {
 	return new Map(all.map((p, i) => [p.id, names[i]]));
 }
 
-function rowsOf(list: ShoppingList, items: ShoppingItem[]): Row[] {
+function rowsOf(list: ShoppingList, items: ShoppingItem[], at: Now): Row[] {
 	const names = namesOf(list);
-	const titles = new Map(list.entries.map((e) => [e.id, e.title]));
+	const titles = new Map(list.entries.map((e) => [e.id, entryTitle(e, at)]));
 	// The same recipe added twice is one origin: its lines add up instead of repeating.
 	const recipeOf = new Map(list.entries.map((e) => [e.id, e.recipeId ?? e.id]));
 	const rows = new Map<string, { row: Row; items: ShoppingItem[] }>();
@@ -169,46 +209,61 @@ function rowsOf(list: ShoppingList, items: ShoppingItem[]): Row[] {
 }
 
 /** Open rows by department, in aisle order; empty departments are omitted. */
-export function groupByDepartment(list: ShoppingList): { department: Department; rows: Row[] }[] {
+export function groupByDepartment(
+	list: ShoppingList,
+	at: Now = now()
+): { department: Department; rows: Row[] }[] {
 	return DEPARTMENTS.map((department) => ({
 		department,
 		rows: rowsOf(
 			list,
-			list.items.filter((i) => i.department === department)
+			list.items.filter((i) => i.department === department),
+			at
 		).filter((r) => !r.checked)
 	})).filter((g) => g.rows.length > 0);
 }
 
-export function checkedRows(list: ShoppingList): Row[] {
-	return rowsOf(list, list.items).filter((r) => r.checked);
+export function checkedRows(list: ShoppingList, at: Now = now()): Row[] {
+	return rowsOf(list, list.items, at).filter((r) => r.checked);
 }
 
 /**
  * Every ticked item, merged by name - the recipe view's "Done", where each
  * item shows its own tick, so a half-ticked name still lists its ticked part.
  */
-export function tickedItemRows(list: ShoppingList): Row[] {
+export function tickedItemRows(list: ShoppingList, at: Now = now()): Row[] {
 	return rowsOf(
 		list,
-		list.items.filter((i) => i.checked)
+		list.items.filter((i) => i.checked),
+		at
 	);
 }
 
-/** One group per entry in list order, free items last under `entry: null` (omitted when none). */
-export function groupByRecipe(list: ShoppingList): { entry: ShoppingEntry | null; rows: Row[] }[] {
-	const groups: { entry: ShoppingEntry | null; rows: Row[] }[] = list.entries.map((entry) => ({
-		entry,
-		rows: rowsOf(
-			list,
-			list.items.filter((i) => i.entryId === entry.id)
-		)
-	}));
+/**
+ * One group per entry in list order, with its planned day (`plannedDay`), free
+ * items last under `entry: null` (omitted when none).
+ */
+export function groupByRecipe(
+	list: ShoppingList,
+	at: Now = now()
+): { entry: ShoppingEntry | null; day: string | null; rows: Row[] }[] {
+	const groups: { entry: ShoppingEntry | null; day: string | null; rows: Row[] }[] =
+		list.entries.map((entry) => ({
+			entry,
+			day: plannedDay(entry, at),
+			rows: rowsOf(
+				list,
+				list.items.filter((i) => i.entryId === entry.id),
+				at
+			)
+		}));
 	const free = rowsOf(
 		list,
-		list.items.filter((i) => i.entryId === null)
+		list.items.filter((i) => i.entryId === null),
+		at
 	);
 	// Every entry stays, even without items, so it can still be rescaled or removed.
-	if (free.length > 0) groups.push({ entry: null, rows: free });
+	if (free.length > 0) groups.push({ entry: null, day: null, rows: free });
 	return groups;
 }
 
@@ -245,13 +300,13 @@ export function listText(list: ShoppingList): string {
  * department view's rows, so "n open · m done" agrees with "Done · m" and the
  * overview card.
  */
-export function listViews(list: ShoppingList, view: ListView) {
-	const departments = groupByDepartment(list);
-	const doneRows = checkedRows(list);
+export function listViews(list: ShoppingList, view: ListView, at: Now = now()) {
+	const departments = groupByDepartment(list, at);
+	const doneRows = checkedRows(list, at);
 	return {
 		departments,
-		recipes: groupByRecipe(list),
-		done: view === 'department' ? doneRows : tickedItemRows(list),
+		recipes: groupByRecipe(list, at),
+		done: view === 'department' ? doneRows : tickedItemRows(list, at),
 		openRows: departments.reduce((n, g) => n + g.rows.length, 0),
 		doneRows: doneRows.length
 	};

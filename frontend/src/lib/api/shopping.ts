@@ -20,6 +20,10 @@ export type ShoppingEntry = {
 	title: string;
 	baseServings: number;
 	servings: number;
+	/** The plan the entry came from; the reader may not be in it. Null when added by hand. */
+	planId: string | null;
+	/** The planned day, `YYYY-MM-DD`; null for a tray entry or one added by hand. */
+	planDay: string | null;
 };
 
 export type ShoppingItem = {

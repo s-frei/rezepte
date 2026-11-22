@@ -1837,6 +1837,7 @@
 	"update_band_available": "Update available",
 	"update_band_available_label": "Update available: {from} to {to}, what's new (opens in a new tab)",
 	"update_versions_label": "Installed {from}, new {to}",
+	"list_from_week": "from the week",
 
 	"search_find_tag": "Tag",
 	"search_find_tags": "Tags",
