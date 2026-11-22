@@ -31,14 +31,15 @@
 	const names = $derived(dayNames(day, getLocale()));
 </script>
 
-<!-- Focusable for a stamp's jump to the day (`tabindex="-1"`, no stop of its own). -->
+<!-- Focusable for a stamp's jump to the day (`tabindex="-1"`, no stop of its
+     own). Positioned: an empty day's zone covers it during a drag (`EntryZone`). -->
 <section
 	data-day={day}
 	tabindex="-1"
 	aria-label={names.full}
 	aria-current={today ? 'date' : undefined}
 	id={today ? 'today' : undefined}
-	class="rounded-2xl bg-surface shadow-card {today
+	class="relative rounded-2xl bg-surface shadow-card {today
 		? 'outline-2 outline-primary'
 		: 'outline-none focus-visible:outline-2 focus-visible:outline-primary/60 focus-visible:outline-solid'} {empty
 		? 'flex items-center gap-3 py-1.5 pr-3 pl-4 md:gap-4 md:py-2.5 md:pl-4.5'

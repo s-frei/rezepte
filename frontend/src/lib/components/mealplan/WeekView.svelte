@@ -202,6 +202,7 @@
 		{layout}
 		{label}
 		{today}
+		dragging={dragged !== null}
 		onconsider={(event) => consider(key, event)}
 		onfinalize={(event) => finalize(key, event)}
 		onmove={(entry) => {

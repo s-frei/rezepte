@@ -495,6 +495,105 @@ test('drags an entry from the tray to a day', async ({ page, isMobile }) => {
 	await expect(day(page, 'Friday, November 20').getByText('Flammkuchen')).toBeVisible();
 });
 
+test('a finger drops a card on an empty day by its name, over a dashed slot', async ({
+	page,
+	isMobile
+}) => {
+	test.skip(!isMobile, 'the day rows are the phone layout');
+	await page.clock.setFixedTime(new Date('2026-11-16T10:00:00'));
+	await loginFresh(page);
+	await plan(page, { day: '2026-11-17', title: 'Linsensuppe' });
+	await openOwn(page);
+	const card = day(page, 'Tuesday, November 17').getByText('Linsensuppe');
+	await card.scrollIntoViewIfNeeded();
+	// Straight down onto the empty day's name, nowhere near its "+".
+	const name = day(page, 'Wednesday, November 18').getByText('Wednesday', { exact: true });
+	const a = (await card.boundingBox())!;
+	const b = (await name.boundingBox())!;
+	const cdp = await page.context().newCDPSession(page);
+	const x = Math.round(a.x + a.width / 2);
+	await cdp.send('Input.dispatchTouchEvent', {
+		type: 'touchStart',
+		touchPoints: [{ x, y: Math.round(a.y + a.height / 2) }]
+	});
+	await page.waitForTimeout(500);
+	for (let i = 1; i <= 12; i++) {
+		const y = a.y + a.height / 2 + ((b.y + b.height / 2 - a.y - a.height / 2) * i) / 12;
+		await cdp.send('Input.dispatchTouchEvent', {
+			type: 'touchMove',
+			touchPoints: [{ x, y: Math.round(y) }]
+		});
+		await page.waitForTimeout(30);
+	}
+	await page.waitForTimeout(300);
+	// The slot it would land in shows, dashed, not as a blank block.
+	const slot = day(page, 'Wednesday, November 18').locator('li div[aria-hidden="true"]');
+	await expect(slot).toBeVisible();
+	await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+	await cdp.detach();
+	await expect(day(page, 'Wednesday, November 18').getByText('Linsensuppe')).toBeVisible();
+	await page.reload();
+	await expect(day(page, 'Wednesday, November 18').getByText('Linsensuppe')).toBeVisible();
+});
+
+test('a held finger on a card gets no link menu, a tap opens the recipe', async ({
+	page,
+	isMobile
+}) => {
+	test.skip(!isMobile, 'a long press is a touch gesture');
+	await page.clock.setFixedTime(new Date('2026-11-16T10:00:00'));
+	await loginFresh(page);
+	const title = `Klopse ${uniqueToken()}`;
+	const recipe = await createRecipe(page, { ...loadFixture(0), title });
+	await plan(page, { day: '2026-11-18', recipeId: recipe.id });
+	await openOwn(page);
+	const link = day(page, 'Wednesday, November 18').getByRole('link', { name: title });
+	await link.scrollIntoViewIfNeeded();
+	// Two fingers: the guard holds until the last one lifts. (Chromium knows
+	// no -webkit-touch-callout, so its style reads empty: ask a menu instead.)
+	const blocked = () =>
+		page.evaluate(() => {
+			const menu = new MouseEvent('contextmenu', { bubbles: true, cancelable: true });
+			return !document.body.dispatchEvent(menu);
+		});
+	const box = (await link.boundingBox())!;
+	const at = { x: Math.round(box.x + box.width / 2), y: Math.round(box.y + box.height / 2) };
+	const touch = await page.context().newCDPSession(page);
+	const send = (type: 'touchStart' | 'touchEnd', touchPoints: { x: number; y: number }[]) =>
+		touch.send('Input.dispatchTouchEvent', { type, touchPoints });
+	await send('touchStart', [at]);
+	await send('touchStart', [at, { x: 20, y: 20 }]);
+	await send('touchEnd', [at]);
+	expect(await blocked()).toBe(true);
+	await send('touchEnd', []);
+	expect(await blocked()).toBe(false);
+	await touch.detach();
+
+	// The long press reaches the copy the drag lifted into <body>, outside
+	// the list: the window has to refuse the menu there.
+	await page.evaluate(() => {
+		addEventListener('contextmenu', (e) =>
+			Object.assign(window, {
+				menu: { prevented: e.defaultPrevented, inList: !!(e.target as Element).closest('ul') }
+			})
+		);
+	});
+	const cdp = await page.context().newCDPSession(page);
+	await cdp.send('Input.synthesizeTapGesture', {
+		x: Math.round(box.x + box.width / 2),
+		y: Math.round(box.y + box.height / 2),
+		duration: 1200,
+		gestureSourceType: 'touch'
+	});
+	await cdp.detach();
+	const menu = await page.evaluate(() => (window as unknown as { menu?: object }).menu);
+	expect(menu).toEqual({ prevented: true, inList: false });
+	await expect(page).toHaveURL(/\/plans\//);
+
+	await link.tap();
+	await expect(page.getByRole('heading', { level: 1, name: title })).toBeVisible();
+});
+
 test('removes and undoes', async ({ page }) => {
 	await page.clock.setFixedTime(new Date('2026-11-16T10:00:00'));
 	await loginFresh(page);
