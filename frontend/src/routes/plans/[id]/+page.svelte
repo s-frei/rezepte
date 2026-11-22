@@ -5,7 +5,8 @@
 	import Plus from '@lucide/svelte/icons/plus';
 	import Share2 from '@lucide/svelte/icons/share-2';
 	import ShoppingBasket from '@lucide/svelte/icons/shopping-basket';
-	import { onMount, tick } from 'svelte';
+	import { onMount, tick, untrack } from 'svelte';
+	import { prefersReducedMotion } from 'svelte/motion';
 	import { MediaQuery } from 'svelte/reactivity';
 	import { toast } from 'svelte-sonner';
 	import { getLocalTimeZone, today as todayIn } from '@internationalized/date';
@@ -35,7 +36,14 @@
 	import IconButton, { iconCircle } from '#lib/components/ui/IconButton.svelte';
 	import NoteEmptyState from '#lib/components/ui/NoteEmptyState.svelte';
 	import { PlanState } from '#lib/mealplan/plan-state.svelte.js';
-	import { mondayOf, pastDays, shiftWeek, weekDays, weekRange } from '#lib/mealplan/week.js';
+	import {
+		mondayOf,
+		pastDays,
+		shiftWeek,
+		weekDays,
+		weekFromNow,
+		weekRange
+	} from '#lib/mealplan/week.js';
 	import { m } from '#lib/paraglide/messages.js';
 	import { getLocale } from '#lib/paraglide/runtime.js';
 	import { planHref } from '#lib/mealplan/href.js';
@@ -151,6 +159,35 @@
 	const monday = $derived(plan.from);
 	const days = $derived(weekDays(monday));
 	const thisWeek = $derived(mondayOf(data.today));
+	const current = $derived(monday === thisWeek);
+
+	// A page turn by the pager slides the heading and the days in from the
+	// side the week came from (a later week from the right), so the step
+	// shows; reduced motion only fades. Only the pager's turn (`turning`):
+	// not a refetch, nor the week moving on at midnight. The heading never
+	// goes blank, and an empty week skips its note's own entrance.
+	let heading = $state<HTMLElement>();
+	let content = $state<HTMLElement>();
+	let shown = '';
+	let turning = false;
+	$effect(() => {
+		const before = shown;
+		shown = monday;
+		if (!before || before === monday || !turning) return;
+		turning = false;
+		const still = prefersReducedMotion.current;
+		const from = `translateX(${monday > before ? '' : '-'}1.25rem)`;
+		const frames = still
+			? [{ opacity: 0.35 }, { opacity: 1 }]
+			: [
+					{ opacity: 0.35, transform: from },
+					{ opacity: 1, transform: 'none' }
+				];
+		if (untrack(() => empty)) content?.getAnimations({ subtree: true }).forEach((a) => a.finish());
+		untrack(() => [heading, content]).forEach((el) =>
+			el?.animate(frames, { duration: still ? 160 : 260, easing: 'cubic-bezier(0.4, 0, 0.2, 1)' })
+		);
+	});
 	const empty = $derived(plan.entries.length === 0);
 	/** Every list the shown week and the tray went to, as far as the reader can open them; most used first (`byPlanUse`). */
 	const listStamps = $derived(
@@ -239,14 +276,27 @@
 
 	/**
 	 * Another week of this plan; this week's address carries no `from`. It
-	 * replaces the shown week in the history, so Back leaves the plan.
+	 * replaces the shown week in the history, so Back leaves the plan. A tap
+	 * while a week loads steps on from that week (`aim`) and abandons its
+	 * navigation, whose settling must not end the latest turn's dim or slide.
 	 */
 	function show(from: string) {
+		const mine = ++turn;
+		aim = from;
+		turning = pending = true;
 		void goto(planHref(plan.id, from === thisWeek ? undefined : from), {
 			reset: false,
 			replaceState: true
+		}).finally(() => {
+			if (mine === turn) turning = pending = false;
 		});
 	}
+	let turn = 0;
+	let aim = '';
+	/** The pager's next week is loading: the shown one dims and is busy. */
+	let pending = $state(false);
+	/** The week the pager steps from: the one on its way, else the shown one. */
+	const step = (by: number) => show(shiftWeek(pending ? aim : monday, by));
 
 	/** A phone's days gone by are folded; the week they were opened for. */
 	let expandedWeek = $state('');
@@ -365,39 +415,55 @@
 	</header>
 
 	<!-- The week bar: the week and its pager, every list the week went to,
-	     and "Put on the list". From md the pager and the button share a row
-	     and the lists take the full width below (one line from lg, else two,
-	     then "+n"); on a phone all stacked, the button over the full width. -->
+	     and "Put on the list". The pager keeps the right edge at every width,
+	     so it stays under the finger whatever the dates' length; from md the
+	     button sits before it and the lists take the full width below (one
+	     line from lg, else two, then "+n"); on a phone all stacked, the
+	     button over the full width. -->
 	<div class="mb-4 flex flex-col gap-2.5 md:flex-row md:flex-wrap md:items-center md:gap-x-3">
-		<div
-			class="flex items-center justify-between gap-2 md:mr-1 md:shrink-0 md:justify-start md:gap-4"
-		>
+		<div class="flex items-center justify-between gap-2 md:contents">
+			<!-- Where the week lies sits over its dates, a pill for every week:
+			     this week's wears today's accent. Read out with the dates when a
+			     page turns. The dates never run under the pager. -->
 			<h2
-				class="min-w-0 font-display text-card-sm font-medium whitespace-nowrap min-[360px]:text-card md:text-heading"
+				bind:this={heading}
+				aria-live="polite"
+				class="flex min-w-0 flex-col items-start font-display text-card-sm font-medium whitespace-nowrap min-[360px]:text-card md:mr-auto md:text-heading"
 			>
-				<span class="max-[1199.98px]:hidden">{weekRange(monday, locale)}</span>
-				<span class="min-[1200px]:hidden">{weekRange(monday, locale, 'short')}</span>
-			</h2>
-			<div class="flex shrink-0 items-center gap-1 md:gap-1.5">
-				<IconButton
-					label={m.week_previous()}
-					class="max-md:size-11"
-					onclick={() => show(shiftWeek(monday, -1))}
+				<span
+					data-week-from-now
+					class="mb-1 -ml-0.5 inline-flex items-center gap-1.5 rounded-pill py-px font-sans text-caption max-[359.98px]:text-micro {current
+						? 'bg-accent pr-2 pl-1.5 font-semibold text-accent-foreground'
+						: 'bg-surface px-2 text-text ring-1 ring-border'}"
 				>
+					{#if current}<span class="size-1.5 rounded-full bg-primary" aria-hidden="true"
+						></span>{/if}
+					{weekFromNow(monday, thisWeek)}</span
+				>
+				<span class="max-w-full truncate max-[1199.98px]:hidden">{weekRange(monday, locale)}</span>
+				<span class="max-w-full truncate max-[359.98px]:hidden min-[1200px]:hidden"
+					>{weekRange(monday, locale, 'short')}</span
+				>
+				<span class="max-w-full truncate min-[360px]:hidden"
+					>{weekRange(monday, locale, 'numeric')}</span
+				>
+			</h2>
+			<div class="flex shrink-0 items-center gap-1 md:order-2 md:gap-1.5">
+				<IconButton label={m.week_previous()} class="max-md:size-11" onclick={() => step(-1)}>
 					<ChevronLeft class="size-4.5" aria-hidden="true" />
 				</IconButton>
+				<!-- In this week it rests, a label without its outline that stays a
+				     Tab stop, so the focus stays put; away it is the way back. -->
 				<Button
 					variant="secondary"
-					class="max-md:h-11 max-md:px-3.5"
-					onclick={() => show(thisWeek)}
+					aria-disabled={current || undefined}
+					label={current ? undefined : m.week_today_jump()}
+					class="aria-disabled:cursor-default aria-disabled:border-transparent aria-disabled:text-text-muted aria-disabled:active:scale-100 max-md:h-11 max-md:px-3.5"
+					onclick={() => !current && show(thisWeek)}
 				>
 					{m.week_today()}
 				</Button>
-				<IconButton
-					label={m.week_next()}
-					class="max-md:size-11"
-					onclick={() => show(shiftWeek(monday, 1))}
-				>
+				<IconButton label={m.week_next()} class="max-md:size-11" onclick={() => step(1)}>
 					<ChevronRight class="size-4.5" aria-hidden="true" />
 				</IconButton>
 			</div>
@@ -421,7 +487,7 @@
 			</div>
 		{/if}
 		{#if !empty}
-			<div class="flex min-w-0 flex-col gap-1 md:ml-auto md:flex-row md:items-center md:gap-3">
+			<div class="flex min-w-0 flex-col gap-1 md:order-1 md:flex-row md:items-center md:gap-3">
 				<!-- The count is what the dialog would add for the shown week and the tray. -->
 				<Button
 					variant="primary"
@@ -449,39 +515,45 @@
 		{/if}
 	</div>
 
-	{#if empty}
-		<NoteEmptyState
-			art={planArt}
-			title={m.week_empty_title()}
-			steps={[
-				[m.week_empty_step_plan(), m.week_empty_step_plan_hint()],
-				[m.week_empty_step_list(), m.week_empty_step_list_hint()],
-				[m.week_empty_step_shop(), m.week_empty_step_shop_hint()]
-			]}
-		>
-			<Button
-				variant="primary"
-				size="lg"
-				aria-haspopup="dialog"
-				onclick={() => openAdd()}
-				class="group shadow-cta md:h-12"
+	<div
+		bind:this={content}
+		aria-busy={pending || undefined}
+		class="transition-opacity {pending ? 'opacity-60' : ''}"
+	>
+		{#if empty}
+			<NoteEmptyState
+				art={planArt}
+				title={m.week_empty_title()}
+				steps={[
+					[m.week_empty_step_plan(), m.week_empty_step_plan_hint()],
+					[m.week_empty_step_list(), m.week_empty_step_list_hint()],
+					[m.week_empty_step_shop(), m.week_empty_step_shop_hint()]
+				]}
 			>
-				<Plus
-					aria-hidden="true"
-					strokeWidth={2.5}
-					class="size-5 transition-transform duration-300 ease-spring group-hover:rotate-90 motion-reduce:transition-none"
-				/>
-				{m.week_add()}
-			</Button>
-		</NoteEmptyState>
-	{:else}
-		<WeekView
-			{week}
-			today={data.today}
-			bind:expanded={() => expandedWeek === monday, (open) => (expandedWeek = open ? monday : '')}
-			onadd={openAdd}
-		/>
-	{/if}
+				<Button
+					variant="primary"
+					size="lg"
+					aria-haspopup="dialog"
+					onclick={() => openAdd()}
+					class="group shadow-cta md:h-12"
+				>
+					<Plus
+						aria-hidden="true"
+						strokeWidth={2.5}
+						class="size-5 transition-transform duration-300 ease-spring group-hover:rotate-90 motion-reduce:transition-none"
+					/>
+					{m.week_add()}
+				</Button>
+			</NoteEmptyState>
+		{:else}
+			<WeekView
+				{week}
+				today={data.today}
+				bind:expanded={() => expandedWeek === monday, (open) => (expandedWeek = open ? monday : '')}
+				onadd={openAdd}
+			/>
+		{/if}
+	</div>
 </div>
 
 {#if !plan.personal}

@@ -525,7 +525,7 @@
  */
 @utility hover-tint {
 	@media (hover: hover) {
-		&:hover:not(:disabled) {
+		&:hover:not(:disabled, [aria-disabled='true']) {
 			background-image: linear-gradient(color-mix(in oklab, currentColor 14%, transparent) 0 0);
 		}
 	}

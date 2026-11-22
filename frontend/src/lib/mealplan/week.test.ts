@@ -5,8 +5,9 @@ import {
 	mondayOf,
 	pastDays,
 	shiftWeek,
-	spanLabel,
 	weekDays,
+	weekFromNow,
+	spanLabel,
 	weekRange
 } from './week';
 
@@ -29,11 +30,6 @@ describe('week', () => {
 		]);
 	});
 
-	it('ranges a week', () => {
-		expect(weekRange('2026-11-16', 'de')).toBe('16.–22. November');
-		expect(weekRange('2026-11-16', 'en')).toBe('November 16–22');
-	});
-
 	// No-break spaces everywhere but behind a dash: written as \u00A0 below.
 	it('names a span of days', () => {
 		expect(spanLabel('2026-11-23', '2026-11-29', 'de')).toBe('23.–29.\u00A0Nov.');
@@ -42,19 +38,34 @@ describe('week', () => {
 		expect(spanLabel('2026-11-23', '2026-11-23', 'en')).toBe('Mon\u00A0Nov\u00A023');
 	});
 
+	it('names a span across New Year', () => {
+		expect(spanLabel('2026-12-28', '2027-01-03', 'de')).toBe('28.\u00A0Dez.\u00A0– 3.\u00A0Jan.');
+		expect(spanLabel('2026-12-28', '2027-01-03', 'en')).toBe('Dec\u00A028\u00A0– Jan\u00A03');
+	});
+
 	it('ranges any two days, not only a week', () => {
 		expect(dayRange('2026-11-18', '2026-11-20', 'de', 'short')).toBe('18.–20. Nov.');
 		expect(dayRange('2026-11-25', '2026-12-03', 'de', 'short')).toBe('25. Nov. – 3. Dez.');
-	});
-
-	it('ranges a week across months', () => {
-		expect(weekRange('2026-11-30', 'de')).toBe('30. November – 6. Dezember');
-		expect(weekRange('2026-11-30', 'en')).toBe('November 30 – December 6');
+		expect(dayRange('2026-11-01', '2027-01-01', 'en', 'short')).toBe('Nov 1 – Jan 1');
 	});
 
 	it('shortens the months for a phone', () => {
 		expect(weekRange('2026-11-16', 'de', 'short')).toBe('16.–22. Nov.');
 		expect(weekRange('2026-11-30', 'de', 'short')).toBe('30. Nov. – 6. Dez.');
+	});
+
+	it('gives a narrow phone numeric months', () => {
+		expect(weekRange('2026-11-16', 'de', 'numeric')).toBe('16.–22.11.');
+		expect(weekRange('2026-12-07', 'de', 'numeric')).toBe('7.–13.12.');
+		expect(weekRange('2026-11-30', 'de', 'numeric')).toBe('30.11.–6.12.');
+		expect(weekRange('2026-11-30', 'en', 'numeric')).toBe('11/30–12/6');
+	});
+
+	it('never prints the year, not even across New Year', () => {
+		expect(weekRange('2026-12-28', 'de')).toBe('28. Dezember – 3. Januar');
+		expect(weekRange('2026-12-28', 'de', 'short')).toBe('28. Dez. – 3. Jan.');
+		expect(weekRange('2026-12-28', 'en', 'short')).toBe('Dec 28 – Jan 3');
+		expect(weekRange('2026-12-28', 'de', 'numeric')).toBe('28.12.–3.1.');
 	});
 
 	it('gives the past days of the current week only', () => {
@@ -72,6 +83,24 @@ describe('week', () => {
 	it('shifts by weeks', () => {
 		expect(shiftWeek('2026-11-30', 1)).toBe('2026-12-07');
 		expect(shiftWeek('2026-01-05', -1)).toBe('2025-12-29');
+	});
+
+	it('says where a week lies from the current one', () => {
+		expect(weekFromNow('2026-11-16', '2026-11-16')).toBe('This week');
+		expect(weekFromNow('2026-11-23', '2026-11-16')).toBe('Next week');
+		expect(weekFromNow('2026-11-09', '2026-11-16')).toBe('Last week');
+		expect(weekFromNow('2026-12-07', '2026-11-16')).toBe('In 3 weeks');
+		expect(weekFromNow('2026-11-02', '2026-11-16')).toBe('2 weeks ago');
+		// Across New Year, both ways (2026 has a week 53).
+		expect(weekFromNow('2027-04-05', '2026-12-28')).toBe('In 14 weeks');
+		expect(weekFromNow('2026-12-28', '2027-01-04')).toBe('Last week');
+		expect(weekFromNow('2026-11-30', '2027-01-11')).toBe('6 weeks ago');
+		expect(weekFromNow('2026-11-16', '2026-11-16', 'de')).toBe('Diese Woche');
+		expect(weekFromNow('2026-11-23', '2026-11-16', 'de')).toBe('Nächste Woche');
+		expect(weekFromNow('2026-11-09', '2026-11-16', 'de')).toBe('Letzte Woche');
+		expect(weekFromNow('2026-11-30', '2026-11-16', 'de')).toBe('In 2 Wochen');
+		expect(weekFromNow('2026-12-21', '2026-11-16', 'de')).toBe('In 5 Wochen');
+		expect(weekFromNow('2026-11-02', '2026-11-16', 'de')).toBe('Vor 2 Wochen');
 	});
 });
 

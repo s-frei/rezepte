@@ -1497,6 +1497,7 @@
 	"week_next": "Next week",
 	"week_today": "Today",
 	"week_this": "This week",
+	"week_today_jump": "Today, go to the current week",
 	"week_add": "Plan a meal",
 	"week_load_error": "The week could not be loaded",
 	"plan_plans_load_error": "Your plans could not be loaded",

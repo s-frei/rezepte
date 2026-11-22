@@ -1497,6 +1497,7 @@
 	"week_next": "Nächste Woche",
 	"week_today": "Heute",
 	"week_this": "Diese Woche",
+	"week_today_jump": "Heute, zur aktuellen Woche springen",
 	"week_add": "Eintragen",
 	"week_load_error": "Die Woche ließ sich nicht laden",
 	"plan_plans_load_error": "Deine Pläne ließen sich nicht laden",

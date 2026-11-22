@@ -118,26 +118,50 @@ test('the switch swaps the sides in place, without a reload or a fade', async ({
 	});
 });
 
-test('the pager moves by weeks, and Today comes back marked', async ({ page }) => {
+test('the pager moves by weeks, says where it is, and Today leads back', async ({ page }) => {
 	await page.clock.setFixedTime(new Date('2026-11-20T10:00:00'));
 	await loginFresh(page);
 	await plan(page, { day: '2026-11-21', title: 'Pizza bestellen' });
 	await page.goto('/lists');
 	const id = await openOwn(page);
 	const label = page.getByRole('heading', { level: 2 }).first();
-	await expect(label).toContainText(/Week 47 · November 16–22|Nov 16–22/);
+	await expect(label).toContainText(/November 16–22|Nov 16–22/);
 	const friday = day(page, 'Friday, November 20');
 	await expect(friday).toHaveAttribute('aria-current', 'date');
 	await expect(friday.getByText('Today')).toBeVisible();
+	const where = page.locator('[data-week-from-now]');
+	await expect(where).toHaveText('This week');
+	// In this week Today rests, a Tab stop that does nothing.
+	const today = page.getByRole('button', { name: 'Today', exact: true });
+	await expect(today).toHaveAttribute('aria-disabled', 'true');
+	// (Playwright will not click an aria-disabled button; the keyboard can press it.)
+	await today.focus();
+	await page.keyboard.press('Enter');
+	await expect(page).toHaveURL(new RegExp(`/plans/${id}$`));
+	await expect(today).toBeFocused();
+	// Each turn of the pager slides the heading and the days, once.
+	const turns = await countAnimations(page);
 	await page.getByRole('button', { name: 'Next week' }).click();
 	await expect(page).toHaveURL(new RegExp(`/plans/${id}\\?from=2026-11-23$`));
-	await expect(label).toContainText(/Week 48|Nov 23–29/);
+	await expect(label).toContainText(/November 23–29|Nov 23–29/);
+	await expect(where).toHaveText('Next week');
+	expect(await turns()).toBe(2);
 	await expect(page.locator('[aria-current="date"]')).toHaveCount(0);
-	await page.getByRole('button', { name: 'Today' }).click();
+	await page.getByRole('button', { name: 'Today, go to the current week' }).click();
 	await expect(page).toHaveURL(new RegExp(`/plans/${id}$`));
+	await expect(where).toHaveText('This week');
+	await expect(today).toHaveAttribute('aria-disabled', 'true');
 	await expect(friday).toHaveAttribute('aria-current', 'date');
 	await expect(day(page, 'Saturday, November 21').getByText('Pizza bestellen')).toBeVisible();
 	await page.getByRole('button', { name: 'Previous week' }).click();
+	await expect(where).toHaveText('Last week');
+	await page.getByRole('button', { name: 'Previous week' }).click();
+	await expect(page).toHaveURL(new RegExp(`/plans/${id}\\?from=2026-11-02$`));
+	await expect(where).toHaveText('2 weeks ago');
+	await expect(
+		page.getByRole('button', { name: 'Today, go to the current week' })
+	).not.toHaveAttribute('aria-disabled');
+	await page.getByRole('button', { name: 'Next week' }).click();
 	await expect(page).toHaveURL(new RegExp(`/plans/${id}\\?from=2026-11-09$`));
 	await expect(
 		page.getByRole('heading', { level: 2, name: 'Nothing planned this week' })
@@ -262,6 +286,20 @@ type Plan = { id: string; entries: { id: string; title: string; day: string | nu
 const today = () => new Date().toLocaleDateString('sv');
 
 /** Opens the signed-in person's own plan, and gives its id. */
+/** Counts `Element.animate` calls from now on; the returned reader gives the count. */
+async function countAnimations(page: Page): Promise<() => Promise<number>> {
+	await page.evaluate(() => {
+		const w = window as unknown as { turns: number };
+		w.turns = 0;
+		const animate = Element.prototype.animate;
+		Element.prototype.animate = function (...args) {
+			w.turns++;
+			return animate.apply(this, args);
+		};
+	});
+	return () => page.evaluate(() => (window as unknown as { turns: number }).turns);
+}
+
 async function openOwn(page: Page): Promise<string> {
 	const id = await ownPlan(page);
 	await page.goto(`/plans/${id}`);
@@ -883,6 +921,84 @@ test('a plan left open in view moves on at midnight', async ({ page }) => {
 	await page.clock.fastForward('05:00');
 	await expect(toListButton(page)).toHaveAccessibleName('Put on the list');
 	await expect(page.getByRole('main').getByText('On no list')).toHaveCount(0);
+});
+
+test('the week bar moves on at midnight without a page turn', async ({ page }) => {
+	await page.clock.install({ time: new Date('2026-11-22T23:58:00') });
+	await loginFresh(page);
+	await plan(page, { day: '2026-11-23', title: 'Pizza bestellen' });
+	await openOwn(page);
+	const label = page.getByRole('heading', { level: 2 }).first();
+	await expect(label).toContainText(/November 16–22|Nov 16–22/);
+	const turns = await countAnimations(page);
+	await page.clock.fastForward('05:00');
+	await expect(label).toContainText(/November 23–29|Nov 23–29/);
+	await expect(page.locator('[data-week-from-now]')).toHaveText('This week');
+	// Only the pager turns the page; the new day moves the week quietly.
+	expect(await turns()).toBe(0);
+});
+
+// A slow connection: a second tap while a week loads steps on from it, and
+// the days stay dimmed and busy until the last week has arrived.
+test('quick taps on the pager stay dimmed until the last week arrives', async ({ page }) => {
+	await page.clock.setFixedTime(new Date('2026-11-20T10:00:00'));
+	await loginFresh(page);
+	await plan(page, { day: '2026-11-21', title: 'Pizza bestellen' });
+	const id = await openOwn(page);
+	const where = page.locator('[data-week-from-now]');
+	await expect(where).toHaveText('This week');
+	// The first tap's week answers soon; the second's is held back. Only the
+	// pager's weeks count: the events stream's first `open` refetches the
+	// shown week, and it may land after the taps.
+	let release = () => {};
+	const held = new Promise<void>((resolve) => (release = resolve));
+	let calls = 0;
+	await page.route(
+		(url) =>
+			url.pathname === `/api/v1/meal-plans/${id}` && url.searchParams.get('from') !== '2026-11-16',
+		async (route) => {
+			if (++calls > 1) await held;
+			else await new Promise((resolve) => setTimeout(resolve, 200));
+			await route.continue();
+		}
+	);
+	const next = page.getByRole('button', { name: 'Next week' });
+	await next.click();
+	await next.click();
+	const busy = page.locator('[aria-busy="true"]');
+	await expect(busy).toHaveCount(1);
+	// The first tap's navigation has come back and been dropped; still dimmed.
+	await expect.poll(() => calls).toBe(2);
+	await page.waitForTimeout(500);
+	await expect(busy).toHaveCount(1);
+	await expect(where).toHaveText('This week');
+	release();
+	await expect(where).toHaveText('In 2 weeks');
+	await expect(page).toHaveURL(new RegExp(`/plans/${id}\\?from=2026-11-30$`));
+	await expect(busy).toHaveCount(0);
+});
+
+// A narrow phone: the dates of a week across two months, or across New
+// Year, stay clear of the pager.
+test('the dates never run under the pager', async ({ page }) => {
+	await page.clock.setFixedTime(new Date('2026-11-20T10:00:00'));
+	await page.setViewportSize({ width: 320, height: 640 });
+	await loginFresh(page);
+	await plan(page, { day: '2026-11-21', title: 'Pizza bestellen' });
+	const id = await openOwn(page);
+	for (const [from, dates] of [
+		['2026-11-30', '11/30–12/6'],
+		['2026-12-28', '12/28–1/3']
+	] as const) {
+		await page.goto(`/plans/${id}?from=${from}`);
+		const shown = page.getByRole('heading', { level: 2 }).first().getByText(dates);
+		await expect(shown).toBeVisible();
+		// Whole, not cut short by the truncation that guards the pager.
+		expect(await shown.evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true);
+		const end = await shown.evaluate((el) => el.getBoundingClientRect().right);
+		const previous = await page.getByRole('button', { name: 'Previous week' }).boundingBox();
+		expect(end).toBeLessThanOrEqual(previous!.x);
+	}
 });
 
 test('the plan moves on to a new day when the reader comes back', async ({ page }) => {
