@@ -25,7 +25,7 @@ description: "Meal plans: recipes and free texts on days of a week or on the
 <Card href="/api/reference/meal-plans/update-meal-plan-entry" title="Move an entry or change its servings" />
 <Card href="/api/reference/meal-plans/remove-meal-plan-entry" title="Remove an entry, restorable for a day" />
 <Card href="/api/reference/meal-plans/restore-meal-plan-entry" title="Bring back a removed entry" />
-<Card href="/api/reference/meal-plans/stream-meal-plan" title="Follow a meal plan's changes" description="A Server-Sent Events stream: `retry: 3000` first, then `event: changed` after every change to the plan, its JSON data carrying the plan's `revision` (refetch the plan to see what changed, unless the one you hold already has that revision), and a `: ping` comment every 25 seconds. The stream ends when the caller loses access to the plan or the server shuts down." />
+<Card href="/api/reference/meal-plans/stream-meal-plan" title="Follow a meal plan's changes" description="A Server-Sent Events stream: `retry: 3000` first, then `event: changed` once as you connect and after every change to the plan, its JSON data carrying the plan's `revision` (refetch the plan to see what changed, unless the one you hold already has that revision), and a `: ping` comment every 25 seconds. The stream ends when the caller loses access to the plan or the server shuts down." />
 <Card href="/api/reference/meal-plans/invite-to-meal-plan" title="Invite a person to a plan" />
 <Card href="/api/reference/meal-plans/remove-meal-plan-member" title="Remove a member or withdraw an invitation" />
 <Card href="/api/reference/meal-plans/accept-meal-plan-invitation" title="Accept an invitation to a plan" />

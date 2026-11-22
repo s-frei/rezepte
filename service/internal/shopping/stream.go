@@ -25,7 +25,7 @@ func (s *Service) stream(userID, listID string) *huma.StreamResponse {
 }
 
 // Stream answers with the Server-Sent Events of the thing id names, a list or
-// a meal plan: "changed" after every change, until the request ends, the hub
+// a meal plan: "changed" once on (re)connecting and after every change, until the request ends, the hub
 // closes or the caller loses access. The caller's access was checked before;
 // rev checks it again on every signal (an error means no access or no thing),
 // since removing a member is a change too. Each event carries the revision,
@@ -50,6 +50,16 @@ func (h *Hub) Stream(id string, rev func(context.Context) (int64, error)) *huma.
 		if !send("retry: 3000\n\n") {
 			return
 		}
+		// The revision as it stands once subscribed: a change between the
+		// client's own fetch and this (re)connection sent no event, and the
+		// number tells a client that holds it already to skip the refetch.
+		changed := func() bool {
+			n, err := rev(r.Context())
+			return err == nil && send(fmt.Sprintf("event: changed\ndata: {\"revision\":%d}\n\n", n))
+		}
+		if !changed() {
+			return
+		}
 		ping := time.NewTicker(pingEvery)
 		defer ping.Stop()
 		for {
@@ -64,11 +74,7 @@ func (h *Hub) Stream(id string, rev func(context.Context) (int64, error)) *huma.
 				if !open {
 					return
 				}
-				n, err := rev(r.Context())
-				if err != nil {
-					return
-				}
-				if !send(fmt.Sprintf("event: changed\ndata: {\"revision\":%d}\n\n", n)) {
+				if !changed() {
 					return
 				}
 			}

@@ -199,7 +199,7 @@ func Register(api huma.API, svc *Service) {
 		})
 
 	stream := reader(op("stream-shopping-list", http.MethodGet, "/api/v1/shopping-lists/{id}/events", "Follow a shopping list's changes", http.StatusOK, 404))
-	stream.Description = "A Server-Sent Events stream: `retry: 3000` first, then `event: changed` after every change to the list, its JSON data carrying the list's `revision` " +
+	stream.Description = "A Server-Sent Events stream: `retry: 3000` first, then `event: changed` once as you connect and after every change to the list, its JSON data carrying the list's `revision` " +
 		"(refetch the list to see what changed, unless the one you hold already has that revision), and a `: ping` comment every 25 seconds. The stream ends when the caller loses access to the list or the server shuts down."
 	stream.Responses = map[string]*huma.Response{"200": {
 		Description: "The event stream",

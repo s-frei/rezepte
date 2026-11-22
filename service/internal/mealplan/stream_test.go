@@ -103,6 +103,7 @@ func TestStreamEndsWhenAccessLost(t *testing.T) {
 		t.Fatalf("Content-Type %q", got)
 	}
 	s.expect(t, "retry: 3000")
+	s.expect(t, "event: changed") // the revision on connecting
 	p := a.call(t, owner, http.MethodPost, plans+"/"+id+"/entries"+week, map[string]any{"title": "Reste"}, http.StatusOK)
 	s.expect(t, "event: changed")
 	s.expect(t, fmt.Sprintf(`data: {"revision":%d}`, p.Revision))

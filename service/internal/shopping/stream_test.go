@@ -100,8 +100,13 @@ func TestStreamFlushesEachEvent(t *testing.T) {
 	a := newAPI(t)
 	owner, member := a.login(t, "anna"), a.login(t, "ben")
 	id := a.sharedList(t, owner, member)
+	now := a.call(t, owner, http.MethodGet, base+"/"+id, nil, http.StatusOK)
 	s := a.openStream(t, owner, id)
 	s.expect(t, "retry: 3000")
+	// On connecting, the revision as it stands: a change before the
+	// subscription sent no event, and a client holding it skips the refetch.
+	s.expect(t, "event: changed")
+	s.expect(t, fmt.Sprintf(`data: {"revision":%d}`, now.Revision))
 	l := a.call(t, member, http.MethodPost, base+"/"+id+"/items", map[string]string{"text": "Milch"}, http.StatusOK)
 	s.expect(t, "event: changed")
 	// The event names the revision the change's own answer carried, so that page skips the refetch.
@@ -130,6 +135,7 @@ func TestStreamEndsWhenAccessLost(t *testing.T) {
 	id := a.sharedList(t, owner, member)
 	s := a.openStream(t, member, id)
 	s.expect(t, "retry: 3000")
+	s.expect(t, "event: changed") // the revision on connecting
 	ben, err := a.users.ByUsername(context.Background(), "ben")
 	if err != nil {
 		t.Fatal(err)

@@ -3,18 +3,19 @@ const COALESCE_MS = 150;
 /**
  * Follows the server-sent events stream at `url` of one shared thing - a
  * shopping list, a meal plan - and calls `onchange` whenever it changed on
- * the server, so the caller refetches it. Fires on every `changed` event and
- * on every `open`, the first included: a change between the page's own fetch
- * and the subscription, or during a reconnect, sends no event. A burst within
- * 150 ms is one call.
+ * the server, so the caller refetches it. Fires on every `changed` event,
+ * the one the server sends on every (re)connection included: a change
+ * between the page's own fetch and the subscription, or during a reconnect,
+ * shows in its revision. A burst within 150 ms is one call.
  *
  * A `changed` event names the thing's revision; the call passes the highest of
- * its burst, so a page that shows it already (its own change) can skip the
- * refetch. Anything else in the burst (an `open`, an error) passes none.
+ * its burst, so a page that shows it already (its own change, its own fetch
+ * just before connecting) skips the refetch. Anything else in the burst (an
+ * error) passes none.
  *
  * When the server ends the stream for good (the reader lost access: the
  * reconnect gets a 404), the source errors with `readyState === CLOSED`. No
- * `open` follows, so `onchange` is called once then: the refetch hits the same
+ * reconnection follows, so `onchange` is called once then: the refetch hits the same
  * 404 and the page's failure handling shows it gone. While the browser is
  * still reconnecting (`CONNECTING`) an error is not a change.
  *
@@ -39,7 +40,6 @@ export function follow(
 		}, COALESCE_MS);
 	};
 	source.addEventListener('changed', (event) => notify(revisionOf(event)));
-	source.addEventListener('open', () => notify());
 	source.addEventListener('error', () => {
 		if (source.readyState === Source.CLOSED) notify();
 	});

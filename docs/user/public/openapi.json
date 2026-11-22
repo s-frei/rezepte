@@ -9270,7 +9270,7 @@
     },
     "/api/v1/meal-plans/{id}/events": {
       "get": {
-        "description": "A Server-Sent Events stream: `retry: 3000` first, then `event: changed` after every change to the plan, its JSON data carrying the plan's `revision` (refetch the plan to see what changed, unless the one you hold already has that revision), and a `: ping` comment every 25 seconds. The stream ends when the caller loses access to the plan or the server shuts down.",
+        "description": "A Server-Sent Events stream: `retry: 3000` first, then `event: changed` once as you connect and after every change to the plan, its JSON data carrying the plan's `revision` (refetch the plan to see what changed, unless the one you hold already has that revision), and a `: ping` comment every 25 seconds. The stream ends when the caller loses access to the plan or the server shuts down.",
         "operationId": "stream-meal-plan",
         "parameters": [
           {
@@ -14226,7 +14226,7 @@
     },
     "/api/v1/shopping-lists/{id}/events": {
       "get": {
-        "description": "A Server-Sent Events stream: `retry: 3000` first, then `event: changed` after every change to the list, its JSON data carrying the list's `revision` (refetch the list to see what changed, unless the one you hold already has that revision), and a `: ping` comment every 25 seconds. The stream ends when the caller loses access to the list or the server shuts down.",
+        "description": "A Server-Sent Events stream: `retry: 3000` first, then `event: changed` once as you connect and after every change to the list, its JSON data carrying the list's `revision` (refetch the list to see what changed, unless the one you hold already has that revision), and a `: ping` comment every 25 seconds. The stream ends when the caller loses access to the list or the server shuts down.",
         "operationId": "stream-shopping-list",
         "parameters": [
           {

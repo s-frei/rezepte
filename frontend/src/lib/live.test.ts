@@ -40,7 +40,7 @@ describe('follow', () => {
 		expect(onchange).toHaveBeenCalledTimes(1);
 	});
 
-	it("passes a burst's highest revision, none when an open joined it", () => {
+	it("passes a burst's highest revision, none when an error joined it", () => {
 		const onchange = vi.fn();
 		follow('/api/v1/shopping-lists/l1/events', onchange, Source);
 		FakeSource.last.emit('changed', '{"revision":5}');
@@ -48,7 +48,9 @@ describe('follow', () => {
 		vi.advanceTimersByTime(200);
 		expect(onchange).toHaveBeenLastCalledWith(5);
 		FakeSource.last.emit('changed', '{"revision":7}');
-		FakeSource.last.emit('open');
+		FakeSource.last.readyState = 2;
+		FakeSource.last.emit('error');
+		FakeSource.last.readyState = 1;
 		vi.advanceTimersByTime(200);
 		expect(onchange).toHaveBeenLastCalledWith(undefined);
 		FakeSource.last.emit('changed', '{}');
@@ -56,15 +58,15 @@ describe('follow', () => {
 		expect(onchange).toHaveBeenLastCalledWith(undefined);
 	});
 
-	it('refetches on every open, the first included (a change may land before it)', () => {
+	it('leaves an open alone: the server sends the revision as it connects', () => {
 		const onchange = vi.fn();
 		follow('/api/v1/shopping-lists/l1/events', onchange, Source);
 		FakeSource.last.emit('open');
 		vi.advanceTimersByTime(200);
-		expect(onchange).toHaveBeenCalledTimes(1);
-		FakeSource.last.emit('open');
+		expect(onchange).not.toHaveBeenCalled();
+		FakeSource.last.emit('changed', '{"revision":4}');
 		vi.advanceTimersByTime(200);
-		expect(onchange).toHaveBeenCalledTimes(2);
+		expect(onchange).toHaveBeenLastCalledWith(4);
 	});
 
 	it('refetches once when the stream is closed for good, so a 404 surfaces', () => {
