@@ -248,7 +248,7 @@ erDiagram
     text id PK
     text list_id FK
     text entry_id FK "nullable: a free item"
-    text name_key "shopping.NameKey(name)"
+    text name_key "ingredient.Key(name)"
     real quantity "unscaled for an entry's item"
     text added_by FK "nullable, SET NULL: free items only"
     text checked_at "nullable, set when ticked"
@@ -323,7 +323,7 @@ erDiagram
 - `shopping_lists.created_by` cascades: a list goes with its creator's account. `shopping_lists_creator_idx` on `(created_by, updated_at DESC)` serves the overview, newest first; every change to a list moves `updated_at`.
 - `shopping_list_entries` is a recipe copied onto a list: `title` and `base_servings` are copied, `recipe_id` is `SET NULL`, so deleting the recipe leaves the entry and its items with the title as plain text. Entries and items cascade with their list, items with their entry.
 - `shopping_list_items` holds the recipe's **unscaled** quantity for an entry's item and scales it on every read to the entry's `servings`, which is what lets a servings change rescale without touching an item and keep its tick. A free item (`entry_id` `NULL`) holds its amount as typed. No item references an `ingredients` row: a recipe save rewrites those rows.
-- `name_key` is written with the item and never recomputed, so a change to `shopping.NameKey` leaves existing items under their old key until they are added again.
+- `name_key` is written with the item and never recomputed, so a change to `ingredient.Key` leaves existing items under their old key until they are added again.
 - `shopping_department_overrides` is keyed by `name_key` with no list column: one row sorts that name on every list of the instance. `department` has no `CHECK`; `shopping.Department.Valid` guards the one writer.
 - `shopping_list_members` is one row per invited person; `accepted_at` null is a pending invitation that grants nothing, set it grants everything but deleting and sharing. Both keys cascade, so a deleted list or account takes its rows; `shopping_list_members_user_idx` serves "my memberships" and invitations. `shopping_lists.updated_by` is `SET NULL` and names who changed the list last.
 - All five tables belong to [Shopping lists](/features/shopping-lists).

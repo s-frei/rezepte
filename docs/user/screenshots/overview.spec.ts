@@ -69,6 +69,25 @@ test('search', async ({ page }, testInfo) => {
 	await shot(page, 'search');
 });
 
+test('ingredient-search', async ({ page }, testInfo) => {
+	await prepare(page, testInfo, { login: true });
+	await page.goto('/?ingredients=potato&ingredients=onion');
+	await expect(page.getByRole('heading', { level: 2, name: /^With all 2 ingredients/ })).toBeVisible();
+	// The soup misses six; focusing it and ticking two shows the row's
+	// focused mode, ticked pills and a stamp that counted them.
+	const soup = page
+		.locator('[data-card]')
+		.filter({ has: page.getByRole('heading', { name: 'Leek and Potato Soup' }) });
+	await soup.getByRole('button', { name: '6 missing' }).click();
+	const row = page.getByRole('group', { name: 'Missing for Leek and Potato Soup' });
+	await row.getByRole('button', { name: 'salt' }).click();
+	await row.getByRole('button', { name: 'pepper' }).click();
+	await expect(soup.getByRole('button', { name: '4 missing' })).toBeVisible();
+	// Off the card, whose hover tilt would show in the picture.
+	await page.mouse.move(0, 0);
+	await shot(page, 'ingredient-search');
+});
+
 test('filters', async ({ page }, testInfo) => {
 	await prepare(page, testInfo, { login: true });
 	// The bound comes from the address rather than from driving the slider:

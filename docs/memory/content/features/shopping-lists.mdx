@@ -9,7 +9,7 @@ A signed-in person keeps any number of shopping lists, alone or shared with othe
 
 - Rounding exists twice: `service/internal/shopping/scale.go` ports `frontend/src/lib/recipe/scale.ts`, and `TestRoundScaledMatchesFrontend` carries the frontend's table; change both files and both tables ([Adding and scaling](#adding-and-scaling)).
 - A demo ingredient that lands in the `other` department fails `TestDemoIngredientsAreSorted` ([Names and departments](#names-and-departments)).
-- A changed `NameKey` does not rewrite the keys already stored with items ([Names and departments](#names-and-departments)).
+- A changed `ingredient.Key` does not rewrite the keys already stored with items ([Names and departments](#names-and-departments)).
 - A buffering reverse proxy breaks the stream ([Live updates](#live-updates)).
 - Every change answers with the whole list, so invitations are sent one after another, never in parallel, and the page drops an answer older than its newest change ([The list page](#the-list-page)).
 
@@ -49,7 +49,7 @@ A signed-in person keeps any number of shopping lists, alone or shared with othe
 
 ### Names and departments
 
-**Names meet through a key.** `NameKey` lowercases, trims, collapses spaces, folds French and Spanish accents (é, ç, ñ…, never ä, ö, ü, ß) and strips a German or English plural ending from the last word, with `irregularPlurals` for what the suffix rules cannot reach ("Äpfel", "Eier"). "Zwiebel", "Zwiebeln" and " zwiebeln " share a key. The key is stored with the item when it is written.
+**Names meet through a key.** `ingredient.Key` (`service/internal/ingredient/key.go`, shared with the [ingredient search](/features/ingredient-search)) lowercases, trims, collapses spaces, folds French and Spanish accents (é, ç, ñ…, never ä, ö, ü, ß) and strips a German or English plural ending from the last word, with `irregularPlurals` for what the suffix rules cannot reach ("Äpfel", "Eier"). "Zwiebel", "Zwiebeln" and " zwiebeln " share a key. The key is stored with the item when it is written.
 
 **A department comes from an override or the word list.** `shopping_department_overrides` wins; otherwise `DefaultDepartment` looks the key up in `words` in `departments.go`, one German and English word list per department, exact match first, then the longest known word the key ends with ("rinderhackfleisch" ends with "hackfleisch"), which needs four letters or a word boundary so "graham" never lands on "ham". A qualifier after a comma or in parentheses is cut off for the lookup only. Unknown names go to `other`. The order of `Departments` is the aisle order on the page. Recipes carry no language, so every name is looked up in both languages at once.
 
@@ -153,7 +153,7 @@ A signed-in person keeps any number of shopping lists, alone or shared with othe
 ## Limits
 
 - Deleting an account publishes nothing on the stream: a list it owned stays on a member's open page until the next change or reconnect brings the 404, and a list it was a member of shows it in "Shared with" until the next refetch.
-- Irregular plurals beyond `irregularPlurals` stay separate keys, and a changed `NameKey` does not rewrite stored keys.
+- Irregular plurals beyond `irregularPlurals` stay separate keys, and a changed `ingredient.Key` does not rewrite stored keys.
 - An override is per name key, not per list or person, and nothing lists or resets overrides except moving the item again.
 - Text reads numbers with every language's rules at once, so a stray English "1.250 kg" is 1250 kg by the German thousands rule; "Copy as text" never writes three decimals.
 - Free-text parsing is naive: "Salz, Pfeffer" becomes name "Salz" plus note "Pfeffer", and a bare "pepper" is pantry rather than spice.
