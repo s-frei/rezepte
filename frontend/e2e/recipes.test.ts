@@ -3446,7 +3446,7 @@ test('a one-word name of full length wraps in the author ribbon on a 360px phone
 test.describe('ingredient search', () => {
 	// The suggestions come from every recipe in the suite's shared database,
 	// so they are pinned here; the server's own matching has its Go tests.
-	test('picks ingredients as chips in the search field', async ({ page }) => {
+	test('picks ingredients as chips in the search field', async ({ page, isMobile }) => {
 		await page.route(
 			(url) => url.pathname === '/api/v1/ingredients',
 			(route) =>
@@ -3471,10 +3471,11 @@ test.describe('ingredient search', () => {
 		await expect(field).not.toHaveAttribute('aria-activedescendant');
 		await expect(list.getByRole('option', { selected: true })).toHaveCount(0);
 
-		// The dropdown hangs from the field at exactly its width.
+		// The dropdown hangs from the field; on a desktop at exactly its width
+		// (a phone's spans the filter too, see "span the search row").
 		const frame = await list.locator('..').boundingBox();
 		const box = await field.locator('..').boundingBox();
-		expect(Math.abs(frame!.width - box!.width)).toBeLessThanOrEqual(1);
+		if (!isMobile) expect(Math.abs(frame!.width - box!.width)).toBeLessThanOrEqual(1);
 		expect(Math.abs(frame!.x - box!.x)).toBeLessThanOrEqual(1);
 
 		// The text row comes first, Zwiebel second.
@@ -4372,6 +4373,220 @@ test.describe('ingredient search', () => {
 		await expect(page.getByRole('tooltip')).toHaveText('Also covers: Frühlingszwiebeln');
 	});
 
+	// The server ranks names by use, so a rare chip sits behind the common
+	// names its word starts; the lookup still finds it.
+	test('a rare chip from the link still says what it covers', async ({ page }) => {
+		await page.route(
+			(url) => url.pathname === '/api/v1/ingredients',
+			(route) => {
+				const limit = Number(new URL(route.request().url()).searchParams.get('limit'));
+				const common = ['Eier', 'Eigelb', 'Eiweiß', 'Eisbergsalat'].map((name) => ({
+					name,
+					key: name.toLowerCase(),
+					count: 9,
+					also: []
+				}));
+				const rare = { name: 'Eis', key: 'eis', count: 1, also: ['Vanilleeis'] };
+				return route.fulfill({ json: { items: [...common, rare].slice(0, limit) } });
+			}
+		);
+		await page.goto('/?ingredients=Eis');
+		await expect(page.getByRole('button', { name: 'Remove Eis' })).toHaveAccessibleDescription(
+			'Also covers: Vanilleeis'
+		);
+	});
+
+	// From md the tooltip stands above the chip: below it covered the tags.
+	test('a desktop chip tooltip leaves the row under the field free', async ({ page, isMobile }) => {
+		test.skip(isMobile, 'the desktop layout');
+		await page.route(
+			(url) => url.pathname === '/api/v1/ingredients',
+			(route) =>
+				route.fulfill({
+					json: {
+						items: [{ name: 'Zwiebel', key: 'zwiebel', count: 7, also: ['Frühlingszwiebeln'] }]
+					}
+				})
+		);
+		await page.goto('/?ingredients=Zwiebel');
+		const remove = page.getByRole('button', { name: 'Remove Zwiebel' });
+		await remove.focus();
+		const tip = await page.getByRole('tooltip').boundingBox();
+		const field = await searchField(page).locator('..').boundingBox();
+		expect(tip!.y + tip!.height).toBeLessThanOrEqual(field!.y);
+
+		// Hovered while the suggestions are open, it stays clear of them too.
+		await searchField(page).fill('zw');
+		const list = page.getByRole('listbox', { name: 'Suggestions' });
+		await expect(list).toBeVisible();
+		await remove.locator('..').hover({ position: { x: 12, y: 16 } });
+		const hovered = await page.getByRole('tooltip').boundingBox();
+		const frame = await list.locator('..').boundingBox();
+		expect(hovered!.y + hovered!.height).toBeLessThanOrEqual(frame!.y);
+	});
+
+	// A link holds what a hand wrote: the client keeps one chip per key and
+	// at most the server's 20, and at 20 the field says why it offers none.
+	test('chips keep to one per ingredient and the server cap', async ({ page }) => {
+		await page.goto('/?ingredients=Zwiebel&ingredients=Zwiebeln');
+		await expect(page.getByRole('button', { name: /^Remove Zwiebel/ })).toHaveCount(1);
+
+		const asked: string[] = [];
+		page.on('request', (r) => {
+			if (new URL(r.url()).pathname === '/api/v1/ingredients') asked.push(r.url());
+		});
+		const many = Array.from({ length: 22 }, (_, i) => `ingredients=Item${i}x`).join('&');
+		await page.goto(`/?${many}`);
+		await expect(page.getByRole('button', { name: /^Remove Item/ })).toHaveCount(20);
+		const field = searchField(page);
+		await field.fill('zw');
+		await expect(page.getByText('Up to 20 ingredients: remove one to add another.')).toBeVisible();
+		await expect(field).toHaveAccessibleDescription(
+			'Up to 20 ingredients: remove one to add another.'
+		);
+		// A listbox holds only options and groups.
+		const roles = await page
+			.getByRole('listbox', { name: 'Suggestions' })
+			.evaluate((list) => [...list.children].map((child) => child.getAttribute('role')));
+		expect(roles.filter((role) => role !== 'option' && role !== 'group')).toEqual([]);
+		expect(asked.filter((url) => url.includes('q=zw'))).toEqual([]);
+	});
+
+	// "Reset filters" with no filter on only dropped the text; the way out
+	// says what it does and leaves the focus in the field.
+	test('an empty result from the text alone offers to clear the search', async ({
+		page,
+		isMobile
+	}) => {
+		const chip = uniqueToken();
+		await createRecipe(page, { ...loadFixture(0), title: `Pie ${chip}` });
+		await page.goto('/?q=qxjvw');
+		const actions = page.locator('[data-empty]').getByRole('button');
+		await expect(actions.first()).toHaveText('Clear search');
+		await actions.first().click();
+		await expect(page).not.toHaveURL(/q=/);
+		await expect(searchField(page)).toBeFocused();
+		await expect(page.getByRole('listbox', { name: 'Suggestions' })).toHaveCount(0);
+
+		await page.goto(`/?ingredients=${chip}`);
+		const remove = page.locator('[data-empty]').getByRole('button', { name: 'Remove ingredients' });
+		// A finger's 44px on a touch screen.
+		if (isMobile) expect((await remove.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+		await remove.click();
+		await expect(searchField(page)).toBeFocused();
+	});
+
+	// Chips leave the input any width at any breakpoint, and a placeholder
+	// cut mid-word ("Ingredient or wor") reads as broken: it gives way to the
+	// short one instead.
+	test('the field never cuts its placeholder', async ({ page }) => {
+		const placeholderFits = () =>
+			field(page).evaluate((input: HTMLInputElement) => {
+				const style = getComputedStyle(input);
+				const context = document.createElement('canvas').getContext('2d')!;
+				context.font = `${style.fontWeight} ${style.fontSize} ${style.fontFamily}`;
+				const room =
+					input.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight);
+				return context.measureText(input.placeholder).width <= room;
+			});
+		// German runs longest, and some chip runs leave the input a pixel short.
+		await kitchen(page, 1);
+		const names = ['Zwiebel', 'Kartoffeln', 'Essig', 'Senf'];
+		const urls = names.map(
+			(_, n) =>
+				'/?' +
+				names
+					.slice(0, n + 1)
+					.map((name) => `ingredients=${name}`)
+					.join('&')
+		);
+		for (const width of [320, 768, 1024, 1180, 1280]) {
+			await page.setViewportSize({ width, height: 800 });
+			for (const url of ['/', ...urls]) {
+				await page.goto(url);
+				await expect.poll(placeholderFits, { message: `${width} ${url}` }).toBe(true);
+			}
+		}
+	});
+
+	// From md to lg the chips leave the field too little room beside the
+	// toolbar: it takes the whole line and the toolbar the next.
+	test('the field takes its own line beside chips below lg', async ({ page, isMobile }) => {
+		test.skip(isMobile, 'the desktop layout');
+		await page.setViewportSize({ width: 900, height: 800 });
+		await page.goto('/?ingredients=Zwiebel&ingredients=Kartoffeln');
+		const field = await searchField(page).locator('..').boundingBox();
+		const filter = await page.getByRole('button', { name: /^Filter/ }).boundingBox();
+		expect(field!.height).toBeLessThanOrEqual(52);
+		expect(filter!.y).toBeGreaterThan(field!.y + field!.height);
+		expect(Math.abs(filter!.x - field!.x)).toBeLessThanOrEqual(1);
+
+		await page.setViewportSize({ width: 1280, height: 800 });
+		const wide = await searchField(page).locator('..').boundingBox();
+		const beside = await page.getByRole('button', { name: /^Filter/ }).boundingBox();
+		expect(beside!.x).toBeGreaterThan(wide!.x + wide!.width);
+	});
+
+	// A landscape phone is wider than md and an iPad's keyboard covers half
+	// of it: wherever the pointer is coarse the field lifts and the list
+	// ends above the keyboard, even when the room left holds one option.
+	// Chromium shrinks the layout for the keyboard, which a resize stands in for.
+	for (const [width, height, keyboard] of [
+		[915, 412, 200],
+		[740, 360, 190],
+		[1024, 768, 330]
+	]) {
+		test(`a touch screen at ${width}x${height} shows an ingredient above the keyboard`, async ({
+			page,
+			isMobile
+		}) => {
+			test.skip(!isMobile, 'a coarse pointer');
+			await page.route(
+				(url) => url.pathname === '/api/v1/ingredients',
+				(route) =>
+					route.fulfill({
+						json: { items: [{ name: 'Zwiebel', key: 'zwiebel', count: 7, also: [] }] }
+					})
+			);
+			// Enough cards that the page scrolls the field to its top.
+			for (let i = 0; i < 6; i++) await createRecipe(page, loadFixture(i));
+			await page.setViewportSize({ width, height });
+			await page.goto('/');
+			const field = searchField(page);
+			await field.tap();
+			// The keyboard comes up as the field glides to the top.
+			await expect
+				.poll(async () => (await field.boundingBox())!.y, { timeout: 3_000 })
+				.toBeLessThan(24);
+			await page.setViewportSize({ width, height: height - keyboard });
+			await field.fill('zw');
+			const option = page
+				.getByRole('group', { name: 'Add ingredient' })
+				.getByRole('option', { name: /^Zwiebel/ });
+			await expect(option).toBeVisible();
+			await expect
+				.poll(async () => {
+					const box = await option.boundingBox();
+					const list = await page.getByRole('listbox').boundingBox();
+					// Its name shows: at least the upper 80% within the list and the screen.
+					const bottom = Math.min(list!.y + list!.height, height - keyboard);
+					return box!.y + box!.height * 0.8 <= bottom;
+				})
+				.toBe(true);
+			// A mouse hint has no place on a touch screen.
+			await expect(page.getByRole('button', { name: /command palette/i })).toBeHidden();
+		});
+	}
+
+	// The clear ✕ keeps its padding only while there is text to clear.
+	test('two chips at 320px fit one line beside the add hint', async ({ page, isMobile }) => {
+		test.skip(!isMobile, 'the phone layout');
+		await page.setViewportSize({ width: 320, height: 568 });
+		await page.goto('/?ingredients=Zwiebel&ingredients=Kartoffeln');
+		const box = await searchField(page).locator('..').boundingBox();
+		expect(box!.height).toBeLessThan(100);
+	});
+
 	test('phone chips share a line, keep a 44px ✕ and drop the keyboard on a pick', async ({
 		page,
 		isMobile
@@ -4466,8 +4681,146 @@ test.describe('ingredient search', () => {
 		// 12px under the sticky row.
 		expect(Math.abs(box.y - (row.y + row.height) - 12)).toBeLessThanOrEqual(2);
 
-		// With chips the filter is an icon beside the field.
+		// On a phone the filter is an icon beside the field.
 		const filter = page.getByRole('button', { name: 'Filter', exact: true });
 		expect((await filter.boundingBox())!.width).toBeLessThanOrEqual(48);
+	});
+
+	test('the suggestions span the search row on a phone', async ({ page, isMobile }) => {
+		// Desktop Chrome's scrollbar takes 15px of a 320px window; a phone's overlays.
+		test.skip(!isMobile, 'the phone layout');
+		// More tags than the room above the keyboard holds rows.
+		const recipe = loadFixture(0);
+		const tags = Array.from({ length: 8 }, () => uniqueToken());
+		await createRecipe(page, { ...recipe, tags: [...recipe.tags, ...tags] });
+		await page.setViewportSize({ width: 320, height: 568 });
+		await page.goto('/');
+		const field = searchField(page);
+		// On a phone the filter is an icon beside the field, chips or not.
+		const filter = page.getByRole('button', { name: 'Filters', exact: true });
+		const filterBox = (await filter.boundingBox())!;
+		expect(filterBox.width).toBeLessThanOrEqual(48);
+		// The phone's placeholder fits the field.
+		const fit = await field.evaluate((input: HTMLInputElement) => {
+			const style = getComputedStyle(input);
+			const context = document.createElement('canvas').getContext('2d')!;
+			context.font = `${style.fontWeight} ${style.fontSize} ${style.fontFamily}`;
+			return {
+				text: context.measureText(input.placeholder).width,
+				room: input.clientWidth - parseFloat(style.paddingLeft)
+			};
+		});
+		expect(fit.text).toBeLessThanOrEqual(fit.room);
+
+		await field.click();
+		const listbox = page.getByRole('listbox', { name: 'Suggestions' });
+		await expect(listbox).toBeVisible();
+		const frame = (await listbox.locator('..').boundingBox())!;
+		const wrapper = (await field.locator('..').boundingBox())!;
+		expect(Math.abs(frame.x - wrapper.x)).toBeLessThanOrEqual(1);
+		expect(Math.abs(frame.x + frame.width - (filterBox.x + filterBox.width))).toBeLessThanOrEqual(
+			1
+		);
+		// The header's dotted rule hides under the open list, or its ends
+		// poke out past the list's rounded corners.
+		const rule = () =>
+			field.evaluate(
+				(input) => getComputedStyle(input.closest('.border-dotted')!).borderBottomColor
+			);
+		await expect.poll(rule).toBe('rgba(0, 0, 0, 0)');
+
+		// A keyboard that shrinks the layout, as on Android: the list ends at
+		// least 12px above it, cut through a row at 48-55% so it shows that it
+		// scrolls (fitAboveKeyboard).
+		await page.setViewportSize({ width: 320, height: 315 });
+		const fitted = () =>
+			listbox.evaluate((node) => {
+				const bottom = node.getBoundingClientRect().bottom;
+				const frame = node.parentElement!.getBoundingClientRect().bottom;
+				const cut = [...node.querySelectorAll('[role=option]')]
+					.map((option) => option.getBoundingClientRect())
+					.find((r) => r.top < bottom && r.bottom > bottom);
+				return {
+					gap: Math.round(innerHeight - frame),
+					cut: cut ? (bottom - cut.top) / cut.height : 0,
+					scrolls: node.scrollHeight > node.clientHeight
+				};
+			});
+		await expect.poll(async () => (await fitted()).gap).toBeGreaterThanOrEqual(12);
+		const shown = await fitted();
+		expect(shown.scrolls).toBe(true);
+		expect(shown.cut).toBeGreaterThanOrEqual(0.47);
+		expect(shown.cut).toBeLessThanOrEqual(0.56);
+		// A touch screen past a phone (an iPad) still fits the list to the
+		// room it has, within the stylesheet's 26rem.
+		await page.setViewportSize({ width: 1024, height: 768 });
+		await expect
+			.poll(() => listbox.evaluate((node) => parseFloat((node as HTMLElement).style.maxHeight)))
+			.toBeLessThanOrEqual(26 * 16);
+		await page.setViewportSize({ width: 320, height: 568 });
+		await page.keyboard.press('Escape');
+		await expect(listbox).toHaveCount(0);
+		await expect.poll(rule).not.toBe('rgba(0, 0, 0, 0)');
+	});
+
+	// A new list swaps the grids (the skeleton's too), and for a moment the
+	// page is shorter than where it stands: the browser clamped the scroll
+	// and dropped the field the focus lifted. `reserve` holds the height.
+	test.describe('the search field on a phone', () => {
+		// WebKit's service worker answers the list itself, past `page.route`.
+		test.use({ serviceWorkers: 'block' });
+
+		async function lifted(page: Page) {
+			// Enough cards that the page can scroll the field to the top.
+			for (let i = 0; i < 6; i++) await createRecipe(page, loadFixture(i));
+			await page.setViewportSize({ width: 320, height: 568 });
+			await page.goto('/');
+			await expect(cards(page).first()).toBeVisible();
+			const field = searchField(page);
+			const top = async () => (await field.locator('..').boundingBox())!.y;
+			await field.tap();
+			await expect.poll(top).toBeLessThanOrEqual(17);
+			return { field, top };
+		}
+		const answer = (page: Page) =>
+			page.waitForResponse(
+				(r) => new URL(r.url()).pathname === '/api/v1/recipes' && r.url().includes('q=')
+			);
+
+		test('the search field stays at the top while typing', async ({ page, isMobile }) => {
+			test.skip(!isMobile, "the focus scroll is the phone's");
+			const { field, top } = await lifted(page);
+			const answered = answer(page);
+			await field.pressSequentially('on');
+			await answered;
+			await page.evaluate(() => new Promise(requestAnimationFrame));
+			expect(await top()).toBeLessThanOrEqual(17);
+		});
+
+		test('the search field stays at the top while typing on a slow network', async ({
+			page,
+			isMobile
+		}) => {
+			test.skip(!isMobile, "the focus scroll is the phone's");
+			let hits = 0;
+			await page.route(
+				(url) => url.pathname === '/api/v1/recipes' && url.searchParams.has('q'),
+				async (route) => {
+					hits++;
+					await new Promise((resolve) => setTimeout(resolve, 800));
+					await route.continue();
+				}
+			);
+			const { field, top } = await lifted(page);
+			const answered = answer(page);
+			await field.pressSequentially('o');
+			// The page's skeleton, not a card's photo frame (also bg-skeleton).
+			await expect(page.locator('main [class*="animate-pulse"]').first()).toBeVisible();
+			expect(await top()).toBeLessThanOrEqual(17);
+			await answered;
+			await page.evaluate(() => new Promise(requestAnimationFrame));
+			expect(await top()).toBeLessThanOrEqual(17);
+			expect(hits).toBeGreaterThan(0);
+		});
 	});
 });

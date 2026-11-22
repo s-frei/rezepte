@@ -1,12 +1,11 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { onMount, tick } from 'svelte';
 	import { Label } from 'bits-ui';
 	import Plus from '@lucide/svelte/icons/plus';
 	import TagIcon from '@lucide/svelte/icons/tag';
 	import FieldError from '#lib/components/ui/FieldError.svelte';
 	import { backOut, cubicOut } from 'svelte/easing';
 	import { prefersReducedMotion } from 'svelte/motion';
-	import { MediaQuery } from 'svelte/reactivity';
 	import { fly, scale } from 'svelte/transition';
 	import { listTags } from '#lib/api/recipes.js';
 	import TagChip from '#lib/components/ui/TagChip.svelte';
@@ -14,6 +13,7 @@
 	import { MAX_TAGS, normalizeTag } from '#lib/recipe/form.js';
 	import { matchedPart } from '#lib/recipe/step-references.js';
 	import { tagSuggestions, tagToCommit } from '#lib/recipe/tag-suggestions.js';
+	import { fitAboveKeyboard, softKeyboard } from '#lib/visible-area.js';
 
 	let {
 		tags = $bindable([]),
@@ -36,11 +36,11 @@
 	/** Read out by the live region when a tag goes on or comes off. */
 	let announcement = $state('');
 
-	// Below md the page is a phone: on focus the label scrolls up to just
+	// Wherever a software keyboard comes up (`softKeyboard`: a phone, or a
+	// touch screen at any width): on focus the label scrolls up to just
 	// under the 60px editor bar (the bar's `scroll-padding-top`, and
 	// `scroll-mt-2` puts its box 8px below), so the suggestions get the room
 	// above the keyboard and the whole field stays in sight.
-	const phone = new MediaQuery('max-width: 767.98px');
 	let wrapper = $state<HTMLDivElement>();
 
 	const atLimit = $derived(tags.length >= MAX_TAGS);
@@ -126,7 +126,7 @@
 	function handleFocus() {
 		open = true;
 		highlighted = suggestions.preferred;
-		if (phone.current) {
+		if (softKeyboard.current) {
 			wrapper?.scrollIntoView({
 				block: 'start',
 				behavior: prefersReducedMotion.current ? 'auto' : 'smooth'
@@ -136,39 +136,35 @@
 
 	// On a computer the field can sit low in the window, the list then
 	// running past its bottom: the page scrolls just far enough to show it.
-	// Not on a phone, where the focus scroll has already made the room and
+	// Not over a software keyboard, where the focus scroll has already made the room and
 	// an instant scroll here would cut its smooth one short.
 	function revealList(node: HTMLElement) {
-		if (!phone.current) {
+		if (!softKeyboard.current) {
 			node.scrollIntoView({ block: 'nearest' });
 		}
 	}
 
-	// On a phone the list ends 12px above the keyboard: the visual viewport
-	// is what the keyboard leaves, and the list follows it as the keyboard
-	// opens and the focus scroll moves the field. Never under two rows
-	// (88px), never over `max-h-48`.
-	function fitAboveKeyboard(node: HTMLElement) {
-		const viewport = window.visualViewport;
-		if (!phone.current || !viewport) {
+	// Over a software keyboard the list ends 12px above it, cut through a row so
+	// it shows that it scrolls (`fitAboveKeyboard`), and never over `max-h-48`.
+	function fit(node: HTMLElement) {
+		if (!softKeyboard.current) {
 			return;
 		}
-		// Read so the list is fitted again when a chip goes on: a new row of
-		// chips moves the list down without a scroll or a resize.
+		// Read so the list is fitted again when a chip goes on (a new row of
+		// chips moves the list down without a scroll or a resize) and when
+		// the rows change; after the DOM has them.
 		void tags.length;
-		const fit = () => {
-			// 21px: the frame's 8px bottom padding and 1px border, and the gap.
-			const room = viewport.offsetTop + viewport.height - node.getBoundingClientRect().top - 21;
-			node.style.maxHeight = `min(12rem, ${Math.max(88, room)}px)`;
-		};
-		fit();
-		viewport.addEventListener('resize', fit);
-		viewport.addEventListener('scroll', fit);
-		window.addEventListener('scroll', fit);
+		void rows;
+		let stop: (() => void) | undefined;
+		let gone = false;
+		tick().then(() => {
+			// 12rem, `max-h-48`, at the reader's text size.
+			const rem = parseFloat(getComputedStyle(document.documentElement).fontSize);
+			if (!gone) stop = fitAboveKeyboard(node, 12 * rem);
+		});
 		return () => {
-			viewport.removeEventListener('resize', fit);
-			viewport.removeEventListener('scroll', fit);
-			window.removeEventListener('scroll', fit);
+			gone = true;
+			stop?.();
 		};
 	}
 
@@ -347,7 +343,7 @@
 						// itself, so its scrollbar is covered too.
 						event.preventDefault();
 					}}
-					{@attach fitAboveKeyboard}
+					{@attach fit}
 					class="max-h-48 overflow-y-auto overscroll-contain md:max-h-64"
 				>
 					{#each rows as row, index (row.isNew ? `new:${row.name}` : row.name)}

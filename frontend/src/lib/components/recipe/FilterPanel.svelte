@@ -54,8 +54,7 @@
 		onauthor,
 		onsort,
 		onreset,
-		open = $bindable(false),
-		compact = false
+		open = $bindable(false)
 	}: {
 		/** Currently selected maximum total time in minutes, 0 = off -
 		 * scoped to this section, unlike `filterCount`. */
@@ -94,9 +93,6 @@
 		/** Whether the panel is showing; bindable so the active-filter chips
 		 * on the page can open it. */
 		open?: boolean;
-		/** On a phone the trigger is an icon alone, so ingredient chips get
-		 * the room beside it. */
-		compact?: boolean;
 	} = $props();
 
 	const uid = $props.id();
@@ -188,14 +184,15 @@
 </script>
 
 <Dialog.Root bind:open>
+	<!-- On a phone the trigger is the 44px icon square in every state, so the
+	     field keeps its room; SearchBar's suggestions (`max-md:-right-14`)
+	     assume this width to span the row. -->
 	<Dialog.Trigger
 		id="overview-filters"
-		class="inline-flex h-11 shrink-0 items-center gap-2 rounded-md border border-border bg-surface hover-tint px-3.5 text-body-sm font-medium transition {compact
-			? 'max-md:w-11 max-md:justify-center max-md:px-0'
-			: ''}"
+		class="inline-flex h-11 shrink-0 items-center gap-2 rounded-md border border-border bg-surface hover-tint px-3.5 text-body-sm font-medium transition max-md:w-11 max-md:justify-center max-md:px-0"
 	>
 		<Filter class="size-4" aria-hidden="true" />
-		<span class={compact ? 'max-md:sr-only' : ''}>{m.overview_filter()}</span>
+		<span class="max-md:sr-only">{m.overview_filter()}</span>
 	</Dialog.Trigger>
 	<Dialog.Portal>
 		<Overlay />

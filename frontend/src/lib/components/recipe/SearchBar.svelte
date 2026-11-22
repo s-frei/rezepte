@@ -9,14 +9,17 @@
 	import { cubicOut } from 'svelte/easing';
 	import { prefersReducedMotion } from 'svelte/motion';
 	import { fly } from 'svelte/transition';
-	import { untrack } from 'svelte';
+	import { tick, untrack } from 'svelte';
 	import { listIngredients, type IngredientSuggestion } from '#lib/api/ingredients.js';
 	import type { PantryItem, Tag } from '#lib/api/recipes.js';
 	import { m } from '#lib/paraglide/messages.js';
 	import { palette } from '#lib/palette.svelte.js';
 	import { matchedPart } from '#lib/recipe/step-references.js';
 	import { rankTags } from '#lib/recipe/tag-suggestions.js';
+	import { ingredientKey } from '#lib/recipe/key.js';
+	import { MAX_CHIPS } from '#lib/recipe/query.js';
 	import { notChips, tickCovers } from '#lib/recipe/ticks.js';
+	import { fitAboveKeyboard, softKeyboard } from '#lib/visible-area.js';
 
 	let {
 		value = $bindable(''),
@@ -79,12 +82,16 @@
 	let alsoOf = $state<Record<string, string[]>>({});
 	$effect(() => {
 		for (const name of ingredients) {
-			const lower = name.toLocaleLowerCase();
 			if (untrack(() => name in alsoOf)) continue;
 			alsoOf[name] = [];
-			listIngredients(lower, 4).then(
+			const key = ingredientKey(name);
+			// The most the server gives: the answer ranks names by use, so a
+			// rare chip sits behind the common names its word starts.
+			// ponytail: misses a chip behind 50 more-used names with its
+			// first word; an exact-key lookup if that ever happens.
+			listIngredients(name.toLocaleLowerCase(), 50).then(
 				(items) => {
-					const item = items.find((i) => i.key === lower || i.name.toLocaleLowerCase() === lower);
+					const item = items.find((i) => i.key === key);
 					if (item && item.also.length > 0) alsoOf[name] = item.also;
 				},
 				() => {
@@ -111,11 +118,14 @@
 		pressed = null;
 	}
 
+	/** At the server's cap a chip more would not count, so none is offered. */
+	const atCap = $derived(ingredients.length >= MAX_CHIPS);
+
 	$effect(() => {
 		const q = query;
 		// Asks for one more per chip, since the chips are left out below.
 		const limit = 4 + ingredients.length;
-		if (!q) {
+		if (!q || atCap) {
 			return;
 		}
 		// The next text, or the field going away, aborts this one; a request
@@ -136,7 +146,7 @@
 	});
 
 	const ingredientSuggestions = $derived(
-		notChips(suggested.q === query ? suggested.items : [], ingredients).slice(0, 4)
+		atCap ? [] : notChips(suggested.q === query ? suggested.items : [], ingredients).slice(0, 4)
 	);
 
 	/** The text row first while there is text, then ingredients, then tags. */
@@ -164,19 +174,69 @@
 				: `tag:${row.tag.name}`;
 	}
 
-	// Below md the page is a phone: the field scrolls to the top on focus so
-	// the suggestions get the room between it and the keyboard, and searching
-	// the text drops the keyboard so the grid it changed comes into view.
-	// Picking a tag keeps it: the next tag is usually what comes next.
+	// Below md the page is a phone, which gets the short placeholders.
+	// Wherever a software keyboard comes up (`softKeyboard`: a phone, or a
+	// touch screen at any width, a landscape phone and an iPad too) the field
+	// scrolls to the top on focus so the suggestions get the room between it
+	// and the keyboard, and searching the text drops the keyboard so the grid
+	// it changed comes into view. Picking a tag keeps it: the next tag is
+	// usually what comes next.
 	const phone = new MediaQuery('max-width: 767.98px');
 
-	const placeholder = $derived(
-		ingredients.length === 0
-			? m.overview_search_placeholder()
-			: phone.current
-				? m.search_placeholder_short()
-				: m.search_placeholder_chips()
-	);
+	// Below lg the field without chips shares its line with the whole
+	// toolbar, too short for the long placeholder.
+	const belowLg = new MediaQuery('max-width: 1023.98px');
+
+	/** The input's text room and font, measured (`registerInput`), so a
+	 * placeholder that would be cut gives way to the short one: chips can
+	 * leave the input any width, at any breakpoint. */
+	let room = $state<{ width: number; font: string }>({ width: Infinity, font: '' });
+	let measure: CanvasRenderingContext2D | null = null;
+	function fits(text: string): boolean {
+		if (!room.font) return true;
+		measure ??= document.createElement('canvas').getContext('2d');
+		if (!measure) return true;
+		measure.font = room.font;
+		return measure.measureText(text).width <= room.width;
+	}
+
+	/** A straight rule under the text row, inside the list's padding: the
+	 * row's own border bent up at its rounded corners. A pseudo-element, since
+	 * a listbox may hold only options and groups. */
+	const rule =
+		"mb-1 after:absolute after:inset-x-3 after:-bottom-[3px] after:border-b after:border-border after:content-['']";
+
+	const placeholder = $derived.by(() => {
+		const [long, short] =
+			ingredients.length === 0
+				? [m.overview_search_placeholder(), m.search_placeholder_phone()]
+				: [m.search_placeholder_chips(), m.search_placeholder_short()];
+		const narrow = ingredients.length === 0 ? belowLg.current : phone.current;
+		return !narrow && fits(long) ? long : short;
+	});
+
+	// Over a software keyboard the list ends above it and is cut through a
+	// row, so it shows that it scrolls (fitAboveKeyboard in
+	// #lib/visible-area.ts); from md it stays within 26rem, `md:max-h-[26rem]`.
+	function fit(node: HTMLElement) {
+		if (!softKeyboard.current) return;
+		const cap = phone.current
+			? Infinity
+			: 26 * parseFloat(getComputedStyle(document.documentElement).fontSize);
+		// Re-fit when the field grows a line (a chip, or the text wrapping under
+		// the chips) and when the rows change; after the DOM has them.
+		void wrapperHeight;
+		void rows;
+		let stop: (() => void) | undefined;
+		let gone = false;
+		tick().then(() => {
+			if (!gone) stop = fitAboveKeyboard(node, cap);
+		});
+		return () => {
+			gone = true;
+			stop?.();
+		};
+	}
 
 	$effect(() => {
 		if (!listboxOpen || current < 0) {
@@ -208,7 +268,7 @@
 		clearTimeout(debounceTimer);
 		onsearch(value);
 		close();
-		if (phone.current) {
+		if (softKeyboard.current) {
 			inputNode?.blur();
 		}
 	}
@@ -231,7 +291,7 @@
 		onaddingredient(item.name, item.key);
 		close();
 		// A phone drops the keyboard, so the chips' cards come into view.
-		if (phone.current) {
+		if (softKeyboard.current) {
 			inputNode?.blur();
 		}
 	}
@@ -253,13 +313,19 @@
 	/** Set while a removed chip hands the focus back, which opens nothing. */
 	let quietFocus = false;
 
-	// A chip's ✕ takes itself away: the field it stood in takes the focus,
-	// without opening the list or scrolling the page as a tap on it would.
-	function removeChip(name: string) {
-		onremoveingredient(name);
+	/** Puts the focus in the field without opening the list or scrolling the
+	 * page as a tap on it would: after a chip's ✕, or an empty state's way
+	 * out, the focus stays where the search is. */
+	export function focus() {
 		quietFocus = true;
 		inputNode?.focus();
 		quietFocus = false;
+	}
+
+	// A chip's ✕ takes itself away: the field it stood in takes the focus.
+	function removeChip(name: string) {
+		onremoveingredient(name);
+		focus();
 	}
 
 	function handleFocus() {
@@ -267,7 +333,7 @@
 			return;
 		}
 		open = true;
-		if (phone.current) {
+		if (softKeyboard.current) {
 			wrapperNode?.scrollIntoView({
 				block: 'start',
 				behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth'
@@ -318,7 +384,19 @@
 
 	function registerInput(node: HTMLInputElement) {
 		inputNode = node;
+		const read = () => {
+			const style = getComputedStyle(node);
+			room = {
+				width: node.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight),
+				font: `${style.fontWeight} ${style.fontSize} ${style.fontFamily}`
+			};
+		};
+		const observer = new ResizeObserver(read);
+		observer.observe(node);
+		// The web font sets the text wider than the fallback measured first.
+		void document.fonts.ready.then(read);
 		return () => {
+			observer.disconnect();
 			clearTimeout(debounceTimer);
 			inputNode = undefined;
 		};
@@ -377,7 +455,10 @@
 <svelte:window onpointerdowncapture={release} />
 
 {#snippet heading(text: string, headingId: string)}
-	<div id={headingId} class="px-3 pt-2.5 pb-0.5 text-label font-bold text-text-muted uppercase">
+	<div
+		id={headingId}
+		class="px-3 pt-2.5 pb-0.5 text-label font-bold text-text-muted uppercase [@media(max-height:30rem)]:sr-only"
+	>
 		{text}
 	</div>
 {/snippet}
@@ -389,18 +470,21 @@
      bar bottomed out at 226px and pushed the 88px filter button 46px past
      the right edge at 320px.
 
-     The suggestions hang from this wrapper at its exact width, on every
-     layout, and grow with it as chips widen it.
+     The suggestions hang from this wrapper and grow with it as chips widen
+     it. On a desktop they keep its exact width; on a phone they reach 56px
+     past it (`gap-3` and the 44px filter square), so they span the row.
 
      Chips wrap the field onto more lines; the clear button and the ⌘K hint
-     sit absolutely on the first line, in the right padding kept for them.
+     sit absolutely on the first line, in the right padding kept for
+     them, each only while it shows.
      Past one line the pill would read as a lozenge, so the corners settle
      on the 3xl radius. -->
 <div
 	bind:this={wrapperNode}
 	bind:clientHeight={wrapperHeight}
-	class="relative flex min-h-12 w-full min-w-0 scroll-mt-4 flex-wrap items-center gap-1.5 bg-surface py-1.5 pr-10 pl-4 md:pr-[92px] {wrapperHeight >
-	56
+	class="relative flex min-h-12 w-full min-w-0 scroll-mt-4 flex-wrap items-center gap-x-1.5 gap-y-3 bg-surface py-1.5 pl-4 [@media(max-height:30rem)]:scroll-mt-0 {value
+		? 'pr-10 md:pointer-fine:pr-[92px]'
+		: 'pr-4 md:pointer-fine:pr-12'} {wrapperHeight > 56
 		? 'rounded-3xl'
 		: 'rounded-pill'} {ingredients.length > 0
 		? 'max-md:pl-3 md:max-w-[640px] md:flex-1'
@@ -414,9 +498,12 @@
 	/>
 	{#each ingredients as name, i (name)}
 		{@const also = alsoOf[name] ?? []}
-		<!-- "Also covers" shows under the chip on hover, on focus of its ✕,
-		     which it describes, and on a long press. The press is the touch
-		     screen's way in; a keyboard gets the same through the ✕'s focus. -->
+		<!-- "Also covers" shows on hover, on focus of its ✕, which it
+		     describes, and on a long press. The press is the touch screen's
+		     way in; a keyboard gets the same through the ✕'s focus. From md
+		     it stands above the chip, over the headline, so it never covers
+		     the tag row or the suggestions below; a phone keeps it under the
+		     chip, where a field lifted to the top still has room. -->
 		<!-- svelte-ignore a11y_no_static_element_interactions -->
 		<span
 			onpointerdown={(event) => press(event, name)}
@@ -443,7 +530,7 @@
 				<span
 					id="{id}-chip-{i}-also"
 					role="tooltip"
-					class="pointer-events-none absolute top-full left-0 z-30 mt-1.5 w-max max-w-64 rounded-md border border-popover-border bg-popover px-2.5 py-1.5 text-caption font-normal whitespace-normal text-text shadow-card group-focus-within/chip:block group-hover/chip:block {pressed ===
+					class="pointer-events-none absolute top-full left-0 z-30 mt-1.5 w-max max-w-64 rounded-md border border-popover-border bg-popover px-2.5 py-1.5 text-caption font-normal whitespace-normal text-text shadow-card group-focus-within/chip:block group-hover/chip:block md:top-auto md:bottom-full md:mt-0 md:mb-3 {pressed ===
 					name
 						? 'block'
 						: 'hidden'}"
@@ -478,6 +565,7 @@
 		aria-controls="{id}-listbox"
 		aria-autocomplete="list"
 		aria-activedescendant={listboxOpen && current >= 0 ? `${id}-option-${current}` : undefined}
+		aria-describedby={listboxOpen && query && atCap ? `${id}-cap` : undefined}
 		class="h-[34px] min-w-16 flex-1 bg-transparent pl-1 text-body outline-none placeholder:text-text-muted md:min-w-[120px]"
 	/>
 	{#if value}
@@ -486,7 +574,7 @@
 			type="button"
 			onclick={clear}
 			aria-label={m.common_remove()}
-			class="absolute top-0.5 right-2 grid h-11 w-8 place-items-center md:right-[52px]"
+			class="absolute top-0.5 right-2 grid h-11 w-8 place-items-center md:pointer-fine:right-[52px]"
 		>
 			<X class="size-4 text-text-muted" aria-hidden="true" />
 		</button>
@@ -495,7 +583,7 @@
 		type="button"
 		onclick={() => (palette.open = true)}
 		aria-label={m.palette_open()}
-		class="absolute top-3 right-3.5 hidden rounded-sm border border-border px-1.5 py-0.5 text-micro text-text-muted transition hover:text-text md:inline-flex"
+		class="absolute top-3 right-3.5 hidden rounded-sm border border-border px-1.5 py-0.5 text-micro text-text-muted transition hover:text-text md:pointer-fine:inline-flex"
 	>
 		<!-- The icon rather than the "⌘" character: no shipped face carries
 		     that glyph, so a fallback font set it larger than the K and with
@@ -521,14 +609,25 @@
 		     still catch it. Under reduced motion it only fades. -->
 		<div
 			in:fly={{ y: prefersReducedMotion.current ? 0 : -4, duration: 140, easing: cubicOut }}
-			class="absolute inset-x-0 top-full z-30 mt-2 overflow-hidden rounded-2xl border border-popover-border bg-popover px-1.5 py-2 shadow-dialog"
+			class="absolute inset-x-0 top-full z-30 mt-2 overflow-hidden rounded-2xl border border-popover-border bg-popover px-1.5 py-2 shadow-dialog max-md:-right-14"
 		>
+			{#if query && atCap}
+				<!-- Why no ingredient is offered. Outside the listbox, which may
+				     hold only options and groups; the field points to it. -->
+				<p
+					id="{id}-cap"
+					class="mx-3 mb-1 border-b border-border pt-1 pb-2.5 text-body-sm text-text-muted"
+				>
+					{m.search_chip_limit({ max: MAX_CHIPS })}
+				</p>
+			{/if}
 			<div
 				id="{id}-listbox"
 				role="listbox"
 				tabindex="-1"
 				aria-multiselectable="true"
 				aria-label={m.overview_search_suggestions()}
+				{@attach fit}
 				onpointerdown={(event) => {
 					// Keeps focus in the field so its blur doesn't close the list
 					// before the option's click lands (see TagInput).
@@ -544,16 +643,18 @@
 						aria-selected={undefined}
 						tabindex="-1"
 						onclick={() => choose(0)}
-						class="flex min-h-11 cursor-pointer items-start gap-2.5 rounded-lg px-3 py-2.5 text-body hover:bg-popover-highlight {current ===
+						class="relative flex min-h-11 cursor-pointer items-start gap-2.5 rounded-lg px-3 py-2.5 text-body hover:bg-popover-highlight {current ===
 						0
 							? 'bg-popover-highlight'
-							: ''} {rows.length > 1 ? 'mb-1 border-b border-border' : ''}"
+							: ''} {rows.length > 1 ? rule : ''}"
 					>
 						<Search class="mt-1 size-4 shrink-0 text-text-muted" aria-hidden="true" />
 						<span class="flex min-w-0 flex-col [overflow-wrap:anywhere]">
 							{m.overview_search_text({ query: value.trim() })}
 							<!-- Where a search looks, so a hit in an ingredient is no surprise. -->
-							<span class="text-caption text-text-muted">{m.overview_search_text_fields()}</span>
+							<span class="text-caption text-text-muted [@media(max-height:30rem)]:hidden"
+								>{m.overview_search_text_fields()}</span
+							>
 						</span>
 					</div>
 				{/if}

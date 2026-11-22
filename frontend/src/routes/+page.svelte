@@ -53,8 +53,15 @@
 	import { missingAfterTicks } from '#lib/recipe/finds.js';
 	import { formatDay } from '#lib/recipe/format.js';
 	import { overviewViewState } from '#lib/recipe/overview-state.js';
-	import { buildListQuery, isSort, parseListQuery, type Sort } from '#lib/recipe/query.js';
+	import { ingredientKey } from '#lib/recipe/key.js';
 	import { ticksNamed } from '#lib/recipe/ticks.js';
+	import {
+		buildListQuery,
+		isSort,
+		MAX_CHIPS,
+		parseListQuery,
+		type Sort
+	} from '#lib/recipe/query.js';
 	import { applyRememberedSort, readSort, writeSort } from '#lib/recipe/sort-preference.js';
 	import { importDialog } from '#lib/import.svelte.js';
 	import { m } from '#lib/paraglide/messages.js';
@@ -127,6 +134,12 @@
 	 * screen, and glides down with the page's end where it does not.
 	 */
 	let reserve = $state(0);
+	/**
+	 * Room kept under the results while a phone user types (`typing`), apart
+	 * from a card's `reserve`: it goes when the focus leaves the search row,
+	 * which must not take a card's room with it. The results keep the larger.
+	 */
+	let typingReserve = $state(0);
 	/**
 	 * The grids hold every card's height and column from a focus until the
 	 * next list is shown, so ticking moves no card, and "Done" lets go in
@@ -406,6 +419,11 @@
 		} else if (quiet) {
 			loading = true;
 		} else {
+			// While a phone user types, the results keep the tallest height they
+			// had: a new list swaps the grids, the skeleton's included, and for a
+			// moment the page would be shorter than where it stands, which clamps
+			// the scroll and drops the field the focus lifted.
+			typingReserve = typing() && results ? Math.max(typingReserve, results.offsetHeight) : 0;
 			reserve = 0;
 			refreshTags();
 			loading = true;
@@ -613,9 +631,11 @@
 	// A ticked suggestion becomes a chip and its own tick goes, so the URL
 	// never names one ingredient in both lists. A broader tick that covers
 	// it stays: picking "Rotweinessig" keeps "Essig" ticked.
-	function addIngredient(name: string, key = name.toLocaleLowerCase()) {
+	// One chip per ingredient key and at most the server's cap, as
+	// `parseListQuery` keeps them for a link.
+	function addIngredient(name: string, key = ingredientKey(name)) {
 		const lower = name.toLocaleLowerCase();
-		if (ingredients.some((n) => n.toLocaleLowerCase() === lower)) {
+		if (ingredients.length >= MAX_CHIPS || ingredients.some((n) => ingredientKey(n) === key)) {
 			return;
 		}
 		have = have.filter((item) => item.key !== key && item.name.toLocaleLowerCase() !== lower);
@@ -785,6 +805,12 @@
 	let tickRow = $state<HTMLElement>();
 	const phone = new MediaQuery('max-width: 767.98px');
 
+	/** On a phone, while the search field has focus: its focus scroll lifted
+	 * it to the top, and a new list must not take that back. */
+	function typing(): boolean {
+		return phone.current && document.activeElement?.id === 'overview-search';
+	}
+
 	// While a card is focused it stays where it is on screen: whatever moves
 	// it on the page - a missing line above it shrinking as items are ticked,
 	// the masonry placing it anew - the window scrolls by as much. Its place
@@ -866,6 +892,15 @@
 	function resetFilters() {
 		q = '';
 		clearFilters();
+	}
+
+	let searchBar = $state<ReturnType<typeof SearchBar>>();
+
+	// An empty state's button goes with the grid it empties into, and the
+	// focus with it to <body>: it goes to the search field instead.
+	function refocus(action: () => void) {
+		action();
+		searchBar?.focus();
 	}
 
 	// The phone's folded bar clears what it shows and keeps the search text,
@@ -1252,13 +1287,25 @@
 	<!-- The same dotted leader closes the filters off from the grid. -->
 	<!-- `gap`, not `space-y`: the phone's chip row stays in the DOM on desktop,
 	     hidden, and as the last child it gave the tag row above a margin. -->
+	<!-- On a phone the open suggestions share the rule's edges, and its ends
+	     poked out past their rounded corners, so it hides while they show. -->
 	<div
-		class="mt-4 flex flex-col gap-3 border-b-2 border-dotted border-handle pb-4 md:mt-5 {showTicks
+		class="mt-4 flex flex-col gap-3 border-b-2 border-dotted border-handle pb-4 max-md:has-[[role=listbox]]:border-b-transparent md:mt-5 {showTicks
 			? 'max-md:border-0 max-md:pb-0'
 			: ''}"
 	>
-		<div class="relative flex items-center gap-3">
+		<!-- From md to lg chips leave the field too little room beside the
+		     toolbar: it takes a line of its own, the toolbar the next. -->
+		<div
+			class="relative flex items-center gap-3 {ingredients.length > 0 ? 'md:max-lg:flex-wrap' : ''}"
+			onfocusout={(event) => {
+				// Lets go of the room the typing kept; a card's `reserve` stays.
+				if (event.currentTarget.contains(event.relatedTarget as Node | null)) return;
+				typingReserve = 0;
+			}}
+		>
 			<SearchBar
+				bind:this={searchBar}
 				bind:value={q}
 				onsearch={handleSearch}
 				tags={tagOptions}
@@ -1268,7 +1315,7 @@
 				{have}
 				onaddingredient={addIngredient}
 				onremoveingredient={removeIngredient}
-				class={ingredients.length > 0 ? '' : 'md:max-w-md'}
+				class={ingredients.length > 0 ? 'md:max-lg:max-w-none md:max-lg:basis-full' : 'md:max-w-md'}
 			/>
 			<FilterPanel
 				bind:open={filterOpen}
@@ -1284,7 +1331,6 @@
 				onauthor={setAuthor}
 				onsort={setSort}
 				onreset={resetFilters}
-				compact={ingredients.length > 0}
 			/>
 			<!-- Desktop only: row 1 has room for search, the filter button and
 			     this control side by side. On phones the same control moves
@@ -1405,7 +1451,9 @@
 	<div
 		bind:this={results}
 		data-arrival={arrival || undefined}
-		style:min-height={reserve ? `${reserve}px` : undefined}
+		style:min-height={reserve || typingReserve
+			? `${Math.max(reserve, typingReserve)}px`
+			: undefined}
 		style:overflow-anchor={frozen ? 'none' : undefined}
 		class="mt-7 md:mt-9"
 	>
@@ -1481,6 +1529,9 @@
 				     chips stay, dropping the chips comes second. A chip that
 				     matches nothing (a hand-written link) leaves only the second. -->
 				{@const narrowed = filterCount > 0 || q !== ''}
+				<!-- With no filter on, only the text narrows: the button says so. Each
+				     way out leaves the focus in the field, not on the page, and is a
+				     44px target on a touch screen. -->
 				<EmptyState
 					title={m.overview_no_results_title()}
 					text={q
@@ -1490,9 +1541,19 @@
 							: m.empty_pantry_none({ names: ingredients.join(', ') })}
 				>
 					{#if narrowed}
-						<Button variant="primary" onclick={resetFilters}>{m.overview_reset_filters()}</Button>
+						<Button
+							variant="primary"
+							class="pointer-coarse:h-11"
+							onclick={() => refocus(resetFilters)}
+						>
+							{filterCount > 0 ? m.overview_reset_filters() : m.overview_clear_search()}
+						</Button>
 					{/if}
-					<Button variant={narrowed ? 'secondary' : 'primary'} onclick={() => setIngredients([])}>
+					<Button
+						variant={narrowed ? 'secondary' : 'primary'}
+						class="pointer-coarse:h-11"
+						onclick={() => refocus(() => setIngredients([]))}
+					>
 						{m.empty_remove_ingredients()}
 					</Button>
 				</EmptyState>
@@ -1501,7 +1562,13 @@
 					title={m.overview_no_results_title()}
 					text={q ? m.overview_no_results_text({ query: q }) : m.overview_no_results_filtered()}
 				>
-					<Button variant="secondary" onclick={resetFilters}>{m.overview_reset_filters()}</Button>
+					<Button
+						variant="secondary"
+						class="pointer-coarse:h-11"
+						onclick={() => refocus(resetFilters)}
+					>
+						{filterCount > 0 ? m.overview_reset_filters() : m.overview_clear_search()}
+					</Button>
 					<!-- Carrying the term over is a route param the editor reads, not
 				     an API call, so this opens the editor with the search term
 				     already in the title. Without a term there is nothing to
@@ -1510,6 +1577,7 @@
 				     which is why it stays rather than disappearing. -->
 					<Button
 						variant="accent"
+						class="pointer-coarse:h-11"
 						href={q
 							? resolve(`recipes/new?title=${encodeURIComponent(q)}`)
 							: resolve('/recipes/new')}
