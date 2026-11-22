@@ -42,7 +42,7 @@
 	const FIVE_ROWS = 5 * 40 + 4 * 6 + 8;
 
 	const id = $props.id();
-	// "+N more" opens this row only: a new row (new chips, text or tags) starts
+	// "+N more" opens this row only: a new row (any filter changed) starts
 	// capped. Raw, since a proxied copy of `row` would never equal `row`.
 	let expandedFor = $state.raw<PantryItem[] | null>(null);
 	const expanded = $derived(expandedFor === row);
@@ -139,7 +139,7 @@
 {/snippet}
 
 <!--
-	The row of ticks under the search (spec, "Tick row"). On a phone a header
+	The row of ticks under the search. On a phone a header
 	line over one sideways line of pills, all of them; on a desktop the label
 	left of wrapping pills, capped at CAP plus every ticked one until
 	"+N more". Focused on a card it lists only that card's missing items and

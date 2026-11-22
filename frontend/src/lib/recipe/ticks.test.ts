@@ -1,7 +1,28 @@
 import { describe, expect, test } from 'vitest';
-import { beyondCap, coveredBy, notChips, ownTickCount, tickCovers, withTicks } from './ticks.js';
+import {
+	beyondCap,
+	coveredBy,
+	notChips,
+	ownTickCount,
+	tickCovers,
+	ticksNamed,
+	withTicks
+} from './ticks.js';
 
 const item = (name: string, key = name.toLowerCase()) => ({ name, key });
+
+describe('ticksNamed', () => {
+	// A plural tick from a link is keyed like the server's row pill from
+	// the first render: a lower-cased stand-in ("kartoffeln") made a
+	// second, unticked pill beside the row's "Kartoffeln" (`kartoffel`).
+	test('keys the names of a link as the server does', () => {
+		expect(ticksNamed(['Kartoffeln', 'Tomaten', 'Crème fraîche'])).toEqual([
+			{ name: 'Kartoffeln', key: 'kartoffel' },
+			{ name: 'Tomaten', key: 'tomate' },
+			{ name: 'Crème fraîche', key: 'creme fraiche' }
+		]);
+	});
+});
 
 describe('coveredBy', () => {
 	test('names the tick that covers an ingredient', () => {
@@ -58,10 +79,14 @@ describe('notChips', () => {
 		also
 	});
 
-	test('leaves out a suggestion that is a chip, by key or name', () => {
+	test('leaves out a suggestion that is a chip, by key', () => {
 		expect(notChips([suggestion('Zwiebel'), suggestion('Zwieback')], ['ZWIEBEL'])).toEqual([
 			suggestion('Zwieback')
 		]);
+	});
+
+	test('leaves out the singular of a plural chip', () => {
+		expect(notChips([suggestion('Zwiebel')], ['Zwiebeln'])).toEqual([]);
 	});
 
 	test('keeps a suggestion that only covers a chip', () => {

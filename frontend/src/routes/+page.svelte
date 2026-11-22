@@ -54,6 +54,7 @@
 	import { formatDay } from '#lib/recipe/format.js';
 	import { overviewViewState } from '#lib/recipe/overview-state.js';
 	import { buildListQuery, isSort, parseListQuery, type Sort } from '#lib/recipe/query.js';
+	import { ticksNamed } from '#lib/recipe/ticks.js';
 	import { applyRememberedSort, readSort, writeSort } from '#lib/recipe/sort-preference.js';
 	import { importDialog } from '#lib/import.svelte.js';
 	import { m } from '#lib/paraglide/messages.js';
@@ -70,12 +71,8 @@
 	let q = $state(untrack(() => data.q));
 	let tags = $state<string[]>(untrack(() => data.tags));
 	let ingredients = $state<string[]>(untrack(() => data.ingredients));
-	/**
-	 * The ticks, the user's own. A name from the URL has no key yet; the
-	 * first list keys it (`adoptTicks`), and until then its lower case
-	 * stands in.
-	 */
-	let have = $state<PantryItem[]>(untrack(() => untick(data.have, [])));
+	/** The ticks, the user's own; a name from the URL is keyed as the server keys it. */
+	let have = $state<PantryItem[]>(untrack(() => ticksNamed(data.have)));
 	let maxMinutes = $state(untrack(() => data.maxMinutes));
 	let favoritesOnly = $state(untrack(() => data.favorites));
 	let author = $state(untrack(() => data.author));
@@ -104,9 +101,9 @@
 	 */
 	let pantrySections = $state<{ counts: Record<number, number>; chips: string[] }>();
 	/**
-	 * The tick row's order, what the ranked cards miss: frozen for the chips,
-	 * text and tags it was fetched for (`rowFor`), so a tick, a clear or an
-	 * undo never moves a pill.
+	 * The tick row's order, what the ranked cards miss: frozen for the
+	 * filters it was fetched for (`rowFor`), so a tick, a clear or an undo
+	 * never moves a pill.
 	 */
 	let row = $state.raw<PantryItem[]>([]);
 	let rowFor = '';
@@ -390,8 +387,9 @@
 			: ingredients.length > 0
 				? have.map((item) => item.name)
 				: [];
-		// What the row and the section headings are fetched for.
-		const sent = { q, tags, ingredients };
+		// What the row and the section headings are fetched for: every
+		// filter that changes the cards, as the row lists what they miss.
+		const sent = { q, tags, ingredients, maxMinutes, favoritesOnly, author };
 
 		if (append) {
 			loadingMore = true;
@@ -477,9 +475,6 @@
 					counts: result.pantry.sections,
 					chips: sent.ingredients
 				};
-				if (result.pantry) {
-					adoptTicks(result.pantry.ticked);
-				}
 				const frozenFor = JSON.stringify(sent);
 				if (!append && frozenFor !== rowFor) {
 					row = result.pantry?.row ?? [];
@@ -553,22 +548,6 @@
 	function toggleTag(name: string) {
 		tags = tags.includes(name) ? tags.filter((t) => t !== name) : [...tags, name];
 		refilter();
-	}
-
-	/** Ticks named in a URL, keyed by their lower case until a list keys them. */
-	function untick(names: string[], known: PantryItem[]): PantryItem[] {
-		return names.map(
-			(name) => known.find((item) => item.name === name) ?? { name, key: name.toLocaleLowerCase() }
-		);
-	}
-
-	/** Takes the server's keys for the ticks, if they are still the ones it was sent. */
-	function adoptTicks(ticked: PantryItem[]) {
-		const names = (list: PantryItem[]) =>
-			list.map((item) => item.name.toLocaleLowerCase()).join('\n');
-		if (names(ticked) === names(have)) {
-			have = ticked;
-		}
 	}
 
 	/**
@@ -1089,7 +1068,7 @@
 			q = next.q;
 			tags = next.tags;
 			ingredients = next.ingredients;
-			have = untick(next.have, have);
+			have = ticksNamed(next.have);
 			focusedId = null;
 			maxMinutes = next.maxMinutes;
 			favoritesOnly = next.favorites;

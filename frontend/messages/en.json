@@ -1736,7 +1736,7 @@
 	"pantry_nothing_missing": "nothing",
 	"pantry_more": "+{count}",
 
-	"ticks_heading": "Have it already",
+	"ticks_heading": "Already at home",
 	"ticks_count": "{count} ticked",
 	"ticks_clear": "Clear ticks",
 	"ticks_hint": "for one recipe: tap {stamp} on its card",

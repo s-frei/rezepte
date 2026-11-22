@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildListQuery, parseListQuery, type ListQuery } from './query';
+import { buildListQuery, MAX_CHIPS, parseListQuery, type ListQuery } from './query';
 
 function urlWith(qs: string): URL {
 	return new URL(`https://rezepte.local/${qs ? `?${qs}` : ''}`);
@@ -573,6 +573,21 @@ describe('ingredients and have', () => {
 		const q = parseListQuery(urlWith('ingredients=Gurke&ingredients=gurke&have=Salz&have=SALZ'));
 		expect(q.ingredients).toEqual(['Gurke']);
 		expect(q.have).toEqual(['Salz']);
+	});
+
+	// The server keeps one chip per ingredient key; two here would read
+	// "1 of 2" on a recipe that uses both.
+	it('drop repeats by ingredient key, as the server does', () => {
+		const q = parseListQuery(
+			urlWith('ingredients=Zwiebel&ingredients=Zwiebeln&have=Kartoffeln&have=Zwiebeln')
+		);
+		expect(q.ingredients).toEqual(['Zwiebel']);
+		expect(q.have).toEqual(['Kartoffeln']);
+	});
+
+	it("stop the chips at the server's cap", () => {
+		const many = Array.from({ length: 25 }, (_, i) => `ingredients=Zutat${i}x`).join('&');
+		expect(parseListQuery(urlWith(many)).ingredients).toHaveLength(MAX_CHIPS);
 	});
 
 	it('keep a name in both lists only in ingredients', () => {

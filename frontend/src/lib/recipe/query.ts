@@ -1,5 +1,6 @@
 import type { ReadonlyURL } from '$app/state';
 import { normalizeTag } from './form';
+import { ingredientKey } from './key';
 import { snapMaxMinutes } from './time-filter';
 
 /** The orders the overview grid can be sorted by. */
@@ -36,13 +37,19 @@ export type ListQuery = {
 	page: number;
 };
 
-/** Trimmed names without blanks or case-insensitive repeats, none in `skip`. */
+/** The most chips the server ranks by, its `maxChips`. */
+export const MAX_CHIPS = 20;
+
+/**
+ * Trimmed names without blanks or repeats by ingredient key ("Zwiebel" and
+ * "Zwiebeln" are one, as on the server), none whose key is in `skip`.
+ */
 function names(list: string[], skip: Set<string> = new Set()): string[] {
 	const seen = new Set(skip);
 	return list
 		.map((name) => name.trim())
 		.filter((name) => {
-			const key = name.toLowerCase();
+			const key = ingredientKey(name);
 			if (key === '' || seen.has(key)) {
 				return false;
 			}
@@ -58,7 +65,8 @@ function names(list: string[], skip: Set<string> = new Set()): string[] {
  * - every tag is normalized the way the editor normalizes a typed tag
  *   (trimmed and lower-cased, see `normalizeTag`), and blank ones are dropped.
  * - `ingredients` and `have` keep their names as typed (trimmed), dropping
- *   blanks and case-insensitive duplicates; a name in both stays a chip only.
+ *   blanks and repeats by ingredient key; a name in both stays a chip only,
+ *   and the chips stop at `MAX_CHIPS`, as the server's do.
  * - `author` is trimmed but keeps its case: the service stores usernames as
  *   they were typed (it only trims them too), so lower-casing here the way
  *   tags are would stop "Mara" from matching anything.
@@ -86,12 +94,12 @@ function names(list: string[], skip: Set<string> = new Set()): string[] {
  * `searchParams.get('sort') ?? ''` straight through without a cast.
  */
 function normalize(state: Omit<ListQuery, 'sort'> & { sort: string }): ListQuery {
-	const ingredients = names(state.ingredients);
+	const ingredients = names(state.ingredients).slice(0, MAX_CHIPS);
 	return {
 		q: state.q.trim(),
 		tags: state.tags.map((tag) => normalizeTag(tag)).filter((tag) => tag.length > 0),
 		ingredients,
-		have: names(state.have, new Set(ingredients.map((name) => name.toLowerCase()))),
+		have: names(state.have, new Set(ingredients.map(ingredientKey))),
 		maxMinutes: snapMaxMinutes(state.maxMinutes),
 		favorites: Boolean(state.favorites),
 		author: state.author.trim(),

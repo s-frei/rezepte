@@ -1736,7 +1736,7 @@
 	"pantry_nothing_missing": "nichts",
 	"pantry_more": "+{count}",
 
-	"ticks_heading": "Hab ich schon",
+	"ticks_heading": "Schon zu Hause",
 	"ticks_count": "{count} abgehakt",
 	"ticks_clear": "Haken entfernen",
 	"ticks_hint": "für ein Rezept: auf der Karte {stamp} tippen",

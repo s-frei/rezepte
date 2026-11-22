@@ -3566,7 +3566,7 @@ test.describe('ingredient search', () => {
 	}
 	const card = (page: Page, title: string) =>
 		page.getByRole('main').getByRole('article', { name: title, exact: true });
-	const general = (page: Page) => page.getByRole('group', { name: 'Hab ich schon' });
+	const general = (page: Page) => page.getByRole('group', { name: 'Schon zu Hause' });
 	const field = (page: Page) => page.getByRole('combobox', { name: 'Rezepte durchsuchen' });
 	async function addChip(page: Page, typed: string, name: string) {
 		await field(page).fill(typed);
@@ -3588,7 +3588,7 @@ test.describe('ingredient search', () => {
 		await addChip(page, 'kartoff', 'Kartoffel');
 		await addChip(page, 'zwieb', 'Zwiebel');
 		const main = page.getByRole('main');
-		// Both chips used reads "with all", not "2 of 2" (ruling R3).
+		// Both chips used reads "with all", not "2 of 2".
 		await expect(main.getByRole('heading', { level: 2 })).toHaveText([
 			'Mit allen 2 Zutaten · 4 Treffer',
 			'Mit 1 von 2 Zutaten · 7 Treffer'
@@ -3824,6 +3824,19 @@ test.describe('ingredient search', () => {
 		);
 		await general(page).getByRole('button', { name: 'Salz', exact: true }).click();
 		await lists;
+	});
+
+	// The row lists what the cards on screen miss, so any filter that
+	// changes the cards builds it anew, the time, favorites and author too.
+	test('a filter beside the chips rebuilds the tick row', async ({ page }) => {
+		const token = await kitchen(page);
+		await page.goto(`/?tags=${token}&ingredients=Kartoffel&ingredients=Zwiebel&maxMinutes=30`);
+		const pills = general(page).locator('button[aria-pressed]');
+		await expect(pills.first()).toBeAttached();
+		const few = await pills.count();
+		await page.getByRole('button', { name: /^Filter bis 30 Min.* entfernen$/ }).click();
+		await expect(page).not.toHaveURL(/maxMinutes=/);
+		await expect.poll(() => pills.count()).toBeGreaterThan(few);
 	});
 
 	test('changing the chips lets go of the focused card', async ({ page }) => {

@@ -7,7 +7,7 @@ const noop = () => {};
 const props = { ticked: [], hint: false, ontoggle: noop, onclear: noop, ondone: noop };
 
 // Clicking "+N more" needs a DOM, which the unit project lacks; the page's
-// e2e covers it once the row is placed (Task 8).
+// e2e covers it.
 describe('TickRow', () => {
 	it('caps a plain row at eleven pills behind "+N more"', () => {
 		const row = Array.from({ length: 14 }, (_, i) => item(`Item${i}`));

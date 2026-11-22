@@ -1,6 +1,12 @@
 import type { IngredientSuggestion } from '#lib/api/ingredients.js';
 import type { PantryItem } from '#lib/api/recipes.js';
 import { covers } from './covers.js';
+import { ingredientKey } from './key.js';
+
+/** Ticks named in a link, keyed as the server keys them (`ingredientKey`). */
+export function ticksNamed(names: string[]): PantryItem[] {
+	return names.map((name) => ({ name, key: ingredientKey(name) }));
+}
 
 /** The user's own tick of this item: one with its key. */
 export function ownTick(item: PantryItem, ticked: PantryItem[]): PantryItem | null {
@@ -37,10 +43,11 @@ export function tickCovers(ticked: PantryItem[], key: string): boolean {
 }
 
 /**
- * The suggestions that are not a chip yet, by their own key or name: one
- * whose "also" names a chip is still offered, it is another ingredient.
+ * The suggestions that are not a chip yet, by key: "Zwiebeln" is not offered
+ * beside a "Zwiebel" chip. One whose "also" names a chip is still offered,
+ * it is another ingredient.
  */
 export function notChips(items: IngredientSuggestion[], chips: string[]): IngredientSuggestion[] {
-	const names = new Set(chips.map((name) => name.toLocaleLowerCase()));
-	return items.filter((item) => !names.has(item.key) && !names.has(item.name.toLocaleLowerCase()));
+	const keys = new Set(chips.map(ingredientKey));
+	return items.filter((item) => !keys.has(item.key));
 }

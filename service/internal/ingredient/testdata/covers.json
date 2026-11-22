@@ -117,5 +117,61 @@
   "haveKey": "brühe",
   "need": "Rinderbrühe",
   "needKey": "rinderbrühe"
+ },
+ {
+  "covers": true,
+  "have": "Zwiebeln",
+  "haveKey": "zwiebel",
+  "need": "Zwiebel",
+  "needKey": "zwiebel"
+ },
+ {
+  "covers": true,
+  "have": "Kartoffeln",
+  "haveKey": "kartoffel",
+  "need": "Kartoffel",
+  "needKey": "kartoffel"
+ },
+ {
+  "covers": true,
+  "have": "Äpfel",
+  "haveKey": "apfel",
+  "need": "Apfel",
+  "needKey": "apfel"
+ },
+ {
+  "covers": true,
+  "have": "Crème fraîche",
+  "haveKey": "creme fraiche",
+  "need": "creme fraiche",
+  "needKey": "creme fraiche"
+ },
+ {
+  "covers": true,
+  "have": "tomatoes",
+  "haveKey": "tomato",
+  "need": "tomato",
+  "needKey": "tomato"
+ },
+ {
+  "covers": true,
+  "have": "berries",
+  "haveKey": "berry",
+  "need": "berry",
+  "needKey": "berry"
+ },
+ {
+  "covers": true,
+  "have": "Kürbis",
+  "haveKey": "kürbis",
+  "need": "Kürbis",
+  "needKey": "kürbis"
+ },
+ {
+  "covers": true,
+  "have": "peaches",
+  "haveKey": "peach",
+  "need": "peach",
+  "needKey": "peach"
  }
 ]
