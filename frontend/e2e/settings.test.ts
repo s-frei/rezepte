@@ -318,13 +318,25 @@ test('the owner creates, promotes, resets and deletes a user', async ({ page }) 
 	await reset.getByRole('button', { name: 'Reset', exact: true }).click();
 	await expect(page.getByText('Password reset')).toBeVisible();
 
+	// On a phone the toasts stack over the page's last row, Delete account,
+	// and a click Playwright retries can leave them paused for good: a toast
+	// that moves out from under the resting mouse fires a mouseleave Sonner
+	// ignores (same coordinates), so the stack stays expanded and its timers
+	// stay stopped. A real enter and leave collapses it; then they run out.
+	const toasts = page.getByRole('region', { name: /^Notifications/ }).getByRole('listitem');
+	await toasts.first().hover();
+	await page.mouse.move(0, 0);
+	await expect(toasts).toHaveCount(0, { timeout: 10_000 });
 	await card.getByRole('button', { name: 'Delete account', exact: true }).click();
 	await page
 		.getByRole('dialog', { name: 'Delete account?' })
 		.getByRole('button', { name: 'Delete' })
 		.click();
 	await expect(page).toHaveURL('/settings/users');
-	await expect(people(page).getByRole('list', { name: 'Admins' })).toBeVisible();
+	// The list has loaded once the owner's group shows: the only group every
+	// household has. The Admins group exists only while some other test holds
+	// an admin, since a role nobody holds gets no group.
+	await expect(people(page).getByRole('list', { name: 'Owner' })).toBeVisible();
 	await expect(personRow(page, username)).toHaveCount(0);
 });
 
