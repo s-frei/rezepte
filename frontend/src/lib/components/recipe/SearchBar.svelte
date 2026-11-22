@@ -1,4 +1,5 @@
 <script lang="ts">
+	import Carrot from '@lucide/svelte/icons/carrot';
 	import Check from '@lucide/svelte/icons/check';
 	import Command from '@lucide/svelte/icons/command';
 	import Search from '@lucide/svelte/icons/search';
@@ -8,9 +9,11 @@
 	import { cubicOut } from 'svelte/easing';
 	import { prefersReducedMotion } from 'svelte/motion';
 	import { fly } from 'svelte/transition';
+	import { listIngredients, type IngredientSuggestion } from '#lib/api/ingredients.js';
 	import type { Tag } from '#lib/api/recipes.js';
 	import { m } from '#lib/paraglide/messages.js';
 	import { palette } from '#lib/palette.svelte.js';
+	import { covers } from '#lib/recipe/covers.js';
 	import { matchedPart } from '#lib/recipe/step-references.js';
 	import { rankTags } from '#lib/recipe/tag-suggestions.js';
 
@@ -20,6 +23,10 @@
 		tags,
 		active,
 		ontoggle,
+		ingredients,
+		have,
+		onaddingredient,
+		onremoveingredient,
 		id = 'overview-search',
 		class: className = ''
 	}: {
@@ -34,6 +41,14 @@
 		active: string[];
 		/** Turns a suggested tag on or off. */
 		ontoggle: (name: string) => void;
+		/** Ingredient chips, shown inside the field. */
+		ingredients: string[];
+		/** Ticked ingredients; a suggestion they cover says it is ticked. */
+		have: string[];
+		/** Adds a suggested ingredient as a chip. */
+		onaddingredient: (name: string) => void;
+		/** Drops a chip, by its ✕ or Backspace in the empty field. */
+		onremoveingredient: (name: string) => void;
 		/** Id of the text field, for a label or a caller that needs to reach it. */
 		id?: string;
 		/** Extra classes appended to the wrapper, e.g. to constrain its width. */
@@ -42,29 +57,99 @@
 
 	let inputNode: HTMLInputElement | undefined;
 	let wrapperNode = $state<HTMLDivElement>();
+	let wrapperHeight = $state(0);
 	let debounceTimer: ReturnType<typeof setTimeout> | undefined;
 
 	let open = $state(false);
-	/** -1 means "nothing chosen yet", so Enter searches what was typed. */
-	let highlighted = $state(-1);
+	/** The highlighted row by its key (`rowKey`), not its place: ingredient
+	 * suggestions land late, between the text row and the tags, and a highlight
+	 * kept by index would move to another row under the arrow keys' feet.
+	 * `null` means "nothing chosen yet", so Enter searches what was typed. */
+	let highlighted = $state<string | null>(null);
 
 	const query = $derived(value.trim().toLocaleLowerCase());
-	/** The text row first while there is text, then the tags that match it. */
+
+	/** The server's last answer, with the text it answers: the rows show it
+	 * only while that is still the text, so an earlier word's suggestions
+	 * never stand under a later one. */
+	let suggested = $state<{ q: string; items: IngredientSuggestion[] }>({ q: '', items: [] });
+	/** What each chip picked here also covers, for its tooltip; a chip that
+	 * came with the URL has no entry and so no tooltip. */
+	let alsoOf = $state<Record<string, string[]>>({});
+
+	$effect(() => {
+		const q = query;
+		// Asks for one more per chip, since the chips are left out below.
+		const limit = 4 + ingredients.length;
+		if (!q) {
+			return;
+		}
+		// The next text, or the field going away, aborts this one; a request
+		// it aborted answers with nothing.
+		const controller = new AbortController();
+		const timer = setTimeout(() => {
+			listIngredients(q, limit, { signal: controller.signal }).then(
+				(items) => (suggested = { q, items }),
+				() => {
+					if (!controller.signal.aborted) suggested = { q, items: [] };
+				}
+			);
+		}, 150);
+		return () => {
+			clearTimeout(timer);
+			controller.abort();
+		};
+	});
+
+	const chipNames = $derived(new Set(ingredients.map((name) => name.toLocaleLowerCase())));
+	const ingredientSuggestions = $derived(
+		(suggested.q === query ? suggested.items : [])
+			.filter(
+				(item) =>
+					!chipNames.has(item.key) &&
+					![item.name, ...item.also].some((name) => chipNames.has(name.toLocaleLowerCase()))
+			)
+			.slice(0, 4)
+	);
+
+	/** The text row first while there is text, then ingredients, then tags. */
 	const rows = $derived([
 		...(query ? [{ kind: 'text' as const }] : []),
-		...rankTags(tags, query).map((tag) => ({ kind: 'tag' as const, tag }))
+		...(query ? ingredientSuggestions : []).map((item) => ({ kind: 'ingredient' as const, item })),
+		// Without text the whole list stays: on a phone it is the only way
+		// to browse the tags.
+		...rankTags(tags, query)
+			.slice(0, query ? 3 : undefined)
+			.map((tag) => ({ kind: 'tag' as const, tag }))
 	]);
 	const listboxOpen = $derived(open && rows.length > 0);
-	// The rows can shrink under a highlight while the list is open - the tags
-	// are refetched whenever a filter changes - so every read goes through
-	// this, which drops a highlight that no longer has a row.
-	const current = $derived(highlighted < rows.length ? highlighted : -1);
+	// The rows change under a highlight while the list is open - the tags are
+	// refetched whenever a filter changes, the ingredients land late - so
+	// every read goes through this: the highlighted row's place now, or -1
+	// once it has no row.
+	const current = $derived(rows.findIndex((row) => rowKey(row) === highlighted));
+
+	function rowKey(row: (typeof rows)[number]): string {
+		return row.kind === 'text'
+			? 'text'
+			: row.kind === 'ingredient'
+				? `ingredient:${row.item.key}`
+				: `tag:${row.tag.name}`;
+	}
 
 	// Below md the page is a phone: the field scrolls to the top on focus so
 	// the suggestions get the room between it and the keyboard, and searching
 	// the text drops the keyboard so the grid it changed comes into view.
 	// Picking a tag keeps it: the next tag is usually what comes next.
 	const phone = new MediaQuery('max-width: 767.98px');
+
+	const placeholder = $derived(
+		ingredients.length === 0
+			? m.overview_search_placeholder()
+			: phone.current
+				? m.search_placeholder_short()
+				: m.search_placeholder_chips()
+	);
 
 	$effect(() => {
 		if (!listboxOpen || current < 0) {
@@ -73,9 +158,13 @@
 		document.getElementById(`${id}-option-${current}`)?.scrollIntoView({ block: 'nearest' });
 	});
 
+	function ticked(item: IngredientSuggestion) {
+		return have.some((name) => covers(name.toLocaleLowerCase(), item.key));
+	}
+
 	function handleInput() {
 		open = true;
-		highlighted = -1;
+		highlighted = null;
 		clearTimeout(debounceTimer);
 		debounceTimer = setTimeout(() => onsearch(value), 250);
 	}
@@ -89,7 +178,7 @@
 
 	function close() {
 		open = false;
-		highlighted = -1;
+		highlighted = null;
 	}
 
 	function searchText() {
@@ -111,6 +200,17 @@
 		close();
 	}
 
+	// The same for an ingredient: the text found it and goes.
+	function addIngredient(item: IngredientSuggestion) {
+		clearTimeout(debounceTimer);
+		value = '';
+		if (item.also.length > 0) {
+			alsoOf[item.name] = item.also;
+		}
+		onaddingredient(item.name);
+		close();
+	}
+
 	function choose(index: number) {
 		const row = rows[index];
 		if (!row) {
@@ -118,12 +218,29 @@
 		}
 		if (row.kind === 'text') {
 			searchText();
+		} else if (row.kind === 'ingredient') {
+			addIngredient(row.item);
 		} else {
 			toggle(row.tag.name);
 		}
 	}
 
+	/** Set while a removed chip hands the focus back, which opens nothing. */
+	let quietFocus = false;
+
+	// A chip's ✕ takes itself away: the field it stood in takes the focus,
+	// without opening the list or scrolling the page as a tap on it would.
+	function removeChip(name: string) {
+		onremoveingredient(name);
+		quietFocus = true;
+		inputNode?.focus();
+		quietFocus = false;
+	}
+
 	function handleFocus() {
+		if (quietFocus) {
+			return;
+		}
 		open = true;
 		if (phone.current) {
 			wrapperNode?.scrollIntoView({
@@ -139,14 +256,14 @@
 				if (rows.length > 0) {
 					event.preventDefault();
 					open = true;
-					highlighted = (current + 1) % rows.length;
+					highlighted = rowKey(rows[(current + 1) % rows.length]);
 				}
 				break;
 			case 'ArrowUp':
 				if (rows.length > 0) {
 					event.preventDefault();
 					open = true;
-					highlighted = (current - 1 + rows.length) % rows.length;
+					highlighted = rowKey(rows[(current - 1 + rows.length) % rows.length]);
 				}
 				break;
 			case 'Enter':
@@ -163,6 +280,14 @@
 					close();
 				}
 				break;
+			case 'Backspace': {
+				const last = ingredients.at(-1);
+				if (value === '' && last !== undefined) {
+					event.preventDefault();
+					onremoveingredient(last);
+				}
+				break;
+			}
 		}
 	}
 
@@ -175,6 +300,60 @@
 	}
 </script>
 
+{#snippet option(
+	index: number,
+	label: string,
+	hint: string,
+	count: number,
+	selected: boolean | undefined,
+	icon: 'carrot' | 'tag' | 'check'
+)}
+	{@const parts = matchedPart(label, query) ?? { before: label, hit: '', after: '' }}
+	<!-- Read like a cookbook's index: the name, a dotted leader, and where
+	     a book prints the page, how many recipes carry it. -->
+	<!-- The keys belong to the field, which drives the options through
+	     aria-activedescendant; the click is the pointer's way in. -->
+	<!-- svelte-ignore a11y_click_events_have_key_events -->
+	<div
+		id="{id}-option-{index}"
+		role="option"
+		aria-selected={selected}
+		tabindex="-1"
+		onclick={() => choose(index)}
+		class="flex min-h-11 cursor-pointer items-start gap-2.5 rounded-lg px-3 py-2.5 text-body hover:bg-popover-highlight {index ===
+		current
+			? 'bg-popover-highlight'
+			: ''}"
+	>
+		{#if icon === 'check'}
+			<Check class="mt-1 size-4 shrink-0 text-primary" aria-hidden="true" />
+		{:else if icon === 'carrot'}
+			<Carrot class="mt-1 size-4 shrink-0 text-text-muted" aria-hidden="true" />
+		{:else}
+			<TagIcon class="mt-1 size-4 shrink-0 text-text-muted" aria-hidden="true" />
+		{/if}
+		<span class="flex min-w-0 flex-col [overflow-wrap:anywhere]">
+			<span class="line-clamp-2 {selected ? 'font-semibold' : ''}"
+				>{parts.before}<b class="font-bold">{parts.hit}</b>{parts.after}</span
+			>
+			{#if hint}
+				<span class="text-caption text-text-muted">{hint}</span>
+			{/if}
+		</span>
+		<span
+			aria-hidden="true"
+			class="mb-1.5 min-w-4 flex-1 self-end border-b-2 border-dotted border-handle"
+		></span>
+		<span class="self-end text-body-sm text-text-muted">{count}</span>
+	</div>
+{/snippet}
+
+{#snippet heading(text: string, headingId: string)}
+	<div id={headingId} class="px-3 pt-2.5 pb-0.5 text-label font-bold text-text-muted uppercase">
+		{text}
+	</div>
+{/snippet}
+
 <!-- `min-w-0` is what lets this shrink in the row it shares with the filter
      button. A flex item's automatic minimum size is its min-content width,
      and the `<input>` inside contributes its `size="20"` default (166px at
@@ -182,15 +361,45 @@
      bar bottomed out at 226px and pushed the 88px filter button 46px past
      the right edge at 320px.
 
-     `md:relative` decides how wide the suggestions are: from md they hang
-     under this field at its width, below md this wrapper is not positioned,
-     so they reach out to the caller's row - which the overview makes
-     `relative`, giving the list the width of the recipe cards. -->
+     The suggestions hang from this wrapper at its exact width, on every
+     layout, and grow with it as chips widen it.
+
+     Chips wrap the field onto more lines; the clear button and the ⌘K hint
+     sit absolutely on the first line, in the right padding kept for them.
+     Past one line the pill would read as a lozenge, so the corners settle
+     on the 3xl radius. -->
 <div
 	bind:this={wrapperNode}
-	class="flex h-12 w-full min-w-0 scroll-mt-4 items-center gap-2 rounded-pill bg-surface px-4 md:relative md:w-[460px] {className}"
+	bind:clientHeight={wrapperHeight}
+	class="relative flex min-h-12 w-full min-w-0 scroll-mt-4 flex-wrap items-center gap-1.5 bg-surface py-1.5 pr-10 pl-4 md:pr-[92px] {wrapperHeight >
+	56
+		? 'rounded-3xl'
+		: 'rounded-pill'} {ingredients.length > 0
+		? 'md:max-w-[640px] md:flex-1'
+		: 'md:w-[460px]'} {className}"
 >
-	<Search class="size-5 shrink-0 text-text-muted" aria-hidden="true" />
+	<Search class="mr-0.5 size-5 shrink-0 text-text-muted" aria-hidden="true" />
+	{#each ingredients as name (name)}
+		{@const also = alsoOf[name]}
+		<span
+			title={also ? m.search_ingredient_covers({ names: also.join(', ') }) : undefined}
+			class="inline-flex h-8 items-center gap-1.5 rounded-pill bg-accent pl-2.5 text-body-sm font-semibold whitespace-nowrap text-accent-foreground"
+		>
+			<Carrot class="size-3.5 shrink-0" aria-hidden="true" />
+			{name}
+			<!-- The hit area reaches 10px back over the chip's own name and 6px
+			     out over the gap: 44x44 without touching the next chip or the
+			     field. -->
+			<button
+				type="button"
+				onclick={() => removeChip(name)}
+				aria-label={m.search_remove_ingredient({ name })}
+				class="relative grid h-8 w-7 place-items-center opacity-80 after:absolute after:-inset-y-1.5 after:-right-1.5 after:-left-2.5 after:content-['']"
+			>
+				<X class="size-3.5" aria-hidden="true" />
+			</button>
+		</span>
+	{/each}
 	<input
 		{id}
 		{@attach registerInput}
@@ -209,23 +418,22 @@
 		autocomplete="off"
 		spellcheck="false"
 		maxlength="100"
-		placeholder={m.overview_search_placeholder()}
+		{placeholder}
 		aria-label={m.overview_search_label()}
 		role="combobox"
 		aria-expanded={listboxOpen}
 		aria-controls="{id}-listbox"
 		aria-autocomplete="list"
 		aria-activedescendant={listboxOpen && current >= 0 ? `${id}-option-${current}` : undefined}
-		class="min-w-0 flex-1 bg-transparent text-body outline-none placeholder:text-text-muted"
+		class="h-[34px] min-w-16 flex-1 bg-transparent pl-1 text-body outline-none placeholder:text-text-muted md:min-w-[120px]"
 	/>
 	{#if value}
-		<!-- The negative margins grow the tap target to 32x44px without moving the
-		     icon; wider would reach over the end of the text. -->
+		<!-- 32x44px, centered on the first line. -->
 		<button
 			type="button"
 			onclick={clear}
 			aria-label={m.common_remove()}
-			class="-mx-2 -my-3.5 grid h-11 w-8 shrink-0 place-items-center"
+			class="absolute top-0.5 right-2 grid h-11 w-8 place-items-center md:right-[52px]"
 		>
 			<X class="size-4 text-text-muted" aria-hidden="true" />
 		</button>
@@ -234,7 +442,7 @@
 		type="button"
 		onclick={() => (palette.open = true)}
 		aria-label={m.palette_open()}
-		class="hidden shrink-0 rounded-sm border border-border px-1.5 py-0.5 text-micro text-text-muted transition hover:text-text md:inline-flex"
+		class="absolute top-3 right-3.5 hidden rounded-sm border border-border px-1.5 py-0.5 text-micro text-text-muted transition hover:text-text md:inline-flex"
 	>
 		<!-- The icon rather than the "⌘" character: no shipped face carries
 		     that glyph, so a fallback font set it larger than the K and with
@@ -244,14 +452,13 @@
 		>
 	</button>
 	{#if listboxOpen}
-		<!-- Read like a cookbook's index: the name, a dotted leader, and where
-		     a book prints the page, how many recipes carry the tag. A chosen
-		     tag trades its tag icon for a check; picking it again drops it.
-		     For assistive tech it is a multi-select listbox: `aria-selected`
+		<!-- For assistive tech it is a multi-select listbox: `aria-selected`
 		     marks the chosen tags - announced where `aria-checked` on an
 		     option is not, by VoiceOver above all - and the arrow keys' place
 		     travels by `aria-activedescendant` alone. The text row is an
-		     action, not a choice, so it carries no `aria-selected`. -->
+		     action, not a choice, so it carries no `aria-selected`; an
+		     ingredient is never chosen while it is offered (a chip leaves the
+		     list), so it carries `false`. -->
 		<!-- The frame is rounded and clips; the list scrolls inside its
 		     padding, so a visible scrollbar runs inside the straight part of
 		     the edge instead of squaring it off. 8px down a 20px radius the
@@ -263,9 +470,10 @@
 			in:fly={{ y: prefersReducedMotion.current ? 0 : -4, duration: 140, easing: cubicOut }}
 			class="absolute inset-x-0 top-full z-30 mt-2 overflow-hidden rounded-2xl border border-popover-border bg-popover px-1.5 py-2 shadow-dialog"
 		>
-			<ul
+			<div
 				id="{id}-listbox"
 				role="listbox"
+				tabindex="-1"
 				aria-multiselectable="true"
 				aria-label={m.overview_search_suggestions()}
 				onpointerdown={(event) => {
@@ -275,52 +483,60 @@
 				}}
 				class="max-h-[50dvh] overflow-y-auto overscroll-contain md:max-h-[26rem]"
 			>
-				{#each rows as row, index (row.kind === 'text' ? 'text' : `tag:${row.tag.name}`)}
-					<!-- The keys belong to the field, which drives the options through
-				     aria-activedescendant; the click is the pointer's way in. -->
+				{#if query}
 					<!-- svelte-ignore a11y_click_events_have_key_events -->
-					<li
-						id="{id}-option-{index}"
+					<div
+						id="{id}-option-0"
 						role="option"
-						aria-selected={row.kind === 'tag' ? active.includes(row.tag.name) : undefined}
-						onclick={() => choose(index)}
-						class="flex min-h-11 cursor-pointer items-start gap-2.5 rounded-lg px-3 py-2.5 text-body {index ===
-						current
-							? 'bg-background'
-							: ''} {row.kind === 'text' && rows.length > 1 ? 'mb-1 border-b border-border' : ''}"
+						aria-selected={undefined}
+						tabindex="-1"
+						onclick={() => choose(0)}
+						class="flex min-h-11 cursor-pointer items-start gap-2.5 rounded-lg px-3 py-2.5 text-body hover:bg-popover-highlight {current ===
+						0
+							? 'bg-popover-highlight'
+							: ''} {rows.length > 1 ? 'mb-1 border-b border-border' : ''}"
 					>
-						{#if row.kind === 'text'}
-							<Search class="mt-1 size-4 shrink-0 text-text-muted" aria-hidden="true" />
-							<span class="flex min-w-0 flex-col [overflow-wrap:anywhere]">
-								{m.overview_search_text({ query: value.trim() })}
-								<!-- Where a search looks, so a hit in an ingredient is no surprise. -->
-								<span class="text-caption text-text-muted">{m.overview_search_text_fields()}</span>
-							</span>
-						{:else}
-							{@const on = active.includes(row.tag.name)}
-							{@const parts = matchedPart(row.tag.name, query) ?? {
-								before: row.tag.name,
-								hit: '',
-								after: ''
-							}}
-							{#if on}
-								<Check class="mt-1 size-4 shrink-0 text-primary" aria-hidden="true" />
-							{:else}
-								<TagIcon class="mt-1 size-4 shrink-0 text-text-muted" aria-hidden="true" />
+						<Search class="mt-1 size-4 shrink-0 text-text-muted" aria-hidden="true" />
+						<span class="flex min-w-0 flex-col [overflow-wrap:anywhere]">
+							{m.overview_search_text({ query: value.trim() })}
+							<!-- Where a search looks, so a hit in an ingredient is no surprise. -->
+							<span class="text-caption text-text-muted">{m.overview_search_text_fields()}</span>
+						</span>
+					</div>
+				{/if}
+				{#if rows.some((row) => row.kind === 'ingredient')}
+					<div role="group" aria-labelledby="{id}-ingredients">
+						{@render heading(m.search_add_ingredient(), `${id}-ingredients`)}
+						{#each rows as row, index (index)}
+							{#if row.kind === 'ingredient'}
+								{@render option(
+									index,
+									row.item.name,
+									ticked(row.item)
+										? m.search_ingredient_ticked()
+										: row.item.also.length > 0
+											? m.search_ingredient_also({ names: row.item.also.join(', ') })
+											: '',
+									row.item.count,
+									false,
+									'carrot'
+								)}
 							{/if}
-							<span
-								class="line-clamp-2 min-w-0 [overflow-wrap:anywhere] {on ? 'font-semibold' : ''}"
-								>{parts.before}<b class="font-bold">{parts.hit}</b>{parts.after}</span
-							>
-							<span
-								aria-hidden="true"
-								class="mb-1.5 min-w-4 flex-1 self-end border-b-2 border-dotted border-handle"
-							></span>
-							<span class="self-end text-body-sm text-text-muted">{row.tag.count}</span>
-						{/if}
-					</li>
-				{/each}
-			</ul>
+						{/each}
+					</div>
+				{/if}
+				{#if rows.some((row) => row.kind === 'tag')}
+					<div role="group" aria-labelledby="{id}-tags">
+						{@render heading(m.search_filter_tag(), `${id}-tags`)}
+						{#each rows as row, index (index)}
+							{#if row.kind === 'tag'}
+								{@const on = active.includes(row.tag.name)}
+								{@render option(index, row.tag.name, '', row.tag.count, on, on ? 'check' : 'tag')}
+							{/if}
+						{/each}
+					</div>
+				{/if}
+			</div>
 		</div>
 	{/if}
 </div>

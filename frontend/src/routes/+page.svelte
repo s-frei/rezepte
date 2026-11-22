@@ -65,6 +65,7 @@
 	// `untrack` marks that one-time read as intentional.
 	let q = $state(untrack(() => data.q));
 	let tags = $state<string[]>(untrack(() => data.tags));
+	let ingredients = $state<string[]>(untrack(() => data.ingredients));
 	let maxMinutes = $state(untrack(() => data.maxMinutes));
 	let favoritesOnly = $state(untrack(() => data.favorites));
 	let author = $state(untrack(() => data.author));
@@ -225,7 +226,7 @@
 		const qs = buildListQuery({
 			q,
 			tags,
-			ingredients: [], // the chip UI wires these in a later task
+			ingredients,
 			have: [],
 			maxMinutes,
 			favorites: favoritesOnly,
@@ -329,6 +330,7 @@
 					{
 						q: q || undefined,
 						tags,
+						ingredients,
 						maxMinutes,
 						favorites: favoritesOnly,
 						author: author || undefined,
@@ -442,6 +444,20 @@
 		refilter();
 	}
 
+	function addIngredient(name: string) {
+		const key = name.toLocaleLowerCase();
+		if (ingredients.some((n) => n.toLocaleLowerCase() === key)) {
+			return;
+		}
+		ingredients = [...ingredients, name];
+		refilter();
+	}
+
+	function removeIngredient(name: string) {
+		ingredients = ingredients.filter((n) => n !== name);
+		refilter();
+	}
+
 	function setMaxMinutes(value: number) {
 		maxMinutes = value;
 		refilter();
@@ -474,6 +490,7 @@
 	// they set it.
 	function resetFilters() {
 		q = '';
+		ingredients = [];
 		clearFilters();
 	}
 
@@ -715,6 +732,7 @@
 		if (buildListQuery(next) !== lastQuery) {
 			q = next.q;
 			tags = next.tags;
+			ingredients = next.ingredients;
 			maxMinutes = next.maxMinutes;
 			favoritesOnly = next.favorites;
 			author = next.author;
@@ -795,8 +813,6 @@
 	<!-- `gap`, not `space-y`: the phone's chip row stays in the DOM on desktop,
 	     hidden, and as the last child it gave the tag row above a margin. -->
 	<div class="mt-4 flex flex-col gap-3 border-b-2 border-dotted border-handle pb-4 md:mt-5">
-		<!-- `relative` gives the search suggestions their width on phones: the
-		     whole row, as wide as the recipe cards (see SearchBar). -->
 		<div class="relative flex items-center gap-3">
 			<SearchBar
 				bind:value={q}
@@ -804,7 +820,11 @@
 				tags={tagOptions}
 				active={tags}
 				ontoggle={toggleTag}
-				class="md:max-w-md"
+				{ingredients}
+				have={[]}
+				onaddingredient={addIngredient}
+				onremoveingredient={removeIngredient}
+				class={ingredients.length > 0 ? '' : 'md:max-w-md'}
 			/>
 			<FilterPanel
 				bind:open={filterOpen}

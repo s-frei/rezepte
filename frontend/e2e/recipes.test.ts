@@ -3443,3 +3443,111 @@ test('a one-word name of full length wraps in the author ribbon on a 360px phone
 	);
 	expect(right).toBeLessThanOrEqual(360);
 });
+
+test.describe('ingredient search', () => {
+	// The suggestions come from every recipe in the suite's shared database,
+	// so they are pinned here; the server's own matching has its Go tests.
+	test('picks ingredients as chips in the search field', async ({ page }) => {
+		await page.route(
+			(url) => url.pathname === '/api/v1/ingredients',
+			(route) =>
+				route.fulfill({
+					json: {
+						items: [
+							{ name: 'Zwiebel', key: 'zwiebel', count: 7, also: ['Frühlingszwiebeln'] },
+							{ name: 'Zwieback', key: 'zwieback', count: 2, also: [] }
+						]
+					}
+				})
+		);
+		await page.goto('/');
+		const field = searchField(page);
+		await field.fill('zwie');
+		const list = page.getByRole('listbox', { name: 'Suggestions' });
+		const add = list.getByRole('group', { name: 'Add ingredient' });
+		await expect(add.getByRole('option').first()).toHaveText(
+			/^\s*Zwiebel\s*also: Frühlingszwiebeln\s*7$/
+		);
+		// Nothing is highlighted until an arrow key is pressed.
+		await expect(field).not.toHaveAttribute('aria-activedescendant');
+		await expect(list.getByRole('option', { selected: true })).toHaveCount(0);
+
+		// The dropdown hangs from the field at exactly its width.
+		const frame = await list.locator('..').boundingBox();
+		const box = await field.locator('..').boundingBox();
+		expect(Math.abs(frame!.width - box!.width)).toBeLessThanOrEqual(1);
+		expect(Math.abs(frame!.x - box!.x)).toBeLessThanOrEqual(1);
+
+		// The text row comes first, Zwiebel second.
+		await field.press('ArrowDown');
+		await field.press('ArrowDown');
+		await field.press('Enter');
+		await expect(page).toHaveURL(/ingredients=zwiebel/i);
+		await expect(field).toHaveValue('');
+		const chip = page.getByRole('button', { name: 'Remove Zwiebel' });
+		await expect(chip).toBeVisible();
+		await expect(chip.locator('..')).toHaveAttribute('title', 'Also covers: Frühlingszwiebeln');
+
+		// A chip already added is not suggested again.
+		await field.fill('zwie');
+		await expect(add.getByRole('option')).toHaveText([/^\s*Zwieback/]);
+
+		await field.fill('');
+		await field.press('Backspace');
+		await expect(chip).toHaveCount(0);
+		await expect(page).not.toHaveURL(/ingredients=/);
+
+		// A chip's ✕ hands the focus to the field, without opening the list.
+		await field.fill('zwie');
+		await field.press('ArrowDown');
+		await field.press('ArrowDown');
+		await field.press('Enter');
+		await chip.click();
+		await expect(chip).toHaveCount(0);
+		await expect(field).toBeFocused();
+		await expect(list).toHaveCount(0);
+	});
+
+	// Ingredient suggestions land late, between the text row and the tags.
+	// A highlight the arrow keys put on a tag stays on that tag, and an
+	// earlier word's suggestions never stand under a later one.
+	test('keeps the highlight and drops stale suggestions as ingredients land', async ({ page }) => {
+		const token = uniqueToken();
+		const tag = `${token}tag`;
+		await createRecipe(page, { ...loadFixture(1), title: `Late ${token}`, tags: [tag] });
+		let release = () => {};
+		const released = new Promise<void>((resolve) => (release = resolve));
+		await page.route(
+			(url) => url.pathname === '/api/v1/ingredients',
+			async (route) => {
+				const q = new URL(route.request().url()).searchParams.get('q');
+				// The first word waits for the test; a later one takes long.
+				await (q === token ? released : new Promise((r) => setTimeout(r, 3_000)));
+				await route
+					.fulfill({
+						json: { items: [{ name: `${token}onion`, key: `${token}onion`, count: 1, also: [] }] }
+					})
+					.catch(() => {});
+			}
+		);
+		await page.goto('/');
+		const field = searchField(page);
+		const list = page.getByRole('listbox', { name: 'Suggestions' });
+		const add = list.getByRole('group', { name: 'Add ingredient' });
+
+		await field.fill(token);
+		await expect(list.getByRole('option')).toHaveCount(2);
+		await field.press('ArrowDown');
+		await field.press('ArrowDown');
+		release();
+		await expect(add.getByRole('option')).toHaveCount(1);
+		await field.press('Enter');
+		await expect(page).toHaveURL(new RegExp(`tags=${tag}`));
+		await expect(page).not.toHaveURL(/ingredients=/);
+
+		await field.fill(token);
+		await expect(add.getByRole('option')).toHaveCount(1);
+		await field.fill(`${token}x`);
+		await expect(add).toHaveCount(0, { timeout: 1_000 });
+	});
+});
