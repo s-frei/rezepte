@@ -1725,5 +1725,19 @@
 	"pantry_missing_label": "Fehlt",
 	"pantry_missing": "Fehlt:",
 	"pantry_nothing_missing": "nichts",
-	"pantry_more": "+{count}"
+	"pantry_more": "+{count}",
+
+	"ticks_heading": "Hab ich schon",
+	"ticks_count": "{count} abgehakt",
+	"ticks_clear": "Haken entfernen",
+	"ticks_hint": "für ein Rezept: auf der Karte {stamp} tippen",
+	"ticks_hint_stamp": "fehlen",
+	"ticks_more": "+{count} weitere",
+	"ticks_focus": "Fehlt bei {title}",
+	"ticks_focus_all_there": "Alles da für {title}",
+	"ticks_done": "Fertig",
+	"ticks_covered": "{name}, abgehakt über {by}",
+	"ticks_cleared_one": "1 Haken entfernt",
+	"ticks_cleared": "{count} Haken entfernt",
+	"ticks_undo": "Rückgängig"
 }

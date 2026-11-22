@@ -1725,5 +1725,19 @@
 	"pantry_missing_label": "Missing",
 	"pantry_missing": "Missing:",
 	"pantry_nothing_missing": "nothing",
-	"pantry_more": "+{count}"
+	"pantry_more": "+{count}",
+
+	"ticks_heading": "Have it already",
+	"ticks_count": "{count} ticked",
+	"ticks_clear": "Clear ticks",
+	"ticks_hint": "for one recipe: tap {stamp} on its card",
+	"ticks_hint_stamp": "missing",
+	"ticks_more": "+{count} more",
+	"ticks_focus": "Missing for {title}",
+	"ticks_focus_all_there": "All there for {title}",
+	"ticks_done": "Done",
+	"ticks_covered": "{name}, ticked via {by}",
+	"ticks_cleared_one": "1 tick cleared",
+	"ticks_cleared": "{count} ticks cleared",
+	"ticks_undo": "Undo"
 }

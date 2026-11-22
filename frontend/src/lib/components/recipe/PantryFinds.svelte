@@ -4,13 +4,14 @@
 	import FindParts from './FindParts.svelte';
 	import type { PantryItem, SearchFind } from '#lib/api/recipes.js';
 	import { m } from '#lib/paraglide/messages.js';
-	import { clampNames, itemText } from '#lib/recipe/finds.js';
+	import { clampNames, itemText, missingParts } from '#lib/recipe/finds.js';
 
 	let {
 		used,
 		missing,
 		finds = [],
-		photo = false
+		photo = false,
+		highlightKey = null
 	}: {
 		/** The recipe's own names for what the chips cover. */
 		used: string[];
@@ -19,6 +20,8 @@
 		/** The card's text finds: a word found in an ingredient named here is marked in its line. */
 		finds?: SearchFind[];
 		photo?: boolean;
+		/** The ingredient the tick row's hovered pill names, marked in the missing line. */
+		highlightKey?: string | null;
 	} = $props();
 
 	const hits = $derived(
@@ -95,9 +98,7 @@
 			<span class="font-semibold desk:hidden">{m.pantry_missing()}{' '}</span
 			>{#if names.length === 0}<span class="text-text-muted">{m.pantry_nothing_missing()}</span
 				>{:else}<FindParts
-					items={clamped.shown.map((name) => ({
-						parts: hits.get(name) ?? [{ text: name, hit: false }]
-					}))}
+					items={missingParts(missing.slice(0, clamped.shown.length), hits, highlightKey)}
 				/>{#if clamped.more > 0}{' '}<span class="font-semibold whitespace-nowrap text-text-muted"
 						>{m.pantry_more({ count: clamped.more })}</span
 					>{/if}{/if}

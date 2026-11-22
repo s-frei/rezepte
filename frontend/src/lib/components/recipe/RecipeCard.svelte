@@ -21,7 +21,8 @@
 		rise = null,
 		ticked = [],
 		focused = false,
-		onfocuspantry
+		onfocuspantry,
+		highlightKey = null
 	}: {
 		recipe: RecipeCardData;
 		/** Set on a card "Load more" brought: its place in that batch, which
@@ -33,6 +34,8 @@
 		focused?: boolean;
 		/** Makes the pantry stamp a button that focuses the tick row here. */
 		onfocuspantry?: () => void;
+		/** The ingredient the tick row's hovered pill names, marked in the missing line. */
+		highlightKey?: string | null;
 	} = $props();
 
 	const time = $derived(formatMinutes(recipe.totalMinutes));
@@ -324,7 +327,13 @@
 		<!-- On a search's results: where each word the title does not show
 		     was found. -->
 		{#if recipe.pantry}
-			<PantryFinds used={recipe.pantry.used} {missing} finds={recipe.match?.finds} {photo} />
+			<PantryFinds
+				used={recipe.pantry.used}
+				{missing}
+				finds={recipe.match?.finds}
+				{photo}
+				{highlightKey}
+			/>
 		{/if}
 		{#if finds.length > 0}
 			<SearchFinds {finds} {photo} pantry={recipe.pantry !== undefined} />

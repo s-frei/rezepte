@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest';
 import type { SearchFind } from '#lib/api/recipes.js';
-import { clampNames, dedupeTextFinds, missingAfterTicks } from './finds.js';
+import { clampNames, dedupeTextFinds, missingAfterTicks, missingParts } from './finds.js';
 
 const item = (name: string, key = name.toLowerCase()) => ({ name, key });
 
@@ -13,6 +13,31 @@ describe('missingAfterTicks', () => {
 	test('without ticks everything is still missing', () => {
 		const missing = [item('Salz')];
 		expect(missingAfterTicks(missing, [])).toEqual(missing);
+	});
+});
+
+describe('missingParts', () => {
+	const hits = new Map([
+		[
+			'Rotweinessig',
+			[
+				{ text: 'Rotwein', hit: true },
+				{ text: 'essig', hit: false }
+			]
+		]
+	]);
+
+	test('marks the hovered ingredient whole and keeps the text hits of the rest', () => {
+		expect(missingParts([item('Salz'), item('Rotweinessig')], hits, 'salz')).toEqual([
+			{ parts: [{ text: 'Salz', hit: true }] },
+			{ parts: hits.get('Rotweinessig') }
+		]);
+	});
+
+	test('without a hover nothing new is marked', () => {
+		expect(missingParts([item('Salz')], hits, null)).toEqual([
+			{ parts: [{ text: 'Salz', hit: false }] }
+		]);
 	});
 });
 

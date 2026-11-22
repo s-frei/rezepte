@@ -23,7 +23,7 @@
 </script>
 
 <script lang="ts">
-	import Check from '@lucide/svelte/icons/check';
+	import TickMark from '#lib/components/ui/TickMark.svelte';
 	import PersonMark from '#lib/components/ui/PersonMark.svelte';
 	let {
 		row: given,
@@ -99,19 +99,7 @@
 			? 'mt-[calc((1lh_-_30px)/2)] text-card leading-6 after:absolute after:inset-0 focus-visible:outline-offset-2'
 			: '-m-[11px] mt-[calc((1lh_-_22px)/2_-_11px)] p-[11px] text-body focus-visible:outline-offset-[-7px]'}"
 	>
-		<span
-			class="flex items-center justify-center rounded-full transition {shop
-				? 'size-[30px] border-2'
-				: 'size-[22px] border-[1.5px]'} {row.checked
-				? 'border-primary bg-primary text-primary-foreground'
-				: 'border-text-muted bg-surface-elevated'}"
-		>
-			{#if row.checked}<Check
-					class={shop ? 'size-4' : 'size-3.5'}
-					strokeWidth={3}
-					aria-hidden="true"
-				/>{/if}
-		</span>
+		<TickMark checked={row.checked} size={shop ? 'lg' : 'sm'} />
 	</button>
 	<!-- Positioned only for the name's target: in the shopping mode it would cover the circle's. -->
 	<div class="min-w-0 flex-1 {onOpen ? 'relative' : ''}">

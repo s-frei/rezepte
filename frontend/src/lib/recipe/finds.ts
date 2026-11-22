@@ -1,7 +1,7 @@
 import Carrot from '@lucide/svelte/icons/carrot';
 import Tag from '@lucide/svelte/icons/tag';
 import TextAlignStart from '@lucide/svelte/icons/text-align-start';
-import type { PantryItem, SearchFind } from '#lib/api/recipes.js';
+import type { FindPart, PantryItem, SearchFind } from '#lib/api/recipes.js';
 import { m } from '#lib/paraglide/messages.js';
 import { covers } from './covers.js';
 
@@ -29,6 +29,23 @@ export function findText(find: SearchFind): string {
 /** What a recipe still needs once the ticks have covered what they serve. */
 export function missingAfterTicks(missing: PantryItem[], ticked: PantryItem[]): PantryItem[] {
 	return missing.filter((need) => !ticked.some((have) => covers(have.key, need.key)));
+}
+
+/**
+ * The missing line's items as find parts: the one the tick row's hovered
+ * pill names is marked whole, the others keep the text search's hits.
+ */
+export function missingParts(
+	items: PantryItem[],
+	hits: Map<string, FindPart[]>,
+	highlightKey: string | null
+): { parts: FindPart[] }[] {
+	return items.map((item) => ({
+		parts:
+			item.key === highlightKey
+				? [{ text: item.name, hit: true }]
+				: (hits.get(item.name) ?? [{ text: item.name, hit: false }])
+	}));
 }
 
 /** The first `fits` names and how many that leaves out. */
