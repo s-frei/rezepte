@@ -3,6 +3,8 @@ title: Updates
 description: How to update Rezepte and check which version is running
 ---
 
+import { NewIn } from '@/components/new-in';
+
 Update Rezepte by replacing the image or binary and starting it again. Pending database migrations run automatically on that start, before Rezepte serves requests.
 
 Before you update, read the release's page in the [Changelog](/changelog). If the release needs anything from you, the page opens with **Before you upgrade**. Every version is on the [releases page](https://github.com/s-frei/rezepte/releases).
@@ -29,7 +31,7 @@ Before you update, read the release's page in the [Changelog](/changelog). If th
   </Tab>
 </Tabs>
 
-## How you learn about a new version
+## How you learn about a new version<NewIn release="v1.6.0" />
 
 Once a day, Rezepte asks GitHub (`api.github.com`) for the latest release. When it is newer than the running version, the owner sees a note on the overview, with a link to the release. Each version's note can be dismissed with ×, in that browser only. Members never see it.
 

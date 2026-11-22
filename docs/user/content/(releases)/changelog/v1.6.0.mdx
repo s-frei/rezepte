@@ -1,0 +1,71 @@
+---
+title: "v1.6.0 — Plan the week, shop from the plan"
+description: "Meal plans put recipes on the days of a week, share like lists and fill a shopping list that follows them, the overview finds what you can cook from what you have, and the owner sees every mail sent and hears about new versions."
+date: 2026-11-22
+upgrade: "Nothing breaks coming from 1.5.0; back up your data directory, then pull and start `ghcr.io/s-frei/rezepte:1.6.0`."
+---
+
+Upgrade as usual (see [Updates](/operations/updates)). A few things are worth knowing as the one who runs it:
+
+- **Rezepte looks for new versions.** Once a day it asks GitHub (`api.github.com`) for the latest release, sending nothing about your instance. Set `REZEPTE_UPDATE_CHECK=false` to stop it (see [Updates](/operations/updates#how-you-learn-about-a-new-version)).
+- **Mail goes out through a queue.** A dialog no longer waits for the mail server, and a failed attempt is tried again. Rezepte also stops within a few seconds now, so a systemd unit no longer needs `TimeoutStopSec=150` (see [Running the binary](/getting-started/binary)).
+- **Plans stream like lists.** An open meal plan keeps one connection open, as a shopping list does. A setup that streams lists streams plans too; the nginx block in [Reverse proxy](/operations/reverse-proxy#live-lists) now covers both.
+- **Calendar links need the public address.** Without `REZEPTE_PUBLIC_URL`, a calendar link takes the address you open Rezepte at, and its meals carry no link to their recipe.
+- **Search is rebuilt once.** On the first start, Rezepte fills the new search indexes from the recipes there are.
+
+## Plan the week, shop from the plan
+
+**Shopping & week** → **Week** opens your meal plans. Put a recipe or a note such as "leftovers" on a day, or on **Someday**, and drag it to another day when plans change. **Put on the list** puts the days you pick on a shopping list, without the staples you always have. The list keeps following the plan: a moved day, new servings or a removed meal reach it.
+
+<Screenshot name="plan-week" caption="A shared plan's week, the days in one strip" />
+
+Everyone has **My plan**. Create more plans and share them by invitation, as you share a list; changes show for everyone within a second. Plans and lists carry stamps that lead to each other, and every plan can show up in your calendar app. See [Meal plan](/guide/meal-plan).
+
+## What can I cook?
+
+Pick the ingredients you have in the overview's search, and the recipes that use most of them come first. Each card says how many ingredients are still missing, or **All there**. Tick what else you have under **Already at home**, and every card counts it at once. See [What can I cook?](/guide/tags-and-search#what-can-i-cook).
+
+<Screenshot name="ingredient-search" caption="Potato and onion picked, the soup's missing ingredients in the row" />
+
+Search itself finds more: parts of words ("bread" finds "cornbread"), plurals, and umlauts and ß typed either way. The best matches come first, and each card says where it was found. See [Tags and search](/guide/tags-and-search).
+
+## The owner sees every mail and every new version
+
+Under **Settings → Email**, the **Outbox** lists every mail of the last 30 days, with whether it arrived and why not. A mail the server could not take right away is tried again for a few minutes. See [The outbox](/guide/mail#the-outbox).
+
+When a newer version is out, the owner sees a note on the overview with a link to the release, and the account menu ends with the running version. Members never see it. See [Updates](/operations/updates#how-you-learn-about-a-new-version).
+
+<Screenshot name="update-note" caption="The note on the overview when a newer version is out" />
+
+## API
+
+- Meal plans: `GET` and `POST /api/v1/meal-plans` and `GET`, `PATCH` and `DELETE /api/v1/meal-plans/{id}` list, create, read, rename and delete plans. `POST /api/v1/meal-plans/{id}/entries` plans a recipe or a note, `PATCH` and `DELETE …/entries/{entryId}` move, change and remove one, and `POST …/entries/{entryId}/restore` brings it back. `GET /api/v1/meal-plans/week` answers every plan's week in one request.
+- Plans and lists: `GET /api/v1/meal-plans/{id}/shopping-preview` shows what days would put on a list, and `POST /api/v1/meal-plans/{id}/shopping` puts them there. `GET` and `PUT …/staples` read and mark a plan's staples. List entries carry the plan they came from (`planId`, `planName`, `planDay`, `planEntryId`, `planPersonal`), shown only to members of that plan (`planMember`), and who put them there (`planAddedBy`).
+- Sharing plans: `POST /api/v1/meal-plans/{id}/invitations` invites, `POST` and `DELETE …/membership` accept, decline or leave, and `DELETE …/members/{userId}` removes a member. Notifications have a new kind, `plan_invite`.
+- Scopes: reading plans takes the new `plan:read`, everything else `plan:write`. Putting a plan on a list takes `lists:write` as well.
+- Live: `GET /api/v1/meal-plans/{id}/events` sends each change's `revision` as Server-Sent Events. This stream and the shopping list's now send the current `revision` as soon as they connect.
+- Calendar: `GET`, `POST` and `DELETE /api/v1/calendar-feed` read, create and end your calendar link, with a session only. `GET /calendar/{file}` serves the plans as iCalendar and needs no sign-in.
+- Search: `GET /api/v1/ingredients` suggests ingredient names. `GET /api/v1/recipes` takes `ingredients` and `have`, one parameter per name, and its cards carry `pantry`, what each recipe uses and misses, and `match`, where a search found it.
+- People: `GET /api/v1/people` entries carry `planCount`, the plans a person made besides their own.
+- Mail: `GET /api/v1/settings/mail/history` reads the outbox, owner only, with a session. Mailing a setup link answers once the mail is queued; a later failure shows in the outbox, not as `mailError`.
+- Updates: `GET /api/v1/settings/update` tells the owner whether a newer version is out.
+- MCP: six tools for meal plans, `list_meal_plans` and `get_meal_plan` with **Meal plans: Read**, and `add_to_meal_plan`, `update_meal_plan_entry`, `remove_meal_plan_entry` and `put_meal_plan_on_list` with **Write**. `put_meal_plan_on_list` also takes **Shopping lists: Write**, and `search_recipes` takes ingredients you have. See [Connect an AI assistant](/api/mcp).
+
+The [API reference](/api/reference) lists every endpoint.
+
+## Also in this release
+
+- **New:** People cards count the meal plans each person made. See [People](/guide/users#read-the-list).
+- **New:** A recipe names its author under the title, in their color, and each comment sits on a card in its writer's color.
+- **New:** The browser tab shows the mascot's face.
+- **Improved:** Rezepte speaks to everyone on an instance, not to one household. Settings say **For everyone**, notifications **Everyone else**, and the **Link** tab of **Pass on** offers **Just for us**.
+- **Improved:** **Shopping & week** in the top and bottom bars holds your lists and your plans.
+- **Improved:** On a recipe, **Add to shopping list** and the copy button sit together at the end of the ingredients.
+- **Improved:** With public sharing off, the **Link** tab of **Pass on** says so in one card, and the owner gets a link to switch it on.
+- **Improved:** Your own color stays on you and your things, no longer on the browser bar or the focused comment box.
+- **Improved:** Toasts sit above the bottom bar on a phone, and **Undo** is easier to hit.
+- **Security:** Resetting someone's password closes their open setup link, so it can no longer set a password over the new one.
+- **Fixed:** The photo carousel on a phone moves one photo per swipe.
+- **Fixed:** After signing in again, you land on the page you were going to.
+- **Fixed:** A new invitation after one you answered counts in the badge again.
+- **Fixed:** A row that scrolls sideways keeps the focused item clear of its arrows.
