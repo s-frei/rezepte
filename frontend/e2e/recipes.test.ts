@@ -3725,9 +3725,9 @@ test.describe('ingredient search', () => {
 		// The Pixel project would only repeat the Chromium run; WebKit holds
 		// the card on the native `grid-lanes` path.
 		test.skip(testInfo.project.name === 'mobile', 'sets its own phone and desktop widths');
-		// Some fifty ticks, each waiting for the page to settle: half a minute
-		// on its own in a Linux WebKit, more on CI's four shared cores.
-		test.setTimeout(90_000);
+		// Some fifty ticks, each waiting for the page to settle: Chromium on
+		// CI's four shared cores took about 40s.
+		test.setTimeout(60_000);
 		const token = await kitchen(page);
 		const url = `/?tags=${token}&ingredients=Kartoffel&ingredients=Zwiebel`;
 		const cases: [number, number, string[]][] = [
@@ -3849,9 +3849,6 @@ test.describe('ingredient search', () => {
 		page,
 		isMobile
 	}) => {
-		// Three cards, each a page load, a focus and a glide to wait out: a
-		// Linux WebKit on CI's four shared cores takes some 40s.
-		test.setTimeout(90_000);
 		const token = await kitchen(page);
 		const url = `/?tags=${token}&ingredients=Kartoffel&ingredients=Zwiebel`;
 		await page.goto(url);

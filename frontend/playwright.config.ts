@@ -1,5 +1,12 @@
 import { defineConfig, devices } from '@playwright/test';
 
+// An iPhone at one device pixel per CSS pixel. Linux WebKit paints on the
+// CPU, and at the iPhone's 3x every repaint blurs nine times the pixels of
+// each card's shadow: on CI's four shared cores a frame took a second, and
+// every click waited two frames for its target to hold still. No test here
+// measures device pixels (the share image picks its own scale).
+const iPhone = { ...devices['iPhone 15'], deviceScaleFactor: 1 };
+
 // E2E tests run against the production binary (mise run e2e), which serves
 // the SPA and the API on one origin. Override with E2E_BASE_URL for a dev server.
 export default defineConfig({
@@ -31,7 +38,7 @@ export default defineConfig({
 		// which the step-time popover has to survive; only those tests pay for it.
 		{
 			name: 'webkit',
-			use: { ...devices['iPhone 15'] },
+			use: iPhone,
 			testMatch: /(share-image|step-times)\.test\.ts/
 		},
 		// Safari 26.4 lays the overview out with native `grid-lanes`, the path
@@ -39,7 +46,7 @@ export default defineConfig({
 		// on its own terms while a focused card is held and let go of.
 		{
 			name: 'webkit-masonry',
-			use: { ...devices['iPhone 15'] },
+			use: iPhone,
 			testMatch: /recipes\.test\.ts/,
 			grep: /text card|cards (never|re-flow)|card per row|search field stays|holds still|let go of with Done/
 		},
