@@ -2,6 +2,7 @@
 	import { cubicOut } from 'svelte/easing';
 	import { slide } from 'svelte/transition';
 	import BookOpen from '@lucide/svelte/icons/book-open';
+	import CalendarDays from '@lucide/svelte/icons/calendar-days';
 	import ChevronRight from '@lucide/svelte/icons/chevron-right';
 	import Crown from '@lucide/svelte/icons/crown';
 	import KeyRound from '@lucide/svelte/icons/key-round';
@@ -21,7 +22,7 @@
 	import { isAdminRole, roleLabel } from '#lib/roles.js';
 	import { lastActive } from '#lib/settings/last-active.js';
 	import { narrow } from '#lib/ui/narrow.js';
-	import { canOpenPerson, listsText } from '#lib/settings/person-page.js';
+	import { canOpenPerson, listsText, plansText } from '#lib/settings/person-page.js';
 	import { rowPermissions } from '#lib/settings/row-permissions.js';
 
 	let {
@@ -90,6 +91,7 @@
 	);
 
 	const lists = $derived(person.listCount ?? 0);
+	const plans = $derived(person.planCount ?? 0);
 	const recipes = $derived(person.recipeCount ?? 0);
 	const latest = $derived(person.latestRecipes ?? []);
 
@@ -208,12 +210,12 @@
 		</p>
 	{/if}
 
-	<!-- Recipes before shopping lists, everywhere the two stand together.
-	     Below a 512px card the lists and the role share a line under the recipes,
-	     the role at its end; below 17rem of card (a 320px phone, 200% text) the
-	     role always takes a line of its own, so no card has it beside the
-	     lists while the next has it under them. From 512px they keep the
-	     line's end. -->
+	<!-- Recipes before shopping lists, lists before plans, everywhere they
+	     stand together. Below a 512px card the counts and the role share a
+	     line under the recipes, the role at its end; where they do not fit,
+	     the role wraps to its own line, still at the end, and the counts never
+	     split around it. Below 17rem of card (a 320px phone, 200% text) the
+	     role always takes its own line. From 512px they keep the line's end. -->
 	<div
 		class="mt-3.5 flex flex-col gap-3 border-t border-dashed border-border pt-3.5 @lg:flex-row @lg:flex-wrap @lg:items-center @lg:gap-x-3"
 	>
@@ -265,7 +267,12 @@
 		<div
 			class="flex flex-wrap items-center justify-between gap-x-3.5 gap-y-2 @max-[17rem]:flex-col @max-[17rem]:items-start @lg:ml-auto"
 		>
-			{@render fact(ShoppingBasket, lists, listsText(lists))}
+			<!-- Lists and plans keep their one line when it fits (no shrinking),
+			     so the role wraps below them instead of between them. -->
+			<span class="flex max-w-full shrink-0 flex-wrap items-center gap-x-3.5 gap-y-1.5">
+				{@render fact(ShoppingBasket, lists, listsText(lists))}
+				{@render fact(CalendarDays, plans, plansText(plans))}
+			</span>
 			{#if person.role === 'superadmin'}
 				<span class="{pill} bg-accent text-accent-foreground">
 					<Crown class="size-3.5 shrink-0" aria-hidden="true" />

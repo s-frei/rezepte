@@ -186,8 +186,9 @@ test('a member sees everyone, read-only', async ({ page }) => {
 	await expect(people(page).getByRole('button', { name: /^(?!About )/ })).toHaveCount(0);
 	await expect(people(page).getByRole('button', { name: `About ${adminName}` })).toBeVisible();
 	await expect(personRow(page, adminName)).toContainText('No shopping list');
+	await expect(personRow(page, adminName)).toContainText('No meal plan');
 	await expect(personRow(page, adminName)).toContainText('No recipes');
-	await expect(page.getByText(/What is on a list only the people/)).toBeVisible();
+	await expect(page.getByText(/shopping lists and meal plans someone has/)).toBeVisible();
 	// An address and its state are an admin's business: not even the symbol.
 	await expect(people(page)).not.toContainText('Address');
 });
@@ -228,12 +229,17 @@ test("an admin reads a member's counts on the card and the rest on their page", 
 	const fixture = loadFixture(0);
 	fixture.title = `Soup ${username}`;
 	await createRecipe(page, fixture);
+	// The personal plan, made on first use, is everyone's and not counted.
+	expect((await page.request.get('/api/v1/meal-plans')).ok()).toBe(true);
+	const made = await page.request.post('/api/v1/meal-plans', { data: { name: 'Week' } });
+	expect(made.ok(), await made.text()).toBe(true);
 	await page.context().clearCookies();
 	await login(page);
 	await page.goto('/settings/users');
 
 	const row = personRow(page, username);
 	await expect(row).toContainText('No shopping list');
+	await expect(row).toContainText('1 meal plan');
 	// The newest recipe's cover and title, and how many there are.
 	await expect(row.locator('[data-thumb]')).toHaveCount(1);
 	await expect(row).toContainText(`Soup ${username}`);
@@ -250,6 +256,7 @@ test("an admin reads a member's counts on the card and the rest on their page", 
 	await expect(overview).toContainText('1 recipe');
 	await expect(overview).toContainText(`latest “Soup ${username}”`);
 	await expect(overview).toContainText('No shopping list');
+	await expect(overview).toContainText('1 meal plan');
 	await expect(card.getByRole('button', { name: `${username}'s role` })).toBeVisible();
 });
 

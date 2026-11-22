@@ -313,7 +313,7 @@ func run() error {
 	notify.Register(srv.API(), notifications)
 	push.Register(srv.API(), pushes)
 	userapi.Register(srv.API(), users, sessions, avatars,
-		func(ctx context.Context) string { return oidcSettings.Provider(ctx).Issuer }, mailer, userapi.NewCounts(recipes, shoppingSvc))
+		func(ctx context.Context) string { return oidcSettings.Provider(ctx).Issuer }, mailer, userapi.NewCounts(recipes, shoppingSvc, planSvc))
 	tokenapi.Register(srv.API(), tokens)
 	// The deadline counts from the stop signal, so the server's own wait
 	// for open requests is part of it rather than added to it.

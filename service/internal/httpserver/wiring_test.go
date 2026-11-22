@@ -104,7 +104,7 @@ func newFullApp(t *testing.T) fullApp {
 	avatars := avatar.NewService(conn, t.TempDir(), images)
 	share.RegisterPublic(srv.API(), shares, recipes, images, avatars)
 	push.Register(srv.API(), push.NewService(conn, "", nil))
-	userapi.Register(srv.API(), users, sessions, avatars, nil, nil, userapi.NewCounts(recipes, shoppingSvc))
+	userapi.Register(srv.API(), users, sessions, avatars, nil, nil, userapi.NewCounts(recipes, shoppingSvc, planSvc))
 	tokenapi.Register(srv.API(), tokens)
 	return fullApp{srv: srv, users: users, sessions: sessions, tokens: tokens, recipes: recipes, links: links}
 }

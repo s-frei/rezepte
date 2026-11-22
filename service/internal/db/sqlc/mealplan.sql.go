@@ -40,7 +40,7 @@ func (q *Queries) BumpMealPlanRevision(ctx context.Context, id string) error {
 }
 
 const countMealPlansByCreator = `-- name: CountMealPlansByCreator :many
-SELECT created_by, COUNT(*) AS plans FROM meal_plans GROUP BY created_by
+SELECT created_by, COUNT(*) AS plans FROM meal_plans WHERE personal = 0 GROUP BY created_by
 `
 
 type CountMealPlansByCreatorRow struct {
@@ -48,6 +48,8 @@ type CountMealPlansByCreatorRow struct {
 	Plans     int64
 }
 
+// The plans each person made; the personal plan is everyone's and is made on
+// first use, so it is not counted.
 func (q *Queries) CountMealPlansByCreator(ctx context.Context) ([]CountMealPlansByCreatorRow, error) {
 	rows, err := q.db.QueryContext(ctx, countMealPlansByCreator)
 	if err != nil {

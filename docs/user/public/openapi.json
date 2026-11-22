@@ -3409,6 +3409,11 @@
             "format": "int64",
             "type": "integer"
           },
+          "planCount": {
+            "description": "Meal plans this person created, not counting their personal plan",
+            "format": "int64",
+            "type": "integer"
+          },
           "recipeCount": {
             "description": "Recipes this person created",
             "format": "int64",
@@ -3437,6 +3442,7 @@
           "avatarId",
           "recipeCount",
           "listCount",
+          "planCount",
           "latestRecipes"
         ],
         "type": "object"
@@ -10127,7 +10133,7 @@
     },
     "/api/v1/people": {
       "get": {
-        "description": "Every account's login name, display name, color, role, recipe and shopping-list counts and newest recipes, readable by any signed-in account so everyone can see who takes part. Managing accounts, and their language and creation date, is /api/v1/users, which requires an admin.",
+        "description": "Every account's login name, display name, color, role, recipe, shopping-list and meal-plan counts and newest recipes, readable by any signed-in account so everyone can see who takes part. Managing accounts, and their language and creation date, is /api/v1/users, which requires an admin.",
         "operationId": "list-people",
         "responses": {
           "200": {

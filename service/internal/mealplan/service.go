@@ -65,6 +65,20 @@ func person(id, name, color string, avatar *string) Person {
 	return Person{ID: id, DisplayName: name, Color: color, AvatarID: avatar}
 }
 
+// CountsByCreator returns how many plans each person made, without their
+// personal plan.
+func (s *Service) CountsByCreator(ctx context.Context) (map[string]int, error) {
+	rows, err := s.q.CountMealPlansByCreator(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("count meal plans: %w", err)
+	}
+	out := make(map[string]int, len(rows))
+	for _, r := range rows {
+		out[r.CreatedBy] = int(r.Plans)
+	}
+	return out, nil
+}
+
 // Plans returns the caller's plans, the personal one first (made here on
 // first use), then the most recently changed, and their pending invitations.
 func (s *Service) Plans(ctx context.Context, userID string) ([]PlanSummary, []PlanInvitation, error) {

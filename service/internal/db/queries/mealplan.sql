@@ -53,8 +53,10 @@ WHERE id = sqlc.arg(id) AND personal = 0;
 -- name: DeleteMealPlan :execrows
 DELETE FROM meal_plans WHERE id = sqlc.arg(id) AND created_by = sqlc.arg(created_by) AND personal = 0;
 
+-- The plans each person made; the personal plan is everyone's and is made on
+-- first use, so it is not counted.
 -- name: CountMealPlansByCreator :many
-SELECT created_by, COUNT(*) AS plans FROM meal_plans GROUP BY created_by;
+SELECT created_by, COUNT(*) AS plans FROM meal_plans WHERE personal = 0 GROUP BY created_by;
 
 -- Accepted and pending members of plans, oldest first.
 -- name: ListMealPlanMembers :many

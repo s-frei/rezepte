@@ -407,6 +407,7 @@ test('the overview says what they have, when they joined and were last active', 
 	await expect(groups.first()).toHaveAccessibleName('Overview');
 	await expect(groups.first()).toContainText('No recipes');
 	await expect(groups.first()).toContainText('No shopping list');
+	await expect(groups.first()).toContainText('No meal plan');
 	await expect(groups.first()).toContainText(/Joined \w+ \d{4}/);
 	await expect(groups.first()).toContainText('Active 3 days ago');
 });

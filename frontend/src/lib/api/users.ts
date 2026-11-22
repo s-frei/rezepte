@@ -49,6 +49,8 @@ export type PersonEntry = Pick<
 	/** Set by list-people only; absent on the admin operations' UserAccount. */
 	recipeCount?: number;
 	listCount?: number;
+	/** Meal plans the person made, not counting their personal plan. */
+	planCount?: number;
 	/** Up to four recipes the person created, newest created first. */
 	latestRecipes?: LatestRecipe[];
 };

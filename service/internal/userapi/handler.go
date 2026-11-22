@@ -17,6 +17,7 @@ import (
 	"github.com/s-frei/rezepte/service/internal/auth"
 	"github.com/s-frei/rezepte/service/internal/avatar"
 	"github.com/s-frei/rezepte/service/internal/mail"
+	"github.com/s-frei/rezepte/service/internal/mealplan"
 	"github.com/s-frei/rezepte/service/internal/recipe"
 	"github.com/s-frei/rezepte/service/internal/shopping"
 	"github.com/s-frei/rezepte/service/internal/user"
@@ -75,6 +76,7 @@ type PersonEntry struct {
 	AvatarID    *string `json:"avatarId" nullable:"true" doc:"The account's picture, served at /avatars/{id}/{avatarId}.jpg; null when it has none"`
 	RecipeCount int     `json:"recipeCount" doc:"Recipes this person created"`
 	ListCount   int     `json:"listCount" doc:"Shopping lists this person created"`
+	PlanCount   int     `json:"planCount" doc:"Meal plans this person created, not counting their personal plan"`
 	// Newest created, not newest changed: the strip shows what a person added.
 	LatestRecipes []LatestRecipe `json:"latestRecipes" doc:"Up to four recipes this person created, newest created first; empty when they created none"`
 }
@@ -217,6 +219,7 @@ func toResponse(u user.User) UserAccount {
 type Counts interface {
 	RecipeCounts(context.Context) (map[string]int, error)
 	ListCounts(context.Context) (map[string]int, error)
+	PlanCounts(context.Context) (map[string]int, error)
 	LastRecipeTitles(context.Context) (map[string]string, error)
 	LatestRecipes(context.Context) (map[string][]LatestRecipe, error)
 }
@@ -224,11 +227,12 @@ type Counts interface {
 type counts struct {
 	recipes *recipe.Service
 	lists   *shopping.Service
+	plans   *mealplan.Service
 }
 
-// NewCounts reads the numbers from the recipe and shopping services.
-func NewCounts(recipes *recipe.Service, lists *shopping.Service) Counts {
-	return counts{recipes, lists}
+// NewCounts reads the numbers from the recipe, shopping and meal plan services.
+func NewCounts(recipes *recipe.Service, lists *shopping.Service, plans *mealplan.Service) Counts {
+	return counts{recipes, lists, plans}
 }
 
 func (c counts) RecipeCounts(ctx context.Context) (map[string]int, error) {
@@ -237,6 +241,10 @@ func (c counts) RecipeCounts(ctx context.Context) (map[string]int, error) {
 
 func (c counts) ListCounts(ctx context.Context) (map[string]int, error) {
 	return c.lists.CountsByCreator(ctx)
+}
+
+func (c counts) PlanCounts(ctx context.Context) (map[string]int, error) {
+	return c.plans.CountsByCreator(ctx)
 }
 
 func (c counts) LastRecipeTitles(ctx context.Context) (map[string]string, error) {
@@ -323,7 +331,7 @@ func Register(api huma.API, users *user.Service, sessions *auth.Service, avatars
 		Method:      http.MethodGet,
 		Path:        "/api/v1/people",
 		Summary:     "List people",
-		Description: "Every account's login name, display name, color, role, recipe and shopping-list counts and newest recipes, readable by any signed-in account so everyone can see who takes part. Managing accounts, and their language and creation date, is /api/v1/users, which requires an admin.",
+		Description: "Every account's login name, display name, color, role, recipe, shopping-list and meal-plan counts and newest recipes, readable by any signed-in account so everyone can see who takes part. Managing accounts, and their language and creation date, is /api/v1/users, which requires an admin.",
 		Tags:        []string{"users"},
 		Security:    auth.Protected(auth.ScopeUsersRead),
 		Errors:      []int{401},
@@ -335,7 +343,7 @@ func Register(api huma.API, users *user.Service, sessions *auth.Service, avatars
 		if err != nil {
 			return nil, err
 		}
-		recipes, lists := map[string]int{}, map[string]int{}
+		recipes, lists, plans := map[string]int{}, map[string]int{}, map[string]int{}
 		latest := map[string][]LatestRecipe{}
 		if counts != nil {
 			if latest, err = counts.LatestRecipes(ctx); err != nil {
@@ -345,6 +353,9 @@ func Register(api huma.API, users *user.Service, sessions *auth.Service, avatars
 				return nil, err
 			}
 			if lists, err = counts.ListCounts(ctx); err != nil {
+				return nil, err
+			}
+			if plans, err = counts.PlanCounts(ctx); err != nil {
 				return nil, err
 			}
 		}
@@ -359,6 +370,7 @@ func Register(api huma.API, users *user.Service, sessions *auth.Service, avatars
 				AvatarID:    u.AvatarID,
 				RecipeCount: recipes[u.ID],
 				ListCount:   lists[u.ID],
+				PlanCount:   plans[u.ID],
 				// Never null on the wire: a person without recipes has [].
 				LatestRecipes: append([]LatestRecipe{}, latest[u.ID]...),
 			})

@@ -4,7 +4,7 @@
 	import { toast } from 'svelte-sonner';
 	import Activity from '@lucide/svelte/icons/activity';
 	import BookOpen from '@lucide/svelte/icons/book-open';
-	import Calendar from '@lucide/svelte/icons/calendar';
+	import CalendarDays from '@lucide/svelte/icons/calendar-days';
 	import ChevronDown from '@lucide/svelte/icons/chevron-down';
 	import ChevronLeft from '@lucide/svelte/icons/chevron-left';
 	import Globe from '@lucide/svelte/icons/globe';
@@ -14,6 +14,7 @@
 	import ShoppingBasket from '@lucide/svelte/icons/shopping-basket';
 	import Trash2 from '@lucide/svelte/icons/trash-2';
 	import Unlink from '@lucide/svelte/icons/unlink';
+	import UserPlus from '@lucide/svelte/icons/user-plus';
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { ApiError, isSignedOut } from '#lib/api/client.js';
@@ -57,7 +58,12 @@
 	import { formatDate } from '#lib/recipe/format.js';
 	import { isAdminRole, roleLabel } from '#lib/roles.js';
 	import { lastActive } from '#lib/settings/last-active.js';
-	import { listsText, personPageTarget, recipesText } from '#lib/settings/person-page.js';
+	import {
+		listsText,
+		personPageTarget,
+		plansText,
+		recipesText
+	} from '#lib/settings/person-page.js';
 	import type { UserColor } from '#lib/user/color.js';
 	import { userColorLabel } from '#lib/user/color-label.js';
 	import { firstWord } from '#lib/user/holders.js';
@@ -610,8 +616,9 @@
 						{/snippet}
 					</SettingsRow>
 					<SettingsRow icon={ShoppingBasket} label={listsText(person.listCount ?? 0)} />
+					<SettingsRow icon={CalendarDays} label={plansText(person.planCount ?? 0)} />
 					{#if joined}
-						<SettingsRow icon={Calendar} label={m.person_joined({ month: joined })} />
+						<SettingsRow icon={UserPlus} label={m.person_joined({ month: joined })} />
 					{/if}
 					{#if activity}
 						<SettingsRow

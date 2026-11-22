@@ -139,6 +139,38 @@ func TestPersonalPlanIsCreatedOnce(t *testing.T) {
 	}
 }
 
+func TestCountsByCreatorSkipsThePersonalPlan(t *testing.T) {
+	ctx := context.Background()
+	e := setup(t)
+	for _, id := range []string{e.a.ID, e.b.ID} {
+		if _, _, err := e.svc.Plans(ctx, id); err != nil {
+			t.Fatal(err)
+		}
+	}
+	p := e.plan(t)
+	e.plan(t)
+	// A member's plan is the owner's, not theirs.
+	if _, err := e.svc.Invite(ctx, e.a.ID, p.ID, e.b.ID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := e.svc.Accept(ctx, e.b.ID, p.ID); err != nil {
+		t.Fatal(err)
+	}
+	got, err := e.svc.CountsByCreator(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != 1 || got[e.a.ID] != 2 {
+		t.Fatalf("counts = %v, want anna 2 and ben absent", got)
+	}
+	if err := e.svc.Delete(ctx, e.a.ID, p.ID); err != nil {
+		t.Fatal(err)
+	}
+	if got, err = e.svc.CountsByCreator(ctx); err != nil || got[e.a.ID] != 1 {
+		t.Fatalf("after delete counts = %v, %v, want anna 1", got, err)
+	}
+}
+
 func TestPersonalPlanCannotBeRenamedDeletedOrShared(t *testing.T) {
 	ctx := context.Background()
 	e := setup(t)

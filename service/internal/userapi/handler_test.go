@@ -314,7 +314,7 @@ func TestPeopleHidesAccountDetails(t *testing.T) {
 	if len(body.Items) == 0 {
 		t.Fatalf("no people in %s", rec.Body.String())
 	}
-	want := map[string]bool{"id": true, "username": true, "displayName": true, "color": true, "role": true, "avatarId": true, "recipeCount": true, "listCount": true, "latestRecipes": true}
+	want := map[string]bool{"id": true, "username": true, "displayName": true, "color": true, "role": true, "avatarId": true, "recipeCount": true, "listCount": true, "planCount": true, "latestRecipes": true}
 	for _, item := range body.Items {
 		if len(item) != len(want) {
 			t.Fatalf("keys of %v, want exactly %v", item, want)
@@ -1414,9 +1414,9 @@ func TestAddressAndPasswordChangeMailsOldAddressBoth(t *testing.T) {
 
 // countsStub answers the per-person numbers by user id.
 type countsStub struct {
-	recipes, lists map[string]int
-	titles         map[string]string
-	latest         map[string][]userapi.LatestRecipe
+	recipes, lists, plans map[string]int
+	titles                map[string]string
+	latest                map[string][]userapi.LatestRecipe
 }
 
 func (c countsStub) LatestRecipes(context.Context) (map[string][]userapi.LatestRecipe, error) {
@@ -1425,13 +1425,14 @@ func (c countsStub) LatestRecipes(context.Context) (map[string][]userapi.LatestR
 
 func (c countsStub) RecipeCounts(context.Context) (map[string]int, error) { return c.recipes, nil }
 func (c countsStub) ListCounts(context.Context) (map[string]int, error)   { return c.lists, nil }
+func (c countsStub) PlanCounts(context.Context) (map[string]int, error)   { return c.plans, nil }
 func (c countsStub) LastRecipeTitles(context.Context) (map[string]string, error) {
 	return c.titles, nil
 }
 
 func TestPeopleCarryCounts(t *testing.T) {
 	var kimID string
-	counts := countsStub{recipes: map[string]int{}, lists: map[string]int{}, titles: map[string]string{}, latest: map[string][]userapi.LatestRecipe{}}
+	counts := countsStub{recipes: map[string]int{}, lists: map[string]int{}, plans: map[string]int{}, titles: map[string]string{}, latest: map[string][]userapi.LatestRecipe{}}
 	h, users := newStackFull(t, map[string]string{}, &fakeMailer{}, nil, counts)
 	list, err := users.List(context.Background())
 	if err != nil {
@@ -1442,7 +1443,7 @@ func TestPeopleCarryCounts(t *testing.T) {
 			kimID = u.ID
 		}
 	}
-	counts.recipes[kimID], counts.lists[kimID], counts.titles[kimID] = 3, 2, "Dal"
+	counts.recipes[kimID], counts.lists[kimID], counts.plans[kimID], counts.titles[kimID] = 3, 2, 1, "Dal"
 	counts.latest[kimID] = []userapi.LatestRecipe{{ID: "r1", Slug: "dal", Title: "Dal"}}
 	kim := loginAs(t, h, "kim", "pw")
 	rec := doReq(h, http.MethodGet, "/api/v1/people", "", kim)
@@ -1451,12 +1452,12 @@ func TestPeopleCarryCounts(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, p := range people.Items {
-		wantR, wantL := 0, 0
+		wantR, wantL, wantP := 0, 0, 0
 		if p.Username == "kim" {
-			wantR, wantL = 3, 2
+			wantR, wantL, wantP = 3, 2, 1
 		}
-		if p.RecipeCount != wantR || p.ListCount != wantL {
-			t.Fatalf("%s: recipes %d lists %d, want %d %d", p.Username, p.RecipeCount, p.ListCount, wantR, wantL)
+		if p.RecipeCount != wantR || p.ListCount != wantL || p.PlanCount != wantP {
+			t.Fatalf("%s: recipes %d lists %d plans %d, want %d %d %d", p.Username, p.RecipeCount, p.ListCount, p.PlanCount, wantR, wantL, wantP)
 		}
 		if wantLatest := min(wantR, 1); len(p.LatestRecipes) != wantLatest {
 			t.Fatalf("%s: latestRecipes %v, want %d", p.Username, p.LatestRecipes, wantLatest)

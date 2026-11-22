@@ -38,3 +38,9 @@ export function listsText(count: number): string {
 	if (count === 0) return m.users_lists_none();
 	return count === 1 ? m.users_lists_count_one() : m.users_lists_count({ count });
 }
+
+/** The same for meal plans the person made; the personal plan is not counted. */
+export function plansText(count: number): string {
+	if (count === 0) return m.users_plans_none();
+	return count === 1 ? m.users_plans_count_one() : m.users_plans_count({ count });
+}
