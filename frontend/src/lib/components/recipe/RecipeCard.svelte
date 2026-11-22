@@ -166,6 +166,10 @@
 	the pointer across a row read as one seesaw rocking two cards. Reduced
 	motion keeps the shadow and the line and drops the movement.
 
+	The card the tick row works on (`focused`) wears the focus outline. On
+	the two-column phone card it stands off like the keyboard ring, so it
+	does not double the pantry rules hanging in the card's padding.
+
 	`<article>` labeled by the title, rather than a bare `<div>`: with the
 	anchor no longer wrapping the card, the title is the only thing that
 	names it, and this is what gives the whole card back a name - one a
@@ -198,7 +202,7 @@
 	data-card={recipe.id}
 	aria-labelledby={titleId}
 	class="group @container relative isolate origin-bottom overflow-hidden rounded-3xl shadow-card transition-[translate,rotate,box-shadow] duration-160 ease-out has-[a:focus-visible]:outline-2 has-[a:focus-visible]:outline-offset-2 has-[a:focus-visible]:outline-primary {focused
-		? 'outline-2 outline-primary'
+		? 'outline-2 outline-offset-2 outline-primary desk:outline-offset-0'
 		: ''} motion-reduce:transition-none card-hover:shadow-lift card-hover:delay-90 card-hover:duration-420 card-hover:ease-spring motion-safe:card-hover:-translate-y-1 motion-safe:card-hover:-rotate-[1.2deg] desk:rounded-4xl {rise ===
 	null
 		? ''
@@ -275,8 +279,12 @@
 		     ("47 Std 59 Min" - prep and cook are capped at 1440 each) still
 		     fits a 320px phone's card. Without a time there is no line. -->
 		{#if recipe.pantry && !photo}
-			<!-- Lifted over the link's `::after` like the star. -->
-			<div class="relative z-10 mb-2 flex">{@render stamp()}</div>
+			<!-- Lifted over the link's `::after` like the star, and pulled out
+			     of the text's inset into the star's mirror place (see the
+			     star); the margin under it keeps the time where it was. -->
+			<div class="relative z-10 -mt-0.5 mb-3 flex desk:-mt-1.5 desk:-ml-0.5">
+				{@render stamp()}
+			</div>
 		{/if}
 		{#if time}
 			<!-- The text card's gap is wider: its display title has more
@@ -415,16 +423,13 @@
 			</div>
 		</div>
 	</div>
-	<!-- Offsets are measured from the card's own edge: on a photo card the
-	     photo sits inset by the card's 8px padding, so the star needs that
-	     padding plus a 6px inset inside the photo (top-3.5/right-3.5 = 14px)
-	     to land inside it with even clearance on both edges, rather than
-	     flush on its corner. A text card keeps it at the same place.
-
-	     On a phone the photo's corner is 18px at a 6px inset, so the 24px
-	     disc sits 12px from the card's edge; the text card's 28px disc sits
-	     10px in, its center on the 24px corner's. -->
-	<div class="absolute {photo ? 'top-3 right-3' : 'top-2.5 right-2.5'} desk:top-3.5 desk:right-3.5">
+	<!-- The star is concentric with the card's corner, so the gap to the
+	     curve is even all round: the card's corner and the photo's (its
+	     radius plus the card's padding) share one center, 24px in on a phone
+	     and 28px in the desktop look, and a disc as wide as that center is
+	     far in sits half of it from both edges. The stamp in the top-left
+	     corner is as tall as the disc and sits the same way. -->
+	<div class="absolute top-3 right-3 desk:top-3.5 desk:right-3.5">
 		<FavoriteStar id={recipe.id} active={recipe.favorite} card {photo} />
 	</div>
 </article>

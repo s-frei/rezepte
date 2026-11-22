@@ -27,7 +27,7 @@
 				: m.pantry_missing_count({ count: missing })
 	);
 	const look = $derived(
-		`inline-flex h-6.5 shrink-0 items-center gap-1 rounded-pill text-micro font-bold whitespace-nowrap shadow-card ${
+		`inline-flex h-6 shrink-0 items-center gap-1 rounded-pill text-micro font-bold whitespace-nowrap shadow-card desk:h-7 ${
 			pressed
 				? 'bg-primary text-primary-foreground'
 				: all
@@ -47,9 +47,11 @@
 
 <!-- The stamp says how much of the recipe the reader still lacks. As a
      button it focuses the tick row on this card, a toggle like the star:
-     the name stays, `aria-pressed` carries the state. Its `::after` grows
-     the 26px pill to a 44px target. `preventDefault`/`stopPropagation`
-     keep a tap from reaching the card's link underneath. -->
+     the name stays, `aria-pressed` carries the state. As tall as the
+     card's star, so both sit concentric with their corners (see
+     RecipeCard); its `::after` grows the pill to a 44px target.
+     `preventDefault`/`stopPropagation` keep a tap from reaching the
+     card's link underneath. -->
 {#if onpress}
 	<button
 		type="button"

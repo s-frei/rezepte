@@ -3,7 +3,7 @@ import Tag from '@lucide/svelte/icons/tag';
 import TextAlignStart from '@lucide/svelte/icons/text-align-start';
 import type { FindPart, PantryItem, SearchFind } from '#lib/api/recipes.js';
 import { m } from '#lib/paraglide/messages.js';
-import { covers } from './covers.js';
+import { tickCovers } from './ticks.js';
 
 /** Each field's icon, the same on a card and in the command palette. */
 export const findIcons = { tags: Tag, ingredients: Carrot, description: TextAlignStart };
@@ -28,7 +28,7 @@ export function findText(find: SearchFind): string {
 
 /** What a recipe still needs once the ticks have covered what they serve. */
 export function missingAfterTicks(missing: PantryItem[], ticked: PantryItem[]): PantryItem[] {
-	return missing.filter((need) => !ticked.some((have) => covers(have.key, need.key)));
+	return missing.filter((need) => !tickCovers(ticked, need.key));
 }
 
 /**
@@ -52,6 +52,27 @@ export function missingParts(
 export function clampNames(names: string[], fits: number): { shown: string[]; more: number } {
 	const shown = names.slice(0, fits);
 	return { shown, more: names.length - shown.length };
+}
+
+/**
+ * Which names may hyphenate: only one wider than the room it starts in,
+ * the room after the line's icon for the first and a full line for the
+ * rest, its comma counted. Every other name stays whole. `measure` gets
+ * the text and the name's index, so it can set a name with a hit bold; it comes
+ * from a canvas, which can set a name a fraction narrower than the layout
+ * does, so a name within 1px of its room counts as too wide; that only
+ * allows a break, it never forces one.
+ */
+export function longNames(
+	names: string[],
+	rooms: { first: number; line: number },
+	measure: (text: string, i: number) => number
+): boolean[] {
+	return names.map(
+		(name, i) =>
+			measure(i < names.length - 1 ? `${name},` : name, i) >
+			(i === 0 ? rooms.first : rooms.line) - 1
+	);
 }
 
 /**

@@ -1733,7 +1733,6 @@
 	"pantry_stamp_label": "{title}: {state}",
 	"pantry_yours": "Deine Zutaten",
 	"pantry_missing_label": "Fehlt",
-	"pantry_missing": "Fehlt:",
 	"pantry_nothing_missing": "nichts",
 	"pantry_more": "+{count}",
 

@@ -3913,6 +3913,103 @@ test.describe('ingredient search', () => {
 		}
 	});
 
+	// The stamp and the star sit concentric with the card's corners: the
+	// star disc's center and the pill's rounded end are the corner's center,
+	// on text cards and on a photo card alike.
+	test('the stamp mirrors the star, both concentric with the corners', async ({ page }) => {
+		const token = await kitchen(page);
+		await page.goto(`/?tags=${token}&ingredients=Zwiebel`);
+		const main = page.getByRole('main');
+		await expect(main.locator('[data-stamp]')).toHaveCount(11);
+		const id = await main.locator('[data-card]').first().getAttribute('data-card');
+		await uploadImage(page, id!, tinyPng([200, 120, 40], 400, 300));
+		await page.reload();
+		await expect(main.locator('[data-stamp]')).toHaveCount(11);
+		await expect(main.locator(`[data-card="${id}"] img`).first()).toBeVisible();
+		const centers = await main.locator('[data-card]').evaluateAll((all) =>
+			all.map((card) => {
+				const c = card.getBoundingClientRect();
+				const round = (n: number) => Math.round(n * 2) / 2;
+				const corner = round(parseFloat(getComputedStyle(card).borderTopLeftRadius));
+				const s = card.querySelector('[data-stamp]')!.getBoundingClientRect();
+				const t = card.querySelector('[aria-label="Favorit"]')!.getBoundingClientRect();
+				return {
+					corner,
+					stamp: [round(s.left - c.left + s.height / 2), round(s.top - c.top + s.height / 2)],
+					star: [round(c.right - t.right + t.width / 2), round(t.top - c.top + t.height / 2)]
+				};
+			})
+		);
+		expect(centers).toHaveLength(11);
+		for (const { corner, stamp, star } of centers) {
+			expect(stamp).toEqual([corner, corner]);
+			expect(star).toEqual([corner, corner]);
+		}
+	});
+
+	// A hovered pill sets its name bold in the cards, which is wider: the
+	// clamp measures again, or the line ran past its last one, cut off. Each
+	// line is narrowed and the bold name spaced out, so the push is certain.
+	test('a name the hover sets bold never pushes the missing line past its clamp', async ({
+		page,
+		isMobile
+	}) => {
+		test.skip(isMobile, 'the hover is desktop-only');
+		const token = await kitchen(page);
+		await page.goto(`/?tags=${token}&ingredients=Kartoffel&ingredients=Zwiebel`);
+		const lines = page.getByRole('main').locator('[data-missing]');
+		await expect(lines).toHaveCount(11);
+		await page.addStyleTag({
+			content: '[data-missing] { width: 9rem } [data-missing] b { letter-spacing: 0.4em }'
+		});
+		await general(page).getByRole('button', { name: 'Salz', exact: true }).hover();
+		await expect(lines.locator('b', { hasText: 'Salz' }).first()).toBeVisible();
+		await expect
+			.poll(() =>
+				lines.evaluateAll((all) => all.filter((el) => el.scrollHeight > el.clientHeight + 1).length)
+			)
+			.toBe(0);
+	});
+
+	// The reader's own ingredients wrap like the missing line, so a phone
+	// card shows every one of them; a tooltip never opens on touch.
+	test('your ingredients wrap on the small phone card', async ({ page, isMobile }) => {
+		test.skip(!isMobile, 'the two-column card is phone-only');
+		const token = await kitchen(page);
+		await page.goto(`/?tags=${token}&ingredients=Kartoffel&ingredients=Zwiebel`);
+		const lines = page.getByRole('main').locator('[data-used]');
+		await expect(lines).toHaveCount(11);
+		for (const width of [320, 360]) {
+			await page.setViewportSize({ width, height: 800 });
+			await expect(card(page, 'Kartoffelsalat').locator('[data-used]')).toHaveText(
+				/^Kartoffeln, Zwiebeln?$/
+			);
+			await expect
+				.poll(() =>
+					lines.evaluateAll(
+						(all) =>
+							all.filter(
+								(el) => el.scrollHeight > el.clientHeight + 1 || el.scrollWidth > el.clientWidth
+							).length
+					)
+				)
+				.toBe(0);
+		}
+	});
+
+	test('a name too long for the small phone card hyphenates instead of running out', async ({
+		page,
+		isMobile
+	}) => {
+		test.skip(!isMobile, 'the two-column card is phone-only');
+		const token = await kitchen(page);
+		await page.setViewportSize({ width: 320, height: 800 });
+		await page.goto(`/?tags=${token}&ingredients=Zwiebel&have=Mehl`);
+		const line = card(page, 'Schweineschnitzel mit Bratkartoffeln').locator('[data-missing]');
+		await expect(line).toContainText('Schweineschnitzel');
+		await expect.poll(() => line.evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true);
+	});
+
 	test('the row opens past its cap and marks a hovered item in the cards', async ({
 		page,
 		isMobile

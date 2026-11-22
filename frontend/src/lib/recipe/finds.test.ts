@@ -1,6 +1,12 @@
 import { describe, expect, test } from 'vitest';
 import type { SearchFind } from '#lib/api/recipes.js';
-import { clampNames, dedupeTextFinds, missingAfterTicks, missingParts } from './finds.js';
+import {
+	clampNames,
+	dedupeTextFinds,
+	longNames,
+	missingAfterTicks,
+	missingParts
+} from './finds.js';
 
 const item = (name: string, key = name.toLowerCase()) => ({ name, key });
 
@@ -38,6 +44,32 @@ describe('missingParts', () => {
 		expect(missingParts([item('Salz')], hits, null)).toEqual([
 			{ parts: [{ text: 'Salz', hit: false }] }
 		]);
+	});
+});
+
+describe('longNames', () => {
+	// One pixel per character.
+	const measure = (text: string) => text.length;
+
+	test('the first name against the room after the icon, the rest against a full line', () => {
+		// "Rinderrouladen," is 15 wide: too wide for 14 after the icon, but
+		// the same 15 fits a 20 line in second place.
+		expect(
+			longNames(['Rinderrouladen', 'Rinderrouladen'], { first: 14, line: 20 }, measure)
+		).toEqual([true, false]);
+	});
+
+	test('counts the comma on all but the last name', () => {
+		// "Pfeffer," is 8, too wide for 8 with the margin; the last "Pfeffer" is 7 and fits.
+		expect(longNames(['Pfeffer', 'Pfeffer'], { first: 8, line: 8 }, measure)).toEqual([
+			true,
+			false
+		]);
+	});
+
+	test('a name within 1px of its room counts as too wide', () => {
+		expect(longNames(['Senf'], { first: 4, line: 20 }, measure)).toEqual([true]);
+		expect(longNames(['Senf'], { first: 5, line: 20 }, measure)).toEqual([false]);
 	});
 });
 

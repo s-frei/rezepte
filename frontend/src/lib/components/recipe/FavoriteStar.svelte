@@ -12,11 +12,11 @@
 	}: {
 		id: string;
 		active?: boolean;
-		/** The small disc in a card's top-right corner: 28px with a 16px star,
-		 * so it shares the corner's center (see RecipeCard). */
+		/** The small disc in a card's top-right corner, concentric with the
+		 * corner (see RecipeCard): 24px with a 14px star on a phone, 28px with
+		 * a 16px star in the desktop look. */
 		card?: boolean;
-		/** On a phone card's photo: 24px with a 14px star, for the photo's
-		 * 18px corner, and in the lightbox's translucent near-black. */
+		/** On a phone card's photo: the lightbox's translucent near-black. */
 		photo?: boolean;
 	} = $props();
 
@@ -66,11 +66,11 @@
 		? 'size-11 bg-surface shadow-card desk:size-9'
 		: photo
 			? 'size-6 bg-lightbox/60 backdrop-blur-sm after:absolute after:-inset-2.5 md:after:hidden desk:size-7 desk:bg-surface desk:shadow-card desk:backdrop-blur-none desk:after:-inset-2'
-			: 'size-7 bg-surface shadow-card after:absolute after:-inset-2 md:after:hidden'}"
+			: 'size-6 bg-surface shadow-card after:absolute after:-inset-2.5 md:after:hidden desk:size-7 desk:after:-inset-2'}"
 >
 	<StarIcon
 		bind:this={star}
-		class="{!card ? 'size-5' : photo ? 'size-3.5 desk:size-4' : 'size-4'} {!photo
+		class="{!card ? 'size-5' : 'size-3.5 desk:size-4'} {!photo
 			? active
 				? 'fill-primary text-primary'
 				: 'text-text-muted'
