@@ -3627,33 +3627,53 @@ test.describe('ingredient search', () => {
 			return last.querySelector('h3')!.textContent!.trim();
 		});
 	// Records the card as a glide paints it, its view-transition group's
-	// place in every frame; the returned function reads the path.
+	// place in every frame, and where the group's animation starts and for
+	// how long it runs; the returned function reads the record.
+	type Glide = { path: number[][]; start: number[] | null; duration: number };
 	async function record(page: Page, box: Locator) {
 		await page.evaluate(
 			(id) => {
-				const path: number[][] = [];
-				Object.assign(window, { path });
+				const glide: Glide = { path: [], start: null, duration: 0 };
+				Object.assign(window, { glide });
 				const pseudo = `::view-transition-group(card-${id})`;
-				const frame = () => {
-					const style = getComputedStyle(document.documentElement, pseudo).transform;
-					const matrix = style
+				const place = (transform: unknown) => {
+					const matrix = String(transform)
 						.match(/^matrix\((.+)\)$/)?.[1]
 						.split(',')
 						.map(Number);
-					if (matrix) path.push([matrix[4], matrix[5]]);
+					return matrix ? [matrix[4], matrix[5]] : null;
+				};
+				const frame = () => {
+					const at = place(getComputedStyle(document.documentElement, pseudo).transform);
+					if (at) glide.path.push(at);
+					const animation = document
+						.getAnimations()
+						.find((a) => (a.effect as KeyframeEffect | null)?.pseudoElement === pseudo);
+					if (animation && !glide.start) {
+						const effect = animation.effect as KeyframeEffect;
+						glide.start = place(effect.getKeyframes()[0]?.transform);
+						glide.duration = Number(effect.getComputedTiming().duration);
+					}
 					requestAnimationFrame(frame);
 				};
 				requestAnimationFrame(frame);
 			},
 			(await box.getAttribute('data-card'))!
 		);
-		return () => page.evaluate(() => (window as unknown as { path: number[][] }).path);
+		return () => page.evaluate(() => (window as unknown as { glide: Glide }).glide);
 	}
 	type Point = { x: number; y: number };
-	// A card that moved glided there: some frame shows it on the way.
-	function glided(path: number[][], from: Point, to: Point) {
+	// A card that moved glided there: some frame shows it on the way, or,
+	// where the browser paints too few frames to catch one (WebKit on Linux
+	// can stall the 450ms glide's first frame for 400ms), its animation
+	// starts where the card was and runs for a while.
+	function glided({ path, start, duration }: Glide, from: Point, to: Point) {
 		const off = ([x, y]: number[], at: Point) => Math.hypot(x - at.x, y - at.y) > 2;
-		return !off([to.x, to.y], from) || path.some((at) => off(at, from) && off(at, to));
+		return (
+			!off([to.x, to.y], from) ||
+			path.some((at) => off(at, from) && off(at, to)) ||
+			(!!start && !off(start, from) && duration > 0)
+		);
 	}
 
 	test('ticks off what one recipe still needs while its card stays put', async ({ page }) => {
@@ -3705,6 +3725,9 @@ test.describe('ingredient search', () => {
 		// The Pixel project would only repeat the Chromium run; WebKit holds
 		// the card on the native `grid-lanes` path.
 		test.skip(testInfo.project.name === 'mobile', 'sets its own phone and desktop widths');
+		// Some fifty ticks, each waiting for the page to settle: half a minute
+		// on its own in a Linux WebKit, more on CI's four shared cores.
+		test.setTimeout(90_000);
 		const token = await kitchen(page);
 		const url = `/?tags=${token}&ingredients=Kartoffel&ingredients=Zwiebel`;
 		const cases: [number, number, string[]][] = [
@@ -3803,9 +3826,15 @@ test.describe('ingredient search', () => {
 		);
 		const from = (await box.boundingBox())!;
 		const path = await record(page, box);
+		// Watched from "Done" on: the toast's four seconds can run out during a
+		// glide that a slow WebKit draws for longer, and capturing the page
+		// for that glide can hold its main thread for seconds.
+		const failed = expect(page.getByText('Rezepte konnten nicht geladen werden.')).toBeVisible({
+			timeout: 15_000
+		});
 		await done(page);
+		await failed;
 		const to = (await box.boundingBox())!;
-		await expect(page.getByText('Rezepte konnten nicht geladen werden.')).toBeVisible();
 		expect(await tail(page)).toBeLessThanOrEqual(margin + 1);
 		expect(glided(await path(), from, to), `${from.x},${from.y} -> ${to.x},${to.y}`).toBe(true);
 	});
@@ -3820,6 +3849,9 @@ test.describe('ingredient search', () => {
 		page,
 		isMobile
 	}) => {
+		// Three cards, each a page load, a focus and a glide to wait out: a
+		// Linux WebKit on CI's four shared cores takes some 40s.
+		test.setTimeout(90_000);
 		const token = await kitchen(page);
 		const url = `/?tags=${token}&ingredients=Kartoffel&ingredients=Zwiebel`;
 		await page.goto(url);
@@ -4734,6 +4766,8 @@ test.describe('ingredient search', () => {
 					input.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight);
 				return context.measureText(input.placeholder).width <= room;
 			});
+		// 25 page loads, over a second each on CI's four shared cores.
+		test.setTimeout(60_000);
 		// German runs longest, and some chip runs leave the input a pixel short.
 		await kitchen(page, 1);
 		const names = ['Zwiebel', 'Kartoffeln', 'Essig', 'Senf'];

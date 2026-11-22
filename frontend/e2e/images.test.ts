@@ -173,12 +173,9 @@ test('the phone carousel pages one photo per swipe, however hard', async ({
 	await flick(-Math.round(box.width * 0.6), 12000);
 	await settled(1);
 
-	// A tap still opens the photo in view.
-	await cdp.send('Input.synthesizeTapGesture', {
-		x: Math.round(box.x + box.width / 2),
-		y,
-		gestureSourceType: 'touch'
-	});
+	// A tap still opens the photo in view. Touch events, not CDP's tap
+	// gesture: Linux Chromium turns that gesture into no click.
+	await page.touchscreen.tap(Math.round(box.x + box.width / 2), y);
 	await expect(page.getByRole('dialog').getByText('2 / 4')).toBeVisible();
 });
 

@@ -1161,8 +1161,12 @@ test('a held finger on a card gets no link menu, a tap opens the recipe', async 
 	// The held press became a drag: the click at its lift is swallowed.
 	expect(await clicksHeard(page)).toBe(false);
 	await cdp.detach();
-	const menu = await page.evaluate(() => (window as unknown as { menu?: object }).menu);
-	expect(menu).toEqual({ prevented: true, inList: false });
+	// Linux Chromium fires no long-press contextmenu (see longPress in
+	// helpers.ts): there the drag and the swallowed click are what is left.
+	if (process.platform !== 'linux') {
+		const menu = await page.evaluate(() => (window as unknown as { menu?: object }).menu);
+		expect(menu).toEqual({ prevented: true, inList: false });
+	}
 	await expect(page).toHaveURL(/\/plans\//);
 
 	// The held press was a drag too: the click after it is swallowed for a
@@ -2584,6 +2588,9 @@ test('on a phone, the add sheet heads with its field while typing, the day on a 
 	isMobile
 }) => {
 	test.skip(!isMobile, 'a phone path');
+	// Two widths of typing an answer's time apart, 13s of waits alone: past
+	// 30s on CI's four shared cores.
+	test.setTimeout(60_000);
 	await page.clock.setFixedTime(new Date('2026-11-18T10:00:00'));
 	await loginFresh(page);
 	const t = uniqueToken();
