@@ -117,6 +117,71 @@ test('swipes between the lightbox images', async ({ page, isMobile, browserName 
 	await expect(dialog.getByText('1 / 2')).toBeVisible();
 });
 
+test('the phone carousel pages one photo per swipe, however hard', async ({
+	page,
+	isMobile,
+	browserName
+}) => {
+	test.skip(!isMobile, 'the carousel is the phone layout');
+	test.skip(browserName !== 'chromium', 'touch is synthesized through CDP, Chromium only');
+	const token = uniqueToken();
+	const recipe = await createRecipe(page, { ...loadFixture(1), title: `Flick ${token}` });
+	for (const color of [
+		[200, 120, 40],
+		[40, 120, 200],
+		[120, 200, 40],
+		[200, 40, 120]
+	] as const) {
+		await uploadImage(page, recipe.id, tinyPng([...color]));
+	}
+
+	await page.goto(`/recipes/${recipe.slug}`);
+	const scroller = page.locator('[data-cover]:visible');
+	const box = await scroller.boundingBox();
+	if (!box) {
+		throw new Error('carousel has no bounding box');
+	}
+	const y = Math.round(box.y + box.height / 2);
+	const cdp = await page.context().newCDPSession(page);
+	// A touch flick that keeps its momentum: left to the browser, a fast one
+	// carries past the next photo in Chromium, `scroll-snap-stop` or not.
+	const flick = (distance: number, speed: number) =>
+		cdp.send('Input.synthesizeScrollGesture', {
+			x: Math.round(box.x + box.width / 2 + distance / 2),
+			y,
+			xDistance: -distance,
+			speed,
+			gestureSourceType: 'touch',
+			preventFling: false
+		});
+	const inView = () => scroller.evaluate((node) => node.scrollLeft / node.clientWidth);
+	const settled = async (expected: number) => {
+		await expect.poll(inView).toBe(expected);
+		// Still there once every momentum frame would have run.
+		await page.waitForTimeout(500);
+		expect(await inView()).toBe(expected);
+	};
+
+	await flick(Math.round(box.width * 0.6), 12000);
+	await settled(1);
+	await flick(Math.round(box.width * 0.6), 3000);
+	await settled(2);
+	// Below the swipe threshold: back onto the same photo. The synthesized
+	// finger travels the touch slop on top of the distance.
+	await flick(20, 800);
+	await settled(2);
+	await flick(-Math.round(box.width * 0.6), 12000);
+	await settled(1);
+
+	// A tap still opens the photo in view.
+	await cdp.send('Input.synthesizeTapGesture', {
+		x: Math.round(box.x + box.width / 2),
+		y,
+		gestureSourceType: 'touch'
+	});
+	await expect(page.getByRole('dialog').getByText('2 / 4')).toBeVisible();
+});
+
 test('keeps the first lightbox thumbnail reachable when the strip overflows', async ({
 	page,
 	isMobile

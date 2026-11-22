@@ -1,10 +1,12 @@
 <script lang="ts">
 	import { untrack } from 'svelte';
 	import { fade } from 'svelte/transition';
+	import { prefersReducedMotion } from 'svelte/motion';
 	import { imageUrl, type Image, type ImageVariant } from '#lib/api/recipes.js';
 	import { m } from '#lib/paraglide/messages.js';
 	import ScrollFade from '#lib/components/ui/ScrollFade.svelte';
 	import { decoded } from '#lib/images/decoded.js';
+	import { swipeDirection } from '#lib/recipe/swipe.js';
 
 	let {
 		recipeId,
@@ -80,6 +82,40 @@
 		selected = Math.round(scroller.scrollLeft / scroller.clientWidth);
 	}
 
+	// A finger pages one photo per swipe, however hard it flicks. The browser
+	// gets no horizontal pan (`touch-pan-y`), so it has no fling to carry past
+	// the next photo: Chrome on Android skips photos on a hard flick even with
+	// `scroll-snap-stop: always`, and a fling it runs on the compositor keeps
+	// going after a script sets `scrollLeft`. The photo follows the finger with
+	// snapping off, since a scripted scroll snaps too; the settling scroll
+	// starts before `drag` clears, so snapping returns onto its target instead
+	// of jumping to the nearest photo first. A mouse never drags (desktop
+	// layout), and a vertical pan stays the page's: it cancels the pointer.
+	let drag: { x: number; left: number } | null = $state(null);
+
+	function dragStart(event: PointerEvent & { currentTarget: HTMLDivElement }) {
+		if (event.pointerType !== 'touch') return;
+		drag = { x: event.clientX, left: event.currentTarget.scrollLeft };
+	}
+
+	function dragMove(event: PointerEvent & { currentTarget: HTMLDivElement }) {
+		if (drag) event.currentTarget.scrollLeft = drag.left + drag.x - event.clientX;
+	}
+
+	function dragEnd(event: PointerEvent & { currentTarget: HTMLDivElement }) {
+		if (!drag) return;
+		const scroller = event.currentTarget;
+		const from = Math.round(drag.left / scroller.clientWidth);
+		const swipe = event.type === 'pointerup' ? swipeDirection(drag.x, event.clientX) : null;
+		const step = swipe === 'next' ? 1 : swipe === 'previous' ? -1 : 0;
+		const to = Math.max(0, Math.min(from + step, images.length - 1));
+		scroller.scrollTo({
+			left: to * scroller.clientWidth,
+			behavior: prefersReducedMotion.current ? 'auto' : 'smooth'
+		});
+		drag = null;
+	}
+
 	// The carousel has no `selected` to render from - it scrolls - so the
 	// cover is scrolled to when the scroller mounts. `coverIndex` is a plain
 	// value, so the attachment has nothing to re-run on and every later
@@ -92,11 +128,21 @@
 
 {#if layout === 'mobile'}
 	<div class="relative size-full">
+		<!-- `role="group"`: a div carrying pointer handlers needs a role
+		     (svelte a11y_no_static_element_interactions), and the carousel is a
+		     group of photo buttons. `touch-pinch-zoom` keeps pinching the browser's. -->
 		<div
 			{@attach startAtCover}
+			role="group"
 			data-cover
 			onscroll={trackScroll}
-			class="flex size-full snap-x snap-mandatory [scrollbar-width:none] overflow-x-auto rounded-2xl"
+			onpointerdown={dragStart}
+			onpointermove={dragMove}
+			onpointerup={dragEnd}
+			onpointercancel={dragEnd}
+			class="flex size-full touch-pan-y touch-pinch-zoom {drag
+				? 'snap-none'
+				: 'snap-x snap-mandatory'} [scrollbar-width:none] overflow-x-auto rounded-2xl"
 		>
 			{#each images as image, i (image.id)}
 				<button
