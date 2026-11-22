@@ -75,7 +75,7 @@ The tests' fake provider (`fakeidp_test.go`) holds the flow to what a real one c
 
 ## Why it is this way
 
-Accounts are only ever *linked*, never created, from a provider: somebody signed in to Rezepte (or holding a setup link an admin issued) connects their own identity. That is what makes a public provider such as Google safe to configure - anyone in the world can hold a Google account, and none of them gets into the household by it.
+Accounts are only ever *linked*, never created, from a provider: somebody signed in to Rezepte (or holding a setup link an admin issued) connects their own identity. That is what makes a public provider such as Google safe to configure - anyone in the world can hold a Google account, and none of them gets into the instance by it.
 
 **The environment locks the card instead of seeding it.** A deployment that pins the provider in its compose file expects the file to be the truth: seeding the columns once would leave a second copy to drift from it, and an editable card over an environment that wins on restart would let the owner save something that silently does nothing. So `env` is read-only in the UI and the API, and unsetting the variables hands the (possibly empty) stored settings back.
 

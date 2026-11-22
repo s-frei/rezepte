@@ -1146,7 +1146,7 @@ test('the colophon names the author, and the editor once somebody else edits', a
 	page
 }, testInfo) => {
 	const token = uniqueToken();
-	// Open on purpose: editing-rights.test.ts locks the household for a
+	// Open on purpose: editing-rights.test.ts locks the instance for a
 	// while, and a recipe on Default would then turn the editor away.
 	const recipe = await createRecipe(page, {
 		...loadFixture(6),

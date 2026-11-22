@@ -67,7 +67,7 @@
 		 * section, like `maxMinutes`. */
 		author: string;
 		/** Everyone who has written a recipe, with their counts. The section
-		 * hides itself below two of them: a household where one person writes
+		 * hides itself below two of them: an instance where one person writes
 		 * everything has nothing to filter. */
 		authors: Author[];
 		/** Currently selected result order - scoped to this section, like

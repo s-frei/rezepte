@@ -127,7 +127,7 @@ type noContent struct{}
 
 // Register installs the five operations members manage their public links
 // with. All of them are session-only: an API token cannot hand out public
-// links to the household's recipes, nor list or revoke them.
+// links to the instance's recipes, nor list or revoke them.
 //
 // get-my-public-share lives at /shares/by-recipe/{recipeId} rather than
 // under /recipes/{id}/: a GET there would conflict in the mux with
@@ -304,7 +304,7 @@ func Register(api huma.API, svc *Service) {
 		Method:        http.MethodDelete,
 		Path:          "/api/v1/shares",
 		Summary:       "Revoke every public link",
-		Description:   "Every public link in the household, whoever created it. Admins only.",
+		Description:   "Every public link on the instance, whoever created it. Admins only.",
 		Tags:          []string{"shares"},
 		Security:      auth.SessionSecurity,
 		DefaultStatus: http.StatusNoContent,

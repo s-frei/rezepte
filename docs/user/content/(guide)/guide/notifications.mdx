@@ -7,13 +7,13 @@ new: v1.3.0
 import { NewIn } from '@/components/new-in';
 import { Audience } from '@/components/audience';
 
-Choose what Rezepte tells you about the household, by mail, as a push notification, or both. Everything is on until you switch it off under **Settings → Notifications**.
+Choose what Rezepte tells you, and how: by mail, as a push notification, or both. Everything is on until you switch it off under **Settings → Notifications**.
 
 ## What arrives
 
 | Notification | Who gets it | By mail | Push |
 | --- | --- | --- | --- |
-| **New comment** on a recipe that is yours or that you commented on | everyone | yes | yes |
+| **New comments** on a recipe that is yours or that you commented on | everyone | yes | yes |
 | **New recipes** the others added, once a day | everyone | yes | yes |
 | **Tasty**: someone found a recipe of yours tasty | everyone | yes | yes |
 | **Shopping lists**: someone invites you to a shopping list | everyone | yes | yes |
@@ -35,7 +35,7 @@ Notices that your password, address or sign-in methods changed always come by ma
 
 | Setting | What it does |
 | --- | --- |
-| Group switch (**Household**, **Administration**) | Turns all notifications of the group on or off for that channel. Your choices inside the group are kept. |
+| Group switch (**Everyone else**, **Administration**) | Turns all notifications of the group on or off for that channel. Your choices inside the group are kept. |
 | **Off** \| **On** | Turns one notification on or off for that channel. For example, comments by push only. |
 | Your address | Mail goes only to a confirmed address. Until yours is, the box links to your profile. |
 | **Daily new recipes at**<Audience role="owner" /> | The hour new recipes go out, for everyone, 17:00 by default. It uses the server's time zone (see [Configuration](/getting-started/configuration)). |
@@ -78,7 +78,7 @@ Push on a device ends when you sign out there, change your password on another d
 | The box says notifications are blocked | Allow notifications for Rezepte in the browser's site settings (the icon left of the address) or in the system settings, then come back to the page. |
 | The box says push does not work in this browser | The browser has no push, or Rezepte is not on HTTPS. On an iPhone or iPad, see below. |
 | The test was sent but never showed | Turn on notifications for your browser or the Rezepte app in the device's settings, and check Focus or Do Not Disturb. |
-| The test arrives, the household's notifications don't | Check the group switch and **Off** \| **On** under **Push**. |
+| The test arrives, other notifications don't | Check the group switch and **Off** \| **On** under **Push**. |
 | Notifications stopped after a while | Rezepte was not opened there for 30 days. Sign in again. |
 
 <Callout type="info" title="Shared devices">

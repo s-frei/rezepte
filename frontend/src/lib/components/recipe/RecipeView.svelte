@@ -74,7 +74,7 @@
 		/** The second tab of the steps column - the detail page puts the
 		 * comments here. Without it the column keeps its plain heading:
 		 * the public share page and the share image never pass it, the comments
-		 * stay inside the household. */
+		 * stay among the members. */
 		diary?: Snippet;
 		/** The diary's entries, counted on its tab. */
 		diaryCount?: number;

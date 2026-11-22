@@ -191,7 +191,7 @@ func TestUnknownScopeIsRejected(t *testing.T) {
 }
 
 // The token list names its issuer the way the rest of the UI names a person -
-// display name and palette color - so the household filter can show the same
+// display name and palette color - so the everyone filter can show the same
 // chip it shows for shared links.
 func TestTokensCarryTheIssuersDisplayNameAndColor(t *testing.T) {
 	h := newHandler(t)

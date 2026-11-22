@@ -36,26 +36,26 @@ describe('policyHint', () => {
 	const author = { isAuthor: true, name: 'Anna' };
 	const other = { isAuthor: false, name: 'Anna' };
 
-	it('reads the household state for Default', () => {
+	it('reads the instance-wide state for Default', () => {
 		expect(policyHint('default', false, other)).toBe(
-			'Follows the household setting: right now everyone may edit this recipe.'
+			'Follows the general setting: right now everyone may edit this recipe.'
 		);
 		expect(policyHint('default', true, author)).toBe(
-			'Follows the household setting: right now only you and admins may edit this recipe.'
+			'Follows the general setting: right now only you and admins may edit this recipe.'
 		);
 		expect(policyHint('default', true, other)).toBe(
-			'Follows the household setting: right now only Anna and admins may edit this recipe.'
+			'Follows the general setting: right now only Anna and admins may edit this recipe.'
 		);
 	});
-	it('says only that Default follows the household while its state is unknown', () => {
-		expect(policyHint('default', null, other)).toBe('Follows the household setting.');
+	it('says only that Default follows the general setting while its state is unknown', () => {
+		expect(policyHint('default', null, other)).toBe('Follows the general setting.');
 	});
 	it('addresses the author and names them to everyone else', () => {
 		expect(policyHint('open', false, author)).toBe(
-			'Everyone in the household may edit this recipe. Only you and admins can delete it.'
+			'Everyone may edit this recipe. Only you and admins can delete it.'
 		);
 		expect(policyHint('open', false, other)).toBe(
-			'Everyone in the household may edit this recipe. Only Anna and admins can delete it.'
+			'Everyone may edit this recipe. Only Anna and admins can delete it.'
 		);
 		expect(policyHint('locked', false, author)).toBe('Only you and admins may edit this recipe.');
 		expect(policyHint('locked', false, other)).toBe('Only Anna and admins may edit this recipe.');

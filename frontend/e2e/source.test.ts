@@ -37,7 +37,7 @@ test('a name with a link is the link', async ({ page }) => {
 	const link = credit(page).getByRole('link', { name: 'Aunt Erika' });
 	await expect(link).toHaveAttribute('href', 'https://www.example.test/pie');
 	await expect(link).toHaveAttribute('target', '_blank');
-	// The household's own address stays home: a source site learns nothing
+	// The instance's own address stays home: a source site learns nothing
 	// about the instance it was opened from.
 	await expect(link).toHaveAttribute('rel', /\bnoreferrer\b/);
 });

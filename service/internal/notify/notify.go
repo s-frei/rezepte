@@ -60,7 +60,7 @@ var channels = []Channel{ChannelMail, ChannelPush}
 // unsubscribe link can switch off for mail.
 type Group string
 
-// The groups: what happens in the household, and what only admins get.
+// The groups: what everyone on the instance does, and what only admins get.
 const (
 	GroupHousehold Group = "household"
 	GroupAdmin     Group = "admin"

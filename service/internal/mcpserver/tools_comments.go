@@ -62,7 +62,7 @@ func toCommentOut(c recipe.Comment) commentOut {
 func addListComments(s *mcp.Server, c caller) {
 	mcp.AddTool(s, &mcp.Tool{
 		Name:        "list_comments",
-		Description: "Read a recipe's comments: what household members wrote about cooking it, oldest first. new marks comments by others since the token owner last opened the recipe's comments in the app; reading here does not change that. Pass exactly one of id or slug.",
+		Description: "Read a recipe's comments: what members wrote about cooking it, oldest first. new marks comments by others since the token owner last opened the recipe's comments in the app; reading here does not change that. Pass exactly one of id or slug.",
 		Annotations: &mcp.ToolAnnotations{ReadOnlyHint: true, OpenWorldHint: new(false)},
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in getIn) (*mcp.CallToolResult, any, error) {
 		r, err := c.recipe(ctx, "id", in.ID, in.Slug)
@@ -84,7 +84,7 @@ func addListComments(s *mcp.Server, c caller) {
 func addAddComment(s *mcp.Server, c caller) {
 	mcp.AddTool(s, &mcp.Tool{
 		Name:        "add_comment",
-		Description: "Write a comment on a recipe as the token owner, visible to the whole household. Plain text, 1 to 2000 characters. Pass exactly one of id or slug.",
+		Description: "Write a comment on a recipe as the token owner, visible to everyone on the instance. Plain text, 1 to 2000 characters. Pass exactly one of id or slug.",
 		Annotations: &mcp.ToolAnnotations{DestructiveHint: new(false), IdempotentHint: false, OpenWorldHint: new(false)},
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in addCommentIn) (*mcp.CallToolResult, any, error) {
 		r, err := c.recipe(ctx, "id", in.ID, in.Slug)

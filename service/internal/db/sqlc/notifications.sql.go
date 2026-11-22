@@ -114,7 +114,7 @@ type ListCommentRecipientsRow struct {
 
 // Who a new comment by author_id on recipe_id goes to on channel: its
 // followers (the creator and everyone with a comment on it, as for the
-// unread dot) with neither the comment kind nor the household group
+// unread dot) with neither the comment kind nor the 'household' group
 // switched off there, never the author. Whether a mail has an address to go
 // to is the caller's: a push needs none.
 func (q *Queries) ListCommentRecipients(ctx context.Context, arg ListCommentRecipientsParams) ([]ListCommentRecipientsRow, error) {
@@ -230,7 +230,7 @@ type ListRecipeDigestRecipientsRow struct {
 }
 
 // Who gets the daily new recipes digest on channel: everyone with neither
-// the recipe kind nor the household group switched off there. Whose own
+// the recipe kind nor the 'household' group switched off there. Whose own
 // recipes to leave out, and whether a mail has an address, is the caller's.
 func (q *Queries) ListRecipeDigestRecipients(ctx context.Context, channel string) ([]ListRecipeDigestRecipientsRow, error) {
 	rows, err := q.db.QueryContext(ctx, listRecipeDigestRecipients, channel)

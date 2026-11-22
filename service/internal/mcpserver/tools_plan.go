@@ -227,7 +227,7 @@ type putOnListIn struct {
 func addPutMealPlanOnList(s *mcp.Server, c caller) {
 	mcp.AddTool(s, &mcp.Tool{
 		Name:        "put_meal_plan_on_list",
-		Description: "Put the recipes planned from..to on a shopping list at their planned servings, all ingredients except the plan's staples (what the household always has). Later plan changes follow into the list. Recipes already on one of the token owner's lists are skipped. Pass exactly one of listId or newListName. Returns the list's id and the plan.",
+		Description: "Put the recipes planned from..to on a shopping list at their planned servings, all ingredients except the plan's staples (what you always have at home). Later plan changes follow into the list. Recipes already on one of the token owner's lists are skipped. Pass exactly one of listId or newListName. Returns the list's id and the plan.",
 		Annotations: &mcp.ToolAnnotations{DestructiveHint: new(false), OpenWorldHint: new(false)},
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in putOnListIn) (*mcp.CallToolResult, any, error) {
 		if (in.ListID == "") == (in.NewListName == "") {

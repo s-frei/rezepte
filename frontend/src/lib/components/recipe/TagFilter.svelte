@@ -56,7 +56,7 @@
 	 * rule `svelte/prefer-svelte-reactivity` rejects a built-in `Set` in a
 	 * component, and a `SvelteSet` would only buy reactivity on mutation,
 	 * which nothing here does - `measure()` builds a fresh list and assigns
-	 * it. At the couple of dozen tags a household collects, the difference
+	 * it. At the couple of dozen tags a small instance collects, the difference
 	 * between `includes` and `has` is not measurable.
 	 */
 	let folded = $state<string[]>(untrack(() => tags.map((tag) => tag.name)));

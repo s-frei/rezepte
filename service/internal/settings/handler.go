@@ -86,7 +86,7 @@ func Register(api huma.API, svc *Service, mailEnabled func(context.Context) bool
 		OperationID: "get-settings",
 		Method:      http.MethodGet,
 		Path:        "/api/v1/settings",
-		Summary:     "Get the household settings",
+		Summary:     "Get the instance settings",
 		Tags:        []string{"settings"},
 		Security:    auth.Protected(auth.ScopeRecipesRead),
 	}, func(ctx context.Context, _ *struct{}) (*settingsOutput, error) {
@@ -101,7 +101,7 @@ func Register(api huma.API, svc *Service, mailEnabled func(context.Context) bool
 		OperationID: "update-settings",
 		Method:      http.MethodPatch,
 		Path:        "/api/v1/settings",
-		Summary:     "Change the household settings",
+		Summary:     "Change the instance settings",
 		Tags:        []string{"settings"},
 		Security:    auth.SessionSecurity,
 		Errors:      []int{403},

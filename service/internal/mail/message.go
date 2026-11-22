@@ -14,7 +14,7 @@ type Invite struct {
 	To, Name, Inviter, Path string
 	// InviterColor colors the inviter's circle, which shows their initial
 	// and never their picture: the mail reaches an inbox outside the
-	// household.
+	// instance.
 	InviterColor user.Color
 	Locale       user.Locale
 	Existing     bool

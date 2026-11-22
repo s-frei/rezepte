@@ -121,7 +121,7 @@
 	});
 
 	// Step one of the access card is about the viewer's own token, so the
-	// household's tokens do not count towards it.
+	// others' tokens do not count towards it.
 	const supply = $derived(loading || loadFailed ? undefined : tokenSupply(own));
 
 	// The raw secret must not outlive the dialog that shows it once.

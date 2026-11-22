@@ -64,7 +64,7 @@ describe('groupPeople', () => {
 	});
 
 	// The row's primary line is the display name, not the login name - a
-	// household whose display names differ from their usernames must be
+	// instance whose display names differ from their usernames must be
 	// ordered by what the row shows, not by what it hides.
 	it('orders by display name rather than username', () => {
 		const people = [

@@ -212,7 +212,7 @@
 			req++;
 			view = { kind: 'ready', staples };
 			said = m.plan_staples_added({ name: option.name });
-			// Room for the next one: the household's first visit adds several.
+			// Room for the next one: a plan's first visit adds several.
 			text = '';
 			highlighted = null;
 		} catch (error) {

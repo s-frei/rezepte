@@ -17,7 +17,7 @@ import (
 )
 
 // digestAge is how old a recipe must be to go out: one saved in steps gets
-// its corrections and photo in before the household hears of it.
+// its corrections and photo in before the others hear of it.
 const digestAge = time.Hour
 
 // digestTick is how often StartRecipeDigest checks; a variable so tests

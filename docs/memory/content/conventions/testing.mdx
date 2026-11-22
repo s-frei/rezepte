@@ -8,7 +8,7 @@ description: What to test and how, per package
 - `isVisible()` answers at once and never waits; a test that branches on it before the page rendered skips the branch ([A paused page clock](#a-paused-page-clock)).
 - A layout check on an element's box passes text that spills out of it; measure the text through a `Range` ([Measuring layout](#measuring-layout)).
 - Display names repeat between test accounts; pick a person by `@username` ([Picking a person](#picking-a-person)).
-- The people list shows a role's group only while someone holds that role, and every e2e test shares one database. A test that waits on the Admins or Members group passes only while another test happens to hold that role; wait on the Owner group, the one every household has.
+- The people list shows a role's group only while someone holds that role, and every e2e test shares one database. A test that waits on the Admins or Members group passes only while another test happens to hold that role; wait on the Owner group, the one every instance has.
 - A Sonner toast stack can stay open for good under Playwright: when a toast moves out from under a mouse that has not moved, Sonner ignores the `mouseleave` (same coordinates), so the stack stays expanded and every timer stays paused. A click Playwright retries over a toast sets this up. On a phone the stack covers the page's last row; before clicking there, hover a toast, move the mouse off and wait for the toasts to go (`the owner creates, promotes, resets and deletes a user` in `settings.test.ts`).
 - `vi.mock('#lib/paraglide/messages.js')` changes nothing: Paraglide's Vite plugin rewrites every `m.key` to a virtual module of its own, past the mock. Assert against the real message, `m.key()`, instead of a stand-in string.
 
@@ -81,12 +81,12 @@ description: What to test and how, per package
 |---|---|
 | Public sharing, its lifetimes, the attribution and the sharer switch | `frontend/e2e/public-shares.test.ts` |
 | Link previews and their lifetime | `frontend/e2e/link-preview.test.ts` |
-| The household lock | `frontend/e2e/editing-rights.test.ts` |
+| The instance-wide lock | `frontend/e2e/editing-rights.test.ts` |
 | The mail settings | `frontend/e2e/mail.test.ts` ([Mail](/howtos/verify-ui#mail)) |
 | The sign-in (OIDC) settings and the shared Dex accounts | `frontend/e2e/oidc.test.ts` ([Test OIDC](/howtos/test-oidc)) |
 
 - The owning file runs `test.describe.configure({ mode: 'serial' })`, so its own tests do not flip the setting under each other.
-- **`mode: 'serial'` orders tests within one project only.** The desktop and mobile projects run the same file side by side, so an owning file runs on `desktop` alone: the mobile project's `testIgnore` lists `public-shares` and `link-preview`, and the mail and OIDC files skip every project but `desktop`. Their tests that never flip the setting and need a phone live beside them, as `public-shares-stateless.test.ts` does. The household lock is flipped and reset inside one test, which skips on mobile (`test.skip(testInfo.project.name.startsWith('mobile'), …)`).
+- **`mode: 'serial'` orders tests within one project only.** The desktop and mobile projects run the same file side by side, so an owning file runs on `desktop` alone: the mobile project's `testIgnore` lists `public-shares` and `link-preview`, and the mail and OIDC files skip every project but `desktop`. Their tests that never flip the setting and need a phone live beside them, as `public-shares-stateless.test.ts` does. The instance-wide lock is flipped and reset inside one test, which skips on mobile (`test.skip(testInfo.project.name.startsWith('mobile'), …)`).
 - A spec that only needs to see a state of a setting answers its `GET` with `page.route` instead of writing it, as `sign-in-settings.test.ts` does.
 - `--repeat-each` on an owning file runs its copies side by side, so they flip the setting on each other; repeat such a file one run at a time.
 

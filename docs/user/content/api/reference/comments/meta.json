@@ -1,6 +1,6 @@
 {
   "title": "Comments",
-  "description": "Household members' comments on a recipe.",
+  "description": "What members wrote about cooking a recipe.",
   "pages": [
     "index",
     "list-comments",

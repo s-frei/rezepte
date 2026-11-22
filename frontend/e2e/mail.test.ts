@@ -629,20 +629,24 @@ test('a comment mails the cook, who unsubscribes and switches it back on', async
 		// recipes mail is still on.
 		await stranger.reload();
 		await expect(
-			stranger.getByRole('button', { name: 'Unsubscribe from all household mails' })
+			stranger.getByRole('button', { name: 'No more mails about what everyone else does' })
 		).toBeVisible();
-		await expect(stranger.getByRole('button', { name: /No more mails/ })).toHaveCount(0);
+		await expect(
+			stranger.getByRole('button', { name: /No more mails about new comments/ })
+		).toHaveCount(0);
 		// With the group's switch off, it offers nothing.
-		const household = byMail.getByRole('switch', { name: 'Household' });
-		await household.click();
-		await expect(household).toHaveAttribute('aria-checked', 'false');
+		const others = byMail.getByRole('switch', { name: 'Everyone else' });
+		await others.click();
+		await expect(others).toHaveAttribute('aria-checked', 'false');
 		await stranger.reload();
 		await expect(stranger.getByRole('heading', { name: 'Already unsubscribed' })).toBeVisible();
-		await expect(stranger.getByRole('button', { name: /^Unsubscribe from all/ })).toHaveCount(0);
+		await expect(
+			stranger.getByRole('button', { name: /^No more mails about what everyone else does/ })
+		).toHaveCount(0);
 		// The group's switch is its own: on again, each kind keeps its choice.
-		await household.click();
+		await others.click();
 		await page.reload();
-		await expect(household).toHaveAttribute('aria-checked', 'true');
+		await expect(others).toHaveAttribute('aria-checked', 'true');
 		await expect(comments).toHaveAttribute('aria-checked', 'false');
 		await expect(
 			byMail.getByRole('radiogroup', { name: 'New recipes' }).getByRole('radio', { name: 'On' })

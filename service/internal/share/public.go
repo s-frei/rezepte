@@ -40,7 +40,7 @@ type PublicImage struct {
 }
 
 // PublicRecipe is what a public link shows: the recipe's content and nothing
-// about the household it lives in - no ids, people, permissions, favorites or
+// about the instance it lives in - no ids, people, permissions, favorites or
 // timestamps - plus whether the owner wants Rezepte named at the page's foot,
 // and the sharer's name, color and picture only while the owner lets the
 // page name them, since the page has no session to read the settings with. It is its own type, built field by field, never recipe.Recipe:

@@ -27,7 +27,7 @@ type coverInput struct {
 }
 
 // Register installs create-share-link for anyone who may read recipes -
-// sharing hands out nothing the household setting does not already allow -
+// sharing hands out nothing the instance setting does not already allow -
 // and the cover route the address's link preview points at.
 // create-share-link is a POST because every call signs a new token, and
 // because a GET under /recipes/{id}/ would collide with GET

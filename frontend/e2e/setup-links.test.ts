@@ -26,7 +26,7 @@ test('an invited person sets their own password through the setup link', async (
 	const invited = await (await browser.newContext()).newPage();
 	await invited.goto(url);
 	await expect(invited.getByRole('heading', { name: `Welcome, ${name}` })).toBeVisible();
-	// Their mark as the household will see it: initial on their color, with
+	// Their mark as the others will see it: initial on their color, with
 	// their name and the color's name; the inviter by initial and name. No
 	// picture anywhere: the page has no session.
 	const seenAs = invited.getByRole('region', { name: 'This is how the others see you' });

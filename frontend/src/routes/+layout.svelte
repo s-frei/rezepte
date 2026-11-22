@@ -38,7 +38,7 @@
 	// /login, /welcome (a setup or reset link's landing page), /forgot-password
 	// and /confirm-email are reachable with no session at all (see
 	// routes/+layout.ts) and render bare: each is its own full-page card, not
-	// a page inside the household's nav.
+	// a page inside the app's nav.
 	const isLoginRoute = $derived(authPages.some((p) => page.url.pathname.startsWith(p)));
 	// Full-screen routes render without the app shell: no top bar, no bottom
 	// nav, no command palette and no Cmd+K. Matched on the route id rather
@@ -46,7 +46,7 @@
 	const isFullscreenRoute = $derived(
 		page.route.id === '/recipes/[slug]/cook' || page.route.id === '/lists/[id]/shop'
 	);
-	// A public share has no session and no household to show a nav for -
+	// A public share has no session and no member to show a nav for -
 	// its own page owns the whole viewport, wordmark and footer included.
 	const isPublicShareRoute = $derived(page.url.pathname.startsWith('/s/'));
 	// The error page for a failed session load (the server unreachable, say)

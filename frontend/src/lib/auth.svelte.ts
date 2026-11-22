@@ -26,7 +26,7 @@ export function onSignIn(fn: () => void): void {
 	signInListeners.push(fn);
 }
 
-/** Pages reached without a session; they render bare, without the household's nav. */
+/** Pages reached without a session; they render bare, without the app's nav. */
 export const authPages = [
 	'/login',
 	'/welcome',

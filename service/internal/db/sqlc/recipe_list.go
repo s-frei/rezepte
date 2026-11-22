@@ -62,7 +62,7 @@ const (
 // of writes shares one, and ids are UUIDv7, so the tiebreak still reads
 // newest first. The tasty order counts each row's marks in a correlated
 // subquery on tasty_recipe_idx rather than keeping a counter on recipes: a
-// household's collection is small enough that the count is cheap, and a
+// small instance's collection is small enough that the count is cheap, and a
 // counter would be one more thing to keep in step with the tasty table.
 var recipeOrderBy = map[RecipeSort]string{
 	RecipeSortUpdated: "r.updated_at DESC, r.id DESC",

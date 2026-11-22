@@ -80,7 +80,7 @@ test('renders a card without a photo, at the chosen servings', async ({ page }, 
 	await noShareSheet(page);
 	await login(page);
 	const recipe = await createRecipe(page, { ...loadFixture(0), title: `Plain ${uniqueToken()}` });
-	await addDiaryEntry(page, recipe.id, 'Only for the household.');
+	await addDiaryEntry(page, recipe.id, 'Only for the members.');
 	const chosen = recipe.servings + 1;
 	// The stepper persists its choice per recipe; the card reads it on opening.
 	await page.addInitScript(
@@ -93,9 +93,9 @@ test('renders a card without a photo, at the chosen servings', async ({ page }, 
 	const card = page.locator('[data-testid="share-card"]');
 	await expect(card.getByText(`${chosen} servings`)).toHaveCount(1);
 	await expect(card.locator('img[src*="/images/"]')).toHaveCount(0);
-	// The comments stay in the household.
+	// The comments stay among the members.
 	await expect(card.getByRole('tab', { name: /^Comments/ })).toHaveCount(0);
-	await expect(card.getByText('Only for the household.')).toHaveCount(0);
+	await expect(card.getByText('Only for the members.')).toHaveCount(0);
 });
 
 test('canceling the share sheet keeps it open', async ({ page }, testInfo) => {
@@ -336,7 +336,7 @@ test('the sheet remembers the last tab', async ({ page }, testInfo) => {
 	await expect(sheet.locator('[data-ticket]')).toBeVisible();
 });
 
-test('the Link tab without public sharing shows the household ticket', async ({ page }) => {
+test('the Link tab without public sharing shows the just-for-us ticket', async ({ page }) => {
 	// Answered, not set: public sharing is instance-wide and public-shares.test.ts flips it.
 	await page.route('**/api/v1/settings', async (route) => {
 		const response = await route.fetch();
@@ -348,8 +348,10 @@ test('the Link tab without public sharing shows the household ticket', async ({ 
 	await page.goto(`/recipes/${recipe.slug}`);
 
 	const sheet = await openLinkTab(page);
-	// No choice to make, so no chip either: the household's facts as one card.
-	await expect(sheet.getByText('Anyone with an account here. Never expires.')).toBeVisible();
+	// No choice to make, so no chip either: the just-for-us facts as one card.
+	await expect(
+		sheet.getByText('Opens for anyone with an account here. Never expires.')
+	).toBeVisible();
 	// The ticket shows host and path: no scheme, no share link query.
 	const address = `[^/:\\s]+(:\\d+)?/recipes/${recipe.slug}`;
 	await expect(sheet.getByText(new RegExp(`^${address}$`))).toBeVisible();

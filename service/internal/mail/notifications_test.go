@@ -377,7 +377,7 @@ func TestBuildPlanInviteGerman(t *testing.T) {
 
 // TestInviteMailsShowAnInitialNeverAPicture pins the circle of both
 // invitation mails: initial on the person's light color, no image, since
-// the setup mail reaches an inbox outside the household.
+// the setup mail reaches an inbox outside the instance.
 func TestInviteMailsShowAnInitialNeverAPicture(t *testing.T) {
 	invite, err := BuildInvite(cfg, Invite{To: "lena@example.org", Name: "Lena", Inviter: "Samuel", InviterColor: "clay",
 		Path: "/welcome#tok", Locale: "en"}, "https://r.example.org", time.Unix(0, 0))

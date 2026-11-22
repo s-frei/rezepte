@@ -23,12 +23,12 @@ A recipe is an aggregate, not a row: one `recipes` row plus ordered ingredient g
 
 ### The recipe document
 
-**A source is a name, a link, or both.** `source_name` is free text (a book with its page, a website, a person) and `source_url` the http(s) link, kept apart so a cookbook can be credited without a URL and a website by name. `sourceLabel` in `frontend/src/lib/recipe/source.ts` owns the credit line's name-or-host rule (`SourceCredit`, see [Design system](/architecture/design-system)). Only the link is a target: it keeps the `^https?://` pattern that keeps `javascript:` out, and its `rel="noreferrer noopener external"` keeps the household's own address, or a public share's token, from the source site (see [Public shares](/features/public-shares)). The name is shown as typed - a leading "From" is not guessed away - and is not searched.
+**A source is a name, a link, or both.** `source_name` is free text (a book with its page, a website, a person) and `source_url` the http(s) link, kept apart so a cookbook can be credited without a URL and a website by name. `sourceLabel` in `frontend/src/lib/recipe/source.ts` owns the credit line's name-or-host rule (`SourceCredit`, see [Design system](/architecture/design-system)). Only the link is a target: it keeps the `^https?://` pattern that keeps `javascript:` out, and its `rel="noreferrer noopener external"` keeps the instance's own address, or a public share's token, from the source site (see [Public shares](/features/public-shares)). The name is shown as typed - a leading "From" is not guessed away - and is not searched.
 
 **One write path, the whole document.** `Service.Create` and `Service.Update` in `service/internal/recipe/service.go` each run inside a single `db.Tx`; there is no patch path for children.
 
 - Before the transaction opens, `resolveRefs` resolves every step's ingredient references against the submitted document into ids `writeChildren` reuses. [Ingredient references](/features/ingredient-references) owns that resolution and its 422 on ambiguity.
-- `Create` inserts the `recipes` row, writes the children (including the `step_references`, `step_times` and `step_photos` rows) and the tags, then indexes the result. `CreateAnnounced` is the same write with `announce_pending` set, which queues the recipe for the household's daily new recipes mail ([Notifications](/features/notifications)). The paths that queue are an allowlist, the HTTP `create-recipe` (which the form and the URL and text import go through) and MCP `create_recipe`; archive import and the demo seed call `Create`, so restoring 80 recipes mails nobody.
+- `Create` inserts the `recipes` row, writes the children (including the `step_references`, `step_times` and `step_photos` rows) and the tags, then indexes the result. `CreateAnnounced` is the same write with `announce_pending` set, which queues the recipe for the daily new recipes mail to everyone on the instance ([Notifications](/features/notifications)). The paths that queue are an allowlist, the HTTP `create-recipe` (which the form and the URL and text import go through) and MCP `create_recipe`; archive import and the demo seed call `Create`, so restoring 80 recipes mails nobody.
 - `Update` first runs `recipe.GuardEdit` (`ErrNotFound` when the row is gone, `ErrEditForbidden` for a caller the recipe is locked to), then drops links to deleted images and runs `ValidatePhotos` against the recipe's image ids ([Step photos](/features/step-photos) has the rules; `Create` runs it with no ids, so a new recipe carries no links), updates the editable fields, then deletes and rewrites everything below: `DeleteIngredientGroupsByRecipe` (cascades to `ingredients`), `DeleteStepsByRecipe` (cascades to `step_references`, `step_times` and `step_photos`), `DeleteRecipeTags`, then `writeChildren`, `writeTags`, `DeleteOrphanTags` and the reindex.
 - `Delete` runs in its own transaction and checks `CanDelete` before removing anything. Who passes either check is [Editing rights](/features/editing-rights).
 
@@ -147,7 +147,7 @@ The editor always submits the whole form, so there is nothing to diff: a partial
 
 Because there is exactly one write path, the search index cannot drift structurally from the rows it describes. A bug can leave one recipe's entry stale until its next save; it cannot leave the index shaped differently from the data.
 
-Slugs are fixed at creation so a permalink survives a title edit — the URL a household member bookmarked or pasted into a chat keeps working.
+Slugs are fixed at creation so a permalink survives a title edit — the URL someone bookmarked or pasted into a chat keeps working.
 
 Tags being implicit means the tag list is always "the tags in use". There is no vocabulary to curate, no empty tag to clean up, and no second place where a tag can exist without a recipe behind it.
 
@@ -176,14 +176,14 @@ Tags being implicit means the tag list is always "the tags in use". There is no 
 
 ## Limits
 
-- Every save rewrites the whole aggregate — the recipe row, its ingredient groups, its ingredients, its steps, its tag links and its index entry — so there is no cheap "rename one tag" or "reorder steps" path. At household scale that costs nothing worth optimizing, and it keeps the aggregate's invariants in one place.
+- Every save rewrites the whole aggregate — the recipe row, its ingredient groups, its ingredients, its steps, its tag links and its index entry — so there is no cheap "rename one tag" or "reorder steps" path. At a small instance's scale that costs nothing worth optimizing, and it keeps the aggregate's invariants in one place.
 - The credit line shows a link's host as it was typed, because `URL` hands an umlaut domain back as punycode and browsers offer no way back; `readableHost` uses the typed text only when `URL` parses it to the same host, which keeps a port or credentials out.
 - Only the title, description, ingredient names and tags are indexed. A word that appears solely in a step is not findable through search.
 - A word of one or two characters is matched only at the start of a word, since trigrams need three.
 - Folding joins words that differ only in those spellings (`Mus` and `muss`).
 - Folding shortens a spelled-out letter across the joint of a compound too: `Mangoeis` is indexed as `mangois`, so `eis` does not find it, and `brot` finds `Brötchen`.
 - `stem` is a suffix cut, not a stemmer: it can over-match short stems and misses irregular plurals.
-- A ranked search costs about two to three times an unranked one: a few milliseconds at a household's size, tens of milliseconds from about ten thousand recipes.
+- A ranked search costs about two to three times an unranked one: a few milliseconds at a small instance's size, tens of milliseconds from about ten thousand recipes.
 - `ListRecipes`, `CountRecipes` and `ListTagCounts` are not checked by sqlc: a typo in a fragment surfaces when the query runs, not at generation. `service/internal/recipe/search_test.go` runs every filter, alone and combined, for that reason, and `TestTagsForCountsUnderTheFilter` holds every count `TagsFor` offers to what `List` then finds.
-- A tag count costs a grouped join over `recipe_tags` per filter change, about as much as the filtered list query itself even at two hundred times a household's recipes, so it is not cached.
+- A tag count costs a grouped join over `recipe_tags` per filter change, about as much as the filtered list query itself even at two hundred times a small instance's recipes, so it is not cached.
 - `service/internal/db/sqlc/fts.go` can be deleted and its statements regenerated as soon as sqlc supports `rowid` outside the table-valued call form.

@@ -52,7 +52,7 @@ const deleteAllShares = `-- name: DeleteAllShares :exec
 DELETE FROM shares
 `
 
-// Admin "revoke all": every public link in the household, at once.
+// Admin "revoke all": every public link on the instance, at once.
 func (q *Queries) DeleteAllShares(ctx context.Context) error {
 	_, err := q.db.ExecContext(ctx, deleteAllShares)
 	return err
@@ -63,7 +63,7 @@ DELETE FROM shares WHERE expires_at IS NOT NULL AND expires_at < ?
 `
 
 // The hourly sweep, like DeleteExpiredSessions: only a link past its own
-// expires_at goes. A link limited solely by the household maximum stays -
+// expires_at goes. A link limited solely by the instance-wide maximum stays -
 // raising the maximum again must revive it, which a deleted row could not.
 func (q *Queries) DeleteExpiredShares(ctx context.Context, expiresAt *string) error {
 	_, err := q.db.ExecContext(ctx, deleteExpiredShares, expiresAt)
@@ -188,7 +188,7 @@ type ListAllSharesRow struct {
 	CreatorCanSharePublicly bool
 }
 
-// Every share in the household, for the admin view; adds the creator's
+// Every share on the instance, for the admin view; adds the creator's
 // display name and color, which ListSharesByCreator has no use for.
 func (q *Queries) ListAllShares(ctx context.Context) ([]ListAllSharesRow, error) {
 	rows, err := q.db.QueryContext(ctx, listAllShares)

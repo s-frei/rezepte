@@ -73,11 +73,11 @@ const IDEAS = [
 	{ title: 'Servings and shopping lists', text: 'Every quantity scales, and the ingredients go onto a list you can share.', href: '/guide/shopping-lists' },
 	{ title: 'Comments', text: 'Write down what you learned for next time.', href: '/guide/comments' },
 	{ title: 'Photos', text: 'Several per recipe, a cover and a lightbox.', href: '/guide/images' },
-	{ title: 'Tasty marks', text: 'See who in the household liked what, at a glance on every card.', href: '/guide/recipes#tasty' },
+	{ title: 'Tasty marks', text: 'See who liked what, at a glance on every card.', href: '/guide/recipes#tasty' },
 	{ title: 'Editing rights', text: 'Decide who may change whose recipes.', href: '/guide/editing-rights' },
 	{ title: 'Previews in your chats', text: 'A recipe link in WhatsApp or Signal shows its photo and title.', href: '/guide/sharing#the-link-preview' },
 	{ title: 'Share as an image', text: 'Pass a recipe on to any messenger as one picture.', href: '/guide/sharing#pass-on-as-an-image' },
-	{ title: 'Invite with a link', text: 'Bring the household in with a setup link, sent by mail if you like.', href: '/guide/users' },
+	{ title: 'Invite with a link', text: 'Send the people you cook with a setup link, by mail if you like.', href: '/guide/users' },
 	{ title: 'English and German', text: 'Every member picks their own language.', href: '/guide/settings' }
 ];
 
@@ -143,7 +143,7 @@ export default function Home() {
 							Your recipes. Your kitchen. Your server.
 						</h1>
 						<p className="mt-5 max-w-[36em] text-lg leading-relaxed text-fd-muted-foreground">
-							Rezepte keeps the recipes of your household and your friends in one modern app, and makes cooking from them a pleasure.
+							Rezepte keeps everyone’s recipes in one modern app, and makes cooking from them a pleasure.
 						</p>
 						<div className="mt-7 flex flex-wrap gap-3">
 							<Link href="/getting-started" className="rounded-full bg-fd-primary px-5 py-3 font-bold text-fd-primary-foreground max-[400px]:flex-1 max-[400px]:text-center">

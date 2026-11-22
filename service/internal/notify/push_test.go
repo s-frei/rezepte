@@ -168,7 +168,7 @@ func TestCommentPushWithoutAddress(t *testing.T) {
 func TestDigestPush(t *testing.T) {
 	f := newFanout(t)
 	p := f.pusher()
-	mila, jonas := f.household(t)
+	mila, jonas := f.members(t)
 	f.added(t, mila, "Dal", at(0, 10, 0))
 	f.added(t, jonas, "Pho", at(0, 11, 0))
 	f.added(t, jonas, "Ramen", at(0, 12, 0))

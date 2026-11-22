@@ -28,7 +28,7 @@ type env struct {
 	clock    time.Time
 }
 
-// setup makes a household with sharing switched on, a member who may share,
+// setup makes an instance with sharing switched on, a member who may share,
 // and one recipe of theirs.
 func setup(t *testing.T) *env {
 	t.Helper()

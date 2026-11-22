@@ -114,7 +114,7 @@ export type Step = {
 	photos?: StepPhoto[];
 };
 
-/** Who besides the author and admins may edit; `default` follows the household setting. */
+/** Who besides the author and admins may edit; `default` follows the instance-wide setting. */
 export type EditPolicy = 'default' | 'open' | 'locked';
 
 export type RecipeInput = {
@@ -149,7 +149,7 @@ export type Recipe = RecipeInput & {
 	tastyBy: Person[];
 	/** Whether the signed-in user is one of them. */
 	tasty: boolean;
-	/** The effective state: the policy resolved against the household setting. */
+	/** The effective state: the policy resolved against the instance-wide setting. */
 	locked: boolean;
 	/** What the signed-in user may do with this recipe, decided by the server. */
 	canEdit: boolean;
@@ -394,7 +394,7 @@ export function emptyInput(): RecipeInput {
 /**
  * The address to share a recipe by. `path` carries a share token that shows
  * the recipe's title and cover in link previews until `expiresAt`, when the
- * household shows recipes to share links; otherwise it is the plain path and
+ * instance shows recipes to share links; otherwise it is the plain path and
  * `expiresAt` is null.
  */
 export type ShareLink = { path: string; expiresAt: string | null };

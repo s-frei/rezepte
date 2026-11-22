@@ -12,7 +12,7 @@
 
 	/**
 	 * The share dialog's picker: a search field whose picks sit in it as
-	 * chips. Focusing it suggests everyone in `people` at once (a household
+	 * chips. Focusing it suggests everyone in `people` at once (a small instance
 	 * has a handful, nobody should have to type); typing narrows by display
 	 * name and username. Every row and chip carries the person's picture and
 	 * username, so two people with one first name tell apart. Picking sends

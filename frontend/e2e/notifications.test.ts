@@ -217,16 +217,16 @@ test("a group's switch holds its kinds and keeps their choices", async ({ page }
 	const recipes = push.getByRole('radiogroup', { name: 'Neue Rezepte' });
 	await recipes.getByRole('radio', { name: 'Aus' }).click();
 	await expect(recipes.getByRole('radio', { name: 'Aus' })).toHaveAttribute('aria-checked', 'true');
-	const household = push.getByRole('switch', { name: 'Haushalt' });
-	await household.click();
-	await expect(household).toHaveAttribute('aria-checked', 'false');
+	const others = push.getByRole('switch', { name: 'Die anderen' });
+	await others.click();
+	await expect(others).toHaveAttribute('aria-checked', 'false');
 	await expect(recipes.getByRole('radio', { name: 'An' })).toBeDisabled();
 	await expect(
 		push.getByRole('radiogroup', { name: 'Lecker' }).getByRole('radio', { name: 'Aus' })
 	).toBeDisabled();
 	await page.reload();
 	await expect(recipes.getByRole('radio', { name: 'An' })).toBeDisabled();
-	await household.click();
+	await others.click();
 	await expect(recipes.getByRole('radio', { name: 'An' })).toBeEnabled();
 	await expect(recipes.getByRole('radio', { name: 'Aus' })).toHaveAttribute('aria-checked', 'true');
 	await expect(
@@ -332,7 +332,7 @@ test("a held group's rows stay focusable but do not change", async ({ page }) =>
 	await expect(
 		mail.getByRole('radiogroup', { name: 'Neue Rezepte · Per Mail', exact: true })
 	).toBeVisible();
-	await push.getByRole('switch', { name: 'Haushalt · Push', exact: true }).click();
+	await push.getByRole('switch', { name: 'Die anderen · Push', exact: true }).click();
 	const recipes = push.getByRole('radiogroup', { name: 'Neue Rezepte · Push', exact: true });
 	const off = recipes.getByRole('radio', { name: 'Aus' });
 	await expect(off).toHaveAttribute('aria-disabled', 'true');
@@ -350,7 +350,7 @@ test("a held group's rows stay focusable but do not change", async ({ page }) =>
 	expect(puts).toBe(0);
 	await expect(off).toHaveAttribute('aria-checked', 'false');
 	// Tab reaches the held rows too: from the switch into the first kind's toggle.
-	await push.getByRole('switch', { name: 'Haushalt · Push', exact: true }).focus();
+	await push.getByRole('switch', { name: 'Die anderen · Push', exact: true }).focus();
 	await page.keyboard.press('Tab');
 	await expect(
 		push.getByRole('radiogroup', { name: 'Neue Kommentare · Push', exact: true }).locator(':focus')

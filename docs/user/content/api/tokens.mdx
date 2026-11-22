@@ -25,7 +25,7 @@ Each level includes the ones before it.
 
 | Area | **Read** | **Write** | **Delete** |
 |---|---|---|---|
-| **Recipes** | Search and read recipes, tags and household settings | Create and edit recipes, import | Delete recipes |
+| **Recipes** | Search and read recipes, tags and the instance settings | Create and edit recipes, import | Delete recipes |
 | **Accounts** | List people and accounts | Add, change and delete accounts | — |
 | **Shopping lists** | Read your lists and their items | Everything the app does with a list, sharing included | — |
 | **Meal plans** | Read your plans, their staples and what a week would put on a list | Everything the app does with a plan, putting it on a list and sharing included | — |
@@ -56,7 +56,7 @@ To give the owner a token that cannot hand out admin rights, create a second adm
 
 ## Locked recipes
 
-[Editing rights](/guide/editing-rights) do not narrow a token: admins may edit every recipe, locked or not, so a **Recipes: Write** token can too, and a **Recipes: Delete** token can delete every recipe. Only the owner can change the household's editing setting, and only in the browser.
+[Editing rights](/guide/editing-rights) do not narrow a token: admins may edit every recipe, locked or not, so a **Recipes: Write** token can too, and a **Recipes: Delete** token can delete every recipe. Only the owner can change the shared editing setting, and only in the browser.
 
 ## What a token cannot do
 
@@ -65,7 +65,7 @@ Whatever its levels, a token cannot:
 - list, issue or revoke API tokens
 - read or change its own account (password, display name, color, photo, email, notifications), or look up which colors are taken
 - sign out, or handle sessions in any other way
-- change the household settings
+- change the instance settings
 - issue or revoke setup links, or disconnect an account from its identity provider
 - list, create or revoke public links
 - touch the mail settings and test mail, or the sign-in settings
@@ -83,4 +83,4 @@ Choose **Revoke** on its tag and confirm. The token stops working immediately.
 
 Expired tokens stay in the list, marked **Expired**, until you revoke them. Each tag shows the first characters of its token, so you can match it to a program's configuration.
 
-The list shows your own tokens. Switch on **Everyone in the household** to see every admin's tokens.
+The list shows your own tokens. Switch on **Everyone's tokens** to see every admin's tokens.

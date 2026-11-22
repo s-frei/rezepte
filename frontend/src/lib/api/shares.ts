@@ -74,7 +74,7 @@ export function revokeShare(id: string): Promise<void> {
 	return api<void>(`/shares/${id}`, { method: 'DELETE' });
 }
 
-/** Revokes every public link in the household. Admins only. */
+/** Revokes every public link on the instance. Admins only. */
 export function revokeAllShares(): Promise<void> {
 	return api<void>('/shares', { method: 'DELETE' });
 }

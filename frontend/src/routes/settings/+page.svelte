@@ -191,7 +191,7 @@
 <SettingsLayout active="profile">
 	<!--
 		One card, sorted by what people come to do: the head is how the
-		household sees you (photo, name, color, each edited in place), then the
+		others see you (photo, name, color, each edited in place), then the
 		account, then the choices that only change how the app looks to you.
 		The head reads the color the picker holds rather than the session's,
 		so the band follows a pick before its debounced save lands.

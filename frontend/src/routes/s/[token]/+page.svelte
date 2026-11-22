@@ -61,7 +61,7 @@
 <div class="mx-auto flex min-h-dvh max-w-[1280px] flex-col px-5 pb-8 md:px-8 md:pb-10">
 	<!-- The app's own tab hangs from the top edge here too, so a shared link
 	     opens on the mark the app wears; not a link, since the app behind it
-	     is the household's, not the visitor's. -->
+	     is the members', not the visitor's. -->
 	<header class="mb-6 flex h-16 items-center justify-between gap-4 md:mb-8">
 		<BrandTab label={m.app_name()} />
 		<IconButton

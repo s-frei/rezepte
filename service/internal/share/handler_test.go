@@ -29,7 +29,7 @@ import (
 )
 
 // stack is the whole HTTP side of public shares wired the way main.go does
-// it, over a household of an owner (olga), an admin (adam) and a member
+// it, over an instance of an owner (olga), an admin (adam) and a member
 // (mia), with public sharing switched on and one recipe of mia's.
 type stack struct {
 	h        http.Handler
@@ -190,7 +190,7 @@ func tokenOf(sh share.Share) string { return strings.TrimPrefix(sh.Path, "/s/") 
 
 // TestShareOperationsAreSessionOnly: none of the management operations
 // answers without a session, and an API token cannot reach any of them - a
-// program handing out public links to the household's recipes is exactly
+// program handing out public links to the instance's recipes is exactly
 // what these operations must not allow. The middleware refuses a bearer
 // token on a session-only operation with 403 before looking at it, the same
 // answer every other session-only operation gives.

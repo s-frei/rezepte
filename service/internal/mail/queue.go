@@ -17,7 +17,7 @@ import (
 )
 
 // queueSize is how many mails may wait for the worker before a sender
-// waits for room; a daily digest to a large household fits.
+// waits for room; a daily digest to a large instance fits.
 const queueSize = 1024
 
 // retryAfter is when a mail whose send failed for a reason that may pass

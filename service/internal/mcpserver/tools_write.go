@@ -37,7 +37,7 @@ const documentHelp = " Send every field of recipe. Only prepMinutes, cookMinutes
 	"keep every link whose phrase still occurs in the step's text as it was; when an edit removes or rewords a linked phrase, " +
 	"drop that link or move its phrase to words that still occur, since a phrase missing from the text is refused. " +
 	"Send [] when there are none; a new recipe has no photos to link yet. " +
-	"editPolicy is optional: default follows the household setting, open lets every member edit, locked keeps " +
+	"editPolicy is optional: default follows the general setting, open lets every member edit, locked keeps " +
 	"the recipe to its author and admins; left out on update, the stored policy stays."
 
 type createIn struct {

@@ -411,7 +411,7 @@
 		</section>
 	{/each}
 	{#if isOwner && digestHour !== null}
-		<!-- The owner's, apart from both channels: it sets when the household hears of new recipes. -->
+		<!-- The owner's, apart from both channels: it sets when everyone on the instance hears of new recipes. -->
 		<div
 			class="{blockClass} mt-7 flex flex-col gap-2.5 px-4 py-3 md:flex-row md:items-center md:justify-between md:gap-4"
 		>

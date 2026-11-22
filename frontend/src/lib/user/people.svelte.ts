@@ -6,7 +6,7 @@ import { listPeople, type UserRole } from '#lib/api/users.js';
  * What a person card shows beyond the person a recipe already carries: the
  * role, from /people, and how many recipes they wrote, from /authors. Loaded
  * once, on the first card that opens, and shared by every card after it; a
- * reload of the page is what refreshes it, which is as fresh as a household
+ * reload of the page is what refreshes it, which is as fresh as a small instance
  * needs a recipe count to be.
  */
 const state = $state({

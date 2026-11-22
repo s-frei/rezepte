@@ -57,14 +57,14 @@ func (f fanout) sent() map[string][]string {
 	return got
 }
 
-func (f fanout) household(t *testing.T) (mila, jonas user.User) {
+func (f fanout) members(t *testing.T) (mila, jonas user.User) {
 	t.Helper()
 	return f.person(t, "mila", user.RoleAdmin, true), f.person(t, "jonas", user.RoleUser, true)
 }
 
 func TestDigestRunsOncePerDay(t *testing.T) {
 	f := newFanout(t)
-	mila, jonas := f.household(t)
+	mila, jonas := f.members(t)
 	f.added(t, mila, "Dal", at(0, 12, 0))
 	f.run(t, at(0, 17, 5))
 	f.run(t, at(0, 17, 5))
@@ -97,7 +97,7 @@ func TestDigestRunsOncePerDay(t *testing.T) {
 
 func TestDigestWaitsForTheHour(t *testing.T) {
 	f := newFanout(t)
-	mila, _ := f.household(t)
+	mila, _ := f.members(t)
 	f.added(t, mila, "Dal", at(0, 12, 0))
 	f.run(t, at(0, 16, 59))
 	if len(f.mailer.digests) != 0 {
@@ -118,7 +118,7 @@ func TestDigestWaitsForTheHour(t *testing.T) {
 
 func TestDigestHoldsYoungRecipes(t *testing.T) {
 	f := newFanout(t)
-	mila, jonas := f.household(t)
+	mila, jonas := f.members(t)
 	f.added(t, mila, "Dal", at(0, 16, 30))
 	f.run(t, at(0, 17, 0))
 	if len(f.mailer.digests) != 0 {
@@ -132,7 +132,7 @@ func TestDigestHoldsYoungRecipes(t *testing.T) {
 
 func TestDigestSkipsOwnRecipes(t *testing.T) {
 	f := newFanout(t)
-	mila, jonas := f.household(t)
+	mila, jonas := f.members(t)
 	f.added(t, mila, "Dal", at(0, 10, 0))
 	f.added(t, mila, "Pho", at(0, 11, 0))
 	f.run(t, at(0, 17, 0))
@@ -148,7 +148,7 @@ func TestDigestRespectsOptOut(t *testing.T) {
 		{KindRecipe: {ChannelMail: false}, KindComment: {ChannelMail: false}},
 	} {
 		f := newFanout(t)
-		mila, jonas := f.household(t)
+		mila, jonas := f.members(t)
 		f.person(t, "uwe", user.RoleUser, false) // no confirmed address
 		if _, err := f.svc.SetPreferences(context.Background(), jonas, Prefs{Kinds: off}); err != nil {
 			t.Fatal(err)
@@ -163,7 +163,7 @@ func TestDigestRespectsOptOut(t *testing.T) {
 
 func TestDigestSkipsGroupOptOut(t *testing.T) {
 	f := newFanout(t)
-	mila, jonas := f.household(t)
+	mila, jonas := f.members(t)
 	if _, err := f.svc.SetPreferences(context.Background(), jonas, Prefs{Groups: map[Group]map[Channel]bool{GroupHousehold: {ChannelMail: false}}}); err != nil {
 		t.Fatal(err)
 	}
@@ -176,7 +176,7 @@ func TestDigestSkipsGroupOptOut(t *testing.T) {
 
 func TestDigestIgnoresUnannounced(t *testing.T) {
 	f := newFanout(t)
-	mila, _ := f.household(t)
+	mila, _ := f.members(t)
 	f.recipes.SetClock(func() time.Time { return at(0, 10, 0) })
 	f.recipe(t, mila.ID) // an archive import or the demo seed
 	f.run(t, at(0, 17, 0))
@@ -188,7 +188,7 @@ func TestDigestIgnoresUnannounced(t *testing.T) {
 
 func TestDigestDropsDeleted(t *testing.T) {
 	f := newFanout(t)
-	mila, jonas := f.household(t)
+	mila, jonas := f.members(t)
 	r := f.added(t, mila, "Dal", at(0, 10, 0))
 	f.added(t, mila, "Pho", at(0, 11, 0))
 	if err := f.recipes.Delete(context.Background(), r.ID, mila); err != nil {
@@ -214,7 +214,7 @@ func (f fanout) cover(t *testing.T, r recipe.Recipe, actor user.User) {
 
 func TestDigestMissingPhoto(t *testing.T) {
 	f := newFanout(t)
-	mila, jonas := f.household(t)
+	mila, jonas := f.members(t)
 	dal := f.added(t, mila, "Dal", at(0, 10, 0))
 	pho := f.added(t, mila, "Pho", at(0, 11, 0))
 	f.cover(t, dal, mila)
@@ -244,7 +244,7 @@ func TestDigestMissingPhoto(t *testing.T) {
 // that cancels the run must not cost the people not yet mailed.
 func TestDigestOutlivesItsContext(t *testing.T) {
 	f := newFanout(t)
-	mila, _ := f.household(t)
+	mila, _ := f.members(t)
 	f.person(t, "olga", user.RoleUser, true)
 	f.added(t, mila, "Dal", at(0, 10, 0))
 	ctx, cancel := context.WithCancel(context.Background())
@@ -262,7 +262,7 @@ func TestDigestOutlivesItsContext(t *testing.T) {
 // the recipe still goes out.
 func TestDigestSurvivesACreatorLookupFailure(t *testing.T) {
 	f := newFanout(t)
-	mila, jonas := f.household(t)
+	mila, jonas := f.members(t)
 	f.added(t, mila, "Dal", at(0, 10, 0))
 	// A row users.Service cannot parse: ByID fails with an error other than not found.
 	if _, err := f.conn.ExecContext(context.Background(), "UPDATE users SET created_at = 'garbage' WHERE id = ?", mila.ID); err != nil {
@@ -288,7 +288,7 @@ func TestDigestStopWaitsForTheRun(t *testing.T) {
 	digestTick = time.Millisecond
 	t.Cleanup(func() { digestTick = orig })
 	f := newFanout(t)
-	mila, _ := f.household(t)
+	mila, _ := f.members(t)
 	f.person(t, "olga", user.RoleUser, true)
 	f.added(t, mila, "Dal", time.Now().Add(-2*time.Hour))
 	if _, err := f.conn.ExecContext(context.Background(), "UPDATE instance_settings SET recipe_digest_hour = 0"); err != nil {

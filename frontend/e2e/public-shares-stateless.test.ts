@@ -68,7 +68,7 @@ test('the switch and the buttons stay put across the tabs', async ({ page }, tes
 	};
 
 	for (const [name, on, link] of [
-		['household only', false, null],
+		['just for us', false, null],
 		['with the choice', true, null],
 		['with a public link', true, active]
 	] as const) {
@@ -99,7 +99,7 @@ test('the switch and the buttons stay put across the tabs', async ({ page }, tes
 				return `${Math.round(box.width)}x${Math.round(box.height)}`;
 			};
 			const before = await size();
-			const other = link ? 'For the household' : 'For everyone with the link';
+			const other = link ? 'Just for us' : 'For everyone with the link';
 			await sheet.getByRole('radio', { name: other }).click();
 			await expect(sheet.getByRole('radio', { name: other })).toBeChecked();
 			const primary = !link ? 'Create public link' : 'Share link';

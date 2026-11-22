@@ -13,7 +13,7 @@
 		authorName
 	}: {
 		policy: EditPolicy;
-		/** False for a member editing someone else's recipe (open, or Default while the household is open). */
+		/** False for a member editing someone else's recipe (open, or Default while the instance is open). */
 		canChange: boolean;
 		/** Whether the person editing wrote the recipe; the hints say "you" to them and name the author to anyone else. */
 		isAuthor: boolean;
@@ -21,7 +21,7 @@
 	} = $props();
 
 	// What "Default" means right now. Unknown until loaded, and on a failed
-	// load: the hint then says only that it follows the household setting.
+	// load: the hint then says only that it follows the instance-wide setting.
 	let lockedByDefault = $state<boolean | null>(null);
 
 	onMount(async () => {
@@ -45,7 +45,7 @@
 	A fact, not a field, for someone who may not change it. Such a person only
 	reaches the editor while the recipe is editable by everyone: it is either
 	open, and the sentence names who opened it, or on Default while the
-	household is open, and the Default hint says so. Locked cannot occur here.
+	instance is open, and the Default hint says so. Locked cannot occur here.
 -->
 {#if canChange}
 	<SegmentedControl bind:value={policy} {options} label={m.editor_policy_label()} />

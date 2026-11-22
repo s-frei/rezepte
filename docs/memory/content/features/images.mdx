@@ -116,7 +116,7 @@ Recipes carry photos: a cover on the card, a gallery on the detail page and a li
 
 ## Why it is this way
 
-The deployment is a single binary with SQLite for one household. There is no object store, no CDN and no image service to lean on, so the service does the work itself, once, and everything after that is a file read.
+The deployment is a single binary with SQLite for a small instance. There is no object store, no CDN and no image service to lean on, so the service does the work itself, once, and everything after that is a file read.
 
 **`golang.org/x/image` fills what the standard library's `image` lacks**: a WebP decoder (`webp`), a resampling scaler for the three sizes (`draw`; the standard library can only copy pixels), and the fonts that draw a person's initial and a placeholder's letter (`font`). It is pure Go, so the binary keeps building without cgo.
 

@@ -3,7 +3,7 @@ import type { IngredientGroup, ImageVariant, Step } from './recipes';
 // Contract types (binding for both the backend and the frontend; see
 // service/internal/share/public.go, PublicRecipe). This is its own narrow
 // type, not RecipeContent: a public link answers with exactly these keys
-// and nothing a household member's session would carry.
+// and nothing a member's session would carry.
 
 export type PublicImage = { id: string; width: number; height: number };
 

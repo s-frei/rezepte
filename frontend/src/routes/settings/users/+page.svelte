@@ -34,14 +34,14 @@
 	let createOpen = $state(false);
 
 	// Every account reads this page; only an admin gets the controls, the
-	// pickers that need the color counts, and the household's editing card.
+	// pickers that need the color counts, and the instance-wide editing card.
 	const isAdmin = $derived(isAdminRole(session.user?.role));
 
 	// The list keeps only what it shows about each account and the link a
 	// new account starts with; everything else happens on the person's page.
 	let setup = $state<Record<string, UserAccount>>({});
 	let provider = $state<string | undefined>(undefined);
-	// Fetched once for the household cards below and the mail-aware dialogs.
+	// Fetched once for the instance-wide cards below and the mail-aware dialogs.
 	let settings = $state<Settings | null>(null);
 	// Advisory like the provider: unknown means the dialogs work as without mail.
 	const mailEnabled = $derived(settings?.mailEnabled ?? false);

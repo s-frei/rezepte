@@ -129,7 +129,7 @@ func fillPalette(rows map[Color]int) []ColorCount {
 // leastUsed returns the color the fewest accounts hold, ties broken by
 // palette order. Least-used rather than first-free because duplicates are
 // allowed, so the two differ once every color is taken, and spreading the
-// household out is the property worth keeping. counts must come from
+// people out is the property worth keeping. counts must come from
 // fillPalette, so it is complete and in palette order.
 func leastUsed(counts []ColorCount) Color {
 	// MinFunc returns the first of several minima, which is the tie-break.

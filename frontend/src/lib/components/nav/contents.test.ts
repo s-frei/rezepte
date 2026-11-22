@@ -11,11 +11,11 @@ describe('byGroup', () => {
 		const runs = byGroup([
 			{ id: 'profile', group: 'For you' },
 			{ id: 'api', group: 'For you' },
-			{ id: 'users', group: 'Household' }
+			{ id: 'users', group: 'For everyone' }
 		]);
 		expect(runs.map((run) => [run.label, run.entries.map((entry) => entry.id)])).toEqual([
 			['For you', ['profile', 'api']],
-			['Household', ['users']]
+			['For everyone', ['users']]
 		]);
 	});
 });

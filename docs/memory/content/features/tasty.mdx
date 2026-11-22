@@ -3,7 +3,7 @@ title: Tasty
 description: A mark one member leaves on somebody else's recipe, counted and named for everyone, stored like a favorite, and told to the author a minute later
 ---
 
-A favorite is for the person who sets it; a tasty mark is for the person who wrote the recipe. A member who cooked something and liked it marks it tasty, and from then on everyone in the household sees how many members found it tasty and who. The UI calls it "Lecker" in German. [Data model](/architecture/data-model) owns the table; [HTTP API](/architecture/api) owns the endpoints.
+A favorite is for the person who sets it; a tasty mark is for the person who wrote the recipe. A member who cooked something and liked it marks it tasty, and from then on everyone on the instance sees how many members found it tasty and who. The UI calls it "Lecker" in German. [Data model](/architecture/data-model) owns the table; [HTTP API](/architecture/api) owns the endpoints.
 
 ## How it works
 
@@ -39,11 +39,11 @@ A favorite is for the person who sets it; a tasty mark is for the person who wro
 
 ## Why it is this way
 
-Feedback to the author is the point, so the author marking their own recipe would only inflate the number everyone reads. Showing who, not only how many, is what makes the mark worth leaving in a household: the author knows the people behind it. The minute before telling the author is for a mis-tap: a heart pressed and taken back should not reach anybody's phone.
+Feedback to the author is the point, so the author marking their own recipe would only inflate the number everyone reads. Showing who, not only how many, is what makes the mark worth leaving among invited people: the author knows the people behind it. The minute before telling the author is for a mis-tap: a heart pressed and taken back should not reach anybody's phone.
 
 On a phone the card image is about 150px wide, and a 36px button over it covers a large part of the photo; a card is also mostly tapped to open the recipe, where a stray tap on a button costs a toggle. So phone cards show the count and the recipe page takes the input.
 
-Counting in a subquery rather than keeping a counter column is cheap at a household's scale and leaves one source of truth: a counter on `recipes` would be one more value every mark, clear, and user deletion has to keep in step.
+Counting in a subquery rather than keeping a counter column is cheap at a small instance's scale and leaves one source of truth: a counter on `recipes` would be one more value every mark, clear, and user deletion has to keep in step.
 
 ## Rejected
 
@@ -58,4 +58,4 @@ Counting in a subquery rather than keeping a counter column is cheap at a househ
 - A notification waits in memory for its minute: a restart in that minute drops it, and the author sees the mark only when they next look.
 - Only a mark taken back within its minute is silent: a member who marks, clears and marks again more than a minute apart tells the author each time. Members are trusted, so nothing remembers past marks to stop that.
 - There is no filter by tasty, only the order.
-- `tastyBy` lists everyone who marked a recipe, unpaginated; a household has too few members for that to matter.
+- `tastyBy` lists everyone who marked a recipe, unpaginated; a small instance has too few members for that to matter.

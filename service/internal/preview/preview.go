@@ -87,7 +87,7 @@ func (s *Service) ShareLink(ctx context.Context, recipeID string) (Link, error) 
 }
 
 // ForRequest returns the link preview for a recipe's page, or nil when the
-// page is not a recipe, the recipe does not exist or the household does not
+// page is not a recipe, the recipe does not exist or the instance does not
 // show it to this request. It is the httpserver.PreviewFunc the app shell
 // calls; a failure falls back to the app's own preview and is logged.
 func (s *Service) ForRequest(r *http.Request) *httpserver.LinkPreview {

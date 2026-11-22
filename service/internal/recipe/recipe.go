@@ -113,7 +113,7 @@ type Recipe struct {
 	TastyBy    []Person `json:"tastyBy"`
 	Tasty      bool     `json:"tasty"`
 	// Locked is the effective state: the recipe's policy resolved against
-	// the household default. The Can* fields are for the caller and, like
+	// the instance-wide default. The Can* fields are for the caller and, like
 	// Favorite, are filled by the handler (FillAccess), not by ByID/BySlug.
 	Locked          bool `json:"locked"`
 	CanEdit         bool `json:"canEdit"`

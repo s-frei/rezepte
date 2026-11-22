@@ -305,7 +305,7 @@ func (s *Service) FillCaller(ctx context.Context, actor user.User, r *Recipe) er
 }
 
 // FillAccess sets r's Locked and Can* fields for actor. It reads the
-// household default on every call, so a switch by the owner shows at once.
+// instance-wide default on every call, so a switch by the owner shows at once.
 func (s *Service) FillAccess(ctx context.Context, actor user.User, r *Recipe) error {
 	locked, err := lockedByDefault(ctx, s.q)
 	if err != nil {

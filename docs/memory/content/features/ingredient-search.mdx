@@ -92,7 +92,7 @@ A reader picks the ingredients they have as chips in the overview's search field
 
 **Ticks instead of a stored pantry.** People who share an instance do not share a kitchen, and a pantry list goes stale; ticking what is at home costs a tap and is gone with the URL.
 
-**Ranking in Go over all filtered recipes** is a few milliseconds at household scale and keeps the rule in one function; the `ponytail:` comment on `listPantry` names the ceiling.
+**Ranking in Go over all filtered recipes** is a few milliseconds at a small instance's scale and keeps the rule in one function; the `ponytail:` comment on `listPantry` names the ceiling.
 
 **"Done" lets the card glide down rather than leave room.** Holding the released card at the page's end needs room below the last card, which reads as empty space under the cards; gliding down with the page's end shows where the card went.
 
@@ -101,7 +101,7 @@ A reader picks the ingredients they have as chips in the overview's search field
 - **A page of its own ("What do I have?").** A further menu item, the filters built twice, and two ways to answer "where is rum?".
 - **A "Search / By ingredient" switch on the overview.** It costs a click, and "gurke" typed in the normal mode lands in the old search.
 - **Fewest missing first.** It rewards short recipes and buries the one that uses everything.
-- **A staples list,** fixed in code, per household or per person: the reader ticks as needed instead.
+- **A staples list,** fixed in code, per instance or per person: the reader ticks as needed instead.
 - **Ticking in a popover from the card,** an expanding card, or tapping words on the card: the opener was invisible, the popover covered content, the grid jumped, and targets under 44 px sat inside the card's link.
 - **The plain wheel moving the narrow row sideways.** The row is sticky, so a page scroll with the pointer over it moved the pills first, for dozens of notches; shift and the wheel or a trackpad's sideways swipe move it natively ([Scrolling](/architecture/design-system#scrolling)).
 - **Only one global tick row ordered by count.** On a phone one recipe's vinegar sat screens away; the focused mode answers that.

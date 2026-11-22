@@ -23,11 +23,11 @@ A link pasted into WhatsApp, Signal, Telegram, iMessage, Slack, Discord, Mastodo
 
 ## Why it is this way
 
-The default of a self-hosted app is private: a household that installs Rezepte expects its recipes behind the login. A preview needs the recipe's title, description and cover in the hands of a crawler without a session, so the owner decides whether that happens, and a token scopes it to the recipe a member chose to share, for about as long as a chat app needs to build its card. The card then lives in the chat, and the link falls back to the app's card on its own.
+The default of a self-hosted app is private: whoever installs Rezepte expects their recipes behind the login. A preview needs the recipe's title, description and cover in the hands of a crawler without a session, so the owner decides whether that happens, and a token scopes it to the recipe a member chose to share, for about as long as a chat app needs to build its card. The card then lives in the chat, and the link falls back to the app's card on its own.
 
 The key is stored because lifetimes go up to a day: a key drawn at start would end every open link on each restart or upgrade.
 
-A preview is not a share. Showing a recipe to people outside the household on purpose, for as long as the owner allows and with a list of what is shared, is a separate feature: [public shares](/features/public-shares). It has its own path, its own table and its own switch, and none of it is built on these tokens.
+A preview is not a share. Showing a recipe to people outside the instance on purpose, for as long as the owner allows and with a list of what is shared, is a separate feature: [public shares](/features/public-shares). It has its own path, its own table and its own switch, and none of it is built on these tokens.
 
 ## Rejected
 

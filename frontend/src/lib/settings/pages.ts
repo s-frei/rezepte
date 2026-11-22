@@ -30,13 +30,13 @@ export type SettingsPage = {
  * nav lists them: the settings sidebar, its contents sheet and the You sheet.
  * "For you" is the account's own, notifications right after the profile
  * that holds their address, with API last as the page a kitchen needs
- * least; "Household" is what concerns everyone on the instance: the people
+ * least; "For everyone" is what concerns everyone on the instance: the people
  * list, a list to read for everyone and where admins manage accounts, then
  * email and sign-in (the owner's alone) and import and export (admins).
  */
 export function settingsPages(role: UserRole | undefined): SettingsPage[] {
 	const personal = m.settings_group_personal();
-	const household = m.settings_group_household();
+	const everyone = m.settings_group_everyone();
 	const pages: SettingsPage[] = [
 		{
 			id: 'profile',
@@ -71,28 +71,28 @@ export function settingsPages(role: UserRole | undefined): SettingsPage[] {
 			href: resolve('/settings/users'),
 			label: m.settings_nav_users(),
 			icon: UsersRound,
-			group: household
+			group: everyone
 		},
 		{
 			id: 'mail',
 			href: resolve('/settings/mail'),
 			label: m.settings_nav_mail(),
 			icon: Mail,
-			group: household
+			group: everyone
 		},
 		{
 			id: 'sign-in',
 			href: resolve('/settings/sign-in'),
 			label: m.settings_nav_sign_in(),
 			icon: KeyRound,
-			group: household
+			group: everyone
 		},
 		{
 			id: 'transfer',
 			href: resolve('/settings/transfer'),
 			label: m.settings_nav_transfer(),
 			icon: ArrowLeftRight,
-			group: household
+			group: everyone
 		}
 	];
 	return pages.filter(

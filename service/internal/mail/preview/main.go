@@ -60,7 +60,7 @@ type section struct {
 var notes = map[string]string{
 	"Account":          "Links a person asks for or an admin sends.",
 	"Security notices": "Sent whenever the way into an account changes. Nobody can switch them off.",
-	"Notifications":    "What happens in the household. Each person switches them off under Settings, Notifications.",
+	"Notifications":    "What everyone else does in Rezepte. Each person switches them off under Settings, Notifications.",
 	"Owner tools":      "For the owner, to check that mail works.",
 }
 

@@ -18,7 +18,7 @@ export const SITE_TITLE = 'Rezepte — Self-hosted recipe manager for the people
 
 // The site-wide meta description, owned by the landing page (app/page.tsx).
 export const SITE_DESCRIPTION =
-	'Self-hosted, open-source recipe manager for your household and friends: one Docker image, SQLite, a cook mode for your phone, and an API and MCP server for AI assistants';
+	'Self-hosted, open-source recipe manager and cookbook for the people you cook with: one Docker image, SQLite, a cook mode for your phone, and an API and MCP server for AI assistants';
 
 // Next merges metadata shallowly: a page-level `openGraph` REPLACES the root
 // layout's rather than extending it. Every page that sets its own og:title has

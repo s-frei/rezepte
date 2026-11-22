@@ -22,7 +22,7 @@
 		recipe: RecipeContent;
 		/** The servings the user chose; quantities are scaled to them. */
 		servings: number;
-		/** The household's "name Rezepte when sharing" setting: the footer. */
+		/** The instance's "name Rezepte when sharing" setting: the footer. */
 		attribution: boolean;
 	} = $props();
 

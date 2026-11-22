@@ -15,7 +15,7 @@
 	case this line is for. `wrap-anywhere` because a name can be one long word
 	- a URL pasted into the name field - and a word is also what the text
 	column's `1fr` floor is made of, so without it the cover leaves the page.
-	`noreferrer` so the site a recipe came from never learns the household's
+	`noreferrer` so the site a recipe came from never learns the instance's
 	own address.
 -->
 {#if label}

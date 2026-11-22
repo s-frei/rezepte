@@ -49,13 +49,13 @@ Without a bearer header, an operation marked `auth.TokenOnly` - only `/mcp`, see
 - The token step follows `tokenSupply` in `frontend/src/lib/settings/token-access.ts` over the viewer's own tokens only: missing, all expired, or valid; a member's step says an admin issues tokens. "Create token" lives only in the token card's head.
 - The operation count is decoration, so a failed `/api/v1/openapi.json` fetch drops it silently; `countOperations` in `frontend/src/lib/settings/api-summary.ts` is the pure reduction, which keeps the whole document out of component state.
 - `CreateTokenDialog.svelte` says so the moment both access ladders stand at None, since the server refuses a token with no scope (`minItems:"1"`); the expiry defaults to 90 days.
-- The token card lists the viewer's own tokens; an admin's "Everyone in the household" switch and an issuer filter narrow the one `GET /tokens` answer, which already holds every token, and live in the URL (`?all=1&user=<id>`) like the shared links' filters. The list carries `ownerDisplayName` and `ownerColor` beside `ownerUsername` for this, joined in `ListAPITokens`. A card's edge stays neutral and the issuer shows as their mark and name: an edge in the issuer's color turned the colors into a legend once everyone was listed. The shared links' cards follow the same rule.
+- The token card lists the viewer's own tokens; an admin's "Everyone's tokens" switch and an issuer filter narrow the one `GET /tokens` answer, which already holds every token, and live in the URL (`?all=1&user=<id>`) like the shared links' filters. The list carries `ownerDisplayName` and `ownerColor` beside `ownerUsername` for this, joined in `ListAPITokens`. A card's edge stays neutral and the issuer shows as their mark and name: an edge in the issuer's color turned the colors into a legend once everyone was listed. The shared links' cards follow the same rule.
 - `TokenRow` draws each token's lifetime from `lifetime` in `token-access.ts`, which turns issue, last use and expiry into fractions of the bar; a token without expiry has no scale, so today sits at `OPEN_TODAY`. The access shown per area is `accessLevels`, the deepest level its scopes reach.
 - `frontend/src/lib/api/tokens.ts` is the client (`listTokens`, `createToken`, `deleteToken`).
 
 ## Why it is this way
 
-A static bearer token in a client configuration is the deliberate simplification a self-hosted, single-household instance affords over OAuth 2.1: no token exchange, no client registration, no redirect flow to implement or to explain to whoever configures an integration.
+A static bearer token in a client configuration is the deliberate simplification a self-hosted instance for a few invited people affords over OAuth 2.1: no token exchange, no client registration, no redirect flow to implement or to explain to whoever configures an integration.
 
 The bearer branch lives inside `auth.Middleware` itself rather than arriving as a separate authenticator run in front of it, because the question it answers first - whether an operation accepts a token at all, and whether it accepts anything else - can only be read off `ctx.Operation().Security`. That is also why every route that takes a token is an operation, the image files and `/mcp` included ([HTTP API](/architecture/api)): its scopes are declared where the document shows them, instead of being passed by hand to a mux wrapper the document knows nothing about.
 
@@ -72,6 +72,6 @@ Two roles already keep authorization a field comparison (see [Users and authenti
 ## Limits
 
 - Tokens can be issued only by an admin; there is no self-service path for a plain member. A member sees the API page and everything on it except the token card, and step one tells them who issues a token.
-- A `users:write` token carries its issuer's rank: one issued by the instance owner can create an admin account, one issued by any other admin cannot (see [Users and authentication](/features/users-and-auth)). An admin account created through the owner's token looks like any other - on a household instance, the owner who issued the token is the person who would notice.
+- A `users:write` token carries its issuer's rank: one issued by the instance owner can create an admin account, one issued by any other admin cannot (see [Users and authentication](/features/users-and-auth)). An admin account created through the owner's token looks like any other - on an instance of invited people, the owner who issued the token is the person who would notice.
 - `last_used_at` is accurate to the hour, not to the request; the UI's tooltip says so rather than implying more precision than the column has.
 - Token-authenticated requests are not rate-limited.

@@ -71,7 +71,7 @@ func coveredBy(items []PantryItem, key string) bool {
 // use at least one chip, in the best-match order ranked by most chips used,
 // then fewest missing after the ticks, SQL's order breaking ties.
 //
-// ponytail: ranks every filtered recipe in Go on each request; fine at household scale (hundreds), move ranking into SQL if instances grow to thousands.
+// ponytail: ranks every filtered recipe in Go on each request; fine at a small instance's scale (hundreds), move ranking into SQL if instances grow to thousands.
 func (s *Service) listPantry(ctx context.Context, p ListParams, chips []PantryItem, f sqlc.RecipeFilter, sort sqlc.RecipeSort, limit, page int) (Page, error) {
 	have := pantryItems(p.Have, maxHave, chips)
 	all, err := s.q.ListRecipes(ctx, f, sort, -1, 0) // SQLite: LIMIT -1 is no limit

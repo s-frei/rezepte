@@ -29,7 +29,7 @@
 	const coverId = $derived(recipe.coverImageId ?? recipe.images[0]?.id ?? null);
 	let coverFailed = $state(false);
 	const off = $derived(face.kind === 'paused' || face.kind === 'limited');
-	const everyone = $derived(!off && face.kind !== 'household');
+	const everyone = $derived(!off && face.kind !== 'us');
 	// The photo's box, and for the placeholder its initial in proportion.
 	const box = $derived(
 		photo === 'flat' ? 'h-14 [&>span]:text-placeholder-xs' : 'h-[84px] [&>span]:text-placeholder-sm'
@@ -75,9 +75,9 @@
 					? 'border-border bg-surface text-text-muted'
 					: 'border-border text-text-muted'}"
 		>
-			{#if face.kind === 'household'}
+			{#if face.kind === 'us'}
 				<Lock class="size-4.5" />
-				<span>{m.share_stub_household()}</span>
+				<span>{m.share_stub_us()}</span>
 			{:else if face.kind === 'paused' || face.kind === 'limited'}
 				<Pause class="size-4.5" />
 				<span>{shareStatusLabel(face.kind)}</span>

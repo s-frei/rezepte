@@ -1,6 +1,6 @@
 {
   "title": "Settings",
-  "description": "The household-wide settings. Everyone reads them; only the owner changes them.",
+  "description": "The instance settings. Everyone reads them; only the owner changes them.",
   "pages": [
     "index",
     "get-settings",

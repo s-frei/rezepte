@@ -37,13 +37,13 @@
 	import Perforation from './Perforation.svelte';
 	import ShareTicket from './ShareTicket.svelte';
 
-	type Audience = 'household' | 'everyone';
+	type Audience = 'us' | 'everyone';
 
 	// The pass-on sheet's Link tab: the ticket, the choice between the
-	// household address and a public link, and what creates, re-times,
+	// just-for-us address and a public link, and what creates, re-times,
 	// revokes and hands on that link. It mounts with the sheet, so every
 	// opening starts afresh: on the public link when it is active, else on
-	// the household.
+	// the just-for-us address.
 	//
 	// On a phone it is one column in the sheet's tab cell, with its own
 	// button row; from 768px it is the dialog's two columns, the switch and
@@ -62,13 +62,13 @@
 		heading
 	}: {
 		recipe: Recipe;
-		/** The household address - the page's `ShareLink`, read at tap time. */
+		/** The just-for-us address - the page's `ShareLink`, read at tap time. */
 		linkUrl: () => string;
 		/** The member's own public link to this recipe. */
 		share?: PublicShare | null;
 		/** Public sharing is on and this member may use it. */
 		canCreateShare: boolean;
-		/** The household's public sharing is known to be off. */
+		/** The instance's public sharing is known to be off. */
 		sharingOff?: boolean;
 		defaultDays: ShareLifetime;
 		maxDays: ShareLifetime;
@@ -88,9 +88,7 @@
 	// Only a member who may share publicly, or who already has a link, gets the choice.
 	const offered = $derived(canCreateShare || share !== null);
 
-	let audience = $state<Audience>(
-		untrack(() => (share?.status === 'active' ? 'everyone' : 'household'))
-	);
+	let audience = $state<Audience>(untrack(() => (share?.status === 'active' ? 'everyone' : 'us')));
 	// The lifetime Create uses: the owner's default, clamped to the maximum.
 	let pending = $state<ShareLifetime>(
 		untrack(() => (options.includes(defaultDays) ? defaultDays : (options.at(-1) ?? null)))
@@ -117,7 +115,7 @@
 	const everyone = $derived(offered && audience === 'everyone');
 	// The link as it stands, or as Create would make it.
 	const link = $derived(share ?? { status: 'active' as const, expiresAt: expiry(pending) });
-	const face = $derived<StubFace>(everyone ? stubFace(link, now) : { kind: 'household' });
+	const face = $derived<StubFace>(everyone ? stubFace(link, now) : { kind: 'us' });
 	// Once the link exists, its cell is the lifetime it was last given.
 	const lifetime = $derived(share ? lifetimeOf(share) : pending);
 	// A paused or limited link does not open: nothing hands it on.
@@ -178,12 +176,12 @@
 	// The link is gone and with it what was focused (Revoke, a lifetime
 	// cell): focus goes to the choice that is left - or, when the choice went
 	// with the link (sharing off, or the right withdrawn), to the primary.
-	async function backToHousehold() {
+	async function backToUs() {
 		share = null;
-		audience = 'household';
+		audience = 'us';
 		await tick();
 		(
-			document.getElementById(`${uid}-household-radio`) ?? document.getElementById(`${uid}-primary`)
+			document.getElementById(`${uid}-us-radio`) ?? document.getElementById(`${uid}-primary`)
 		)?.focus();
 	}
 
@@ -221,7 +219,7 @@
 			if (error instanceof ApiError && error.status === 404) {
 				// Revoked meanwhile, in another tab or from Shared links.
 				toast.error(m.share_retime_error());
-				await backToHousehold();
+				await backToUs();
 			} else {
 				// Sharing switched off or the right withdrawn meanwhile: the
 				// link is paused now, so nothing hands it on or re-times it.
@@ -248,7 +246,7 @@
 			}
 		}
 		toast.success(m.public_share_revoked());
-		await backToHousehold();
+		await backToUs();
 	}
 
 	// The phone's preview gives way before the controls do: step by step
@@ -355,7 +353,7 @@
 				class="inline-flex h-6.5 items-center gap-1.5 rounded-pill border border-border bg-surface px-2.5 text-micro font-semibold text-text-muted"
 			>
 				<Lock class="size-3.5" aria-hidden="true" />
-				{m.share_chip_household()}
+				{m.share_chip_us()}
 			</span>
 		{:else if link.status === 'active'}
 			<span
@@ -391,8 +389,8 @@
 	</RadioGroup.Item>
 {/snippet}
 
-{#snippet householdHint()}
-	{m.share_household_hint()}
+{#snippet usHint()}
+	{m.share_us_hint()}
 {/snippet}
 
 {#snippet everyoneHint()}
@@ -410,18 +408,18 @@
 	{/if}
 {/snippet}
 
-<!-- The chosen audience's own detail: who opens a household link, and how
+<!-- The chosen audience's own detail: who opens a just-for-us link, and how
      long a public one lasts. Each has a footer behind a perforation: the
-     household's leads to People, the public one's to every shared link
+     just-for-us one's leads to People, the public one's to every shared link
      and to Revoke. Both are as tall as each other, so a pick slides the
      public row by that height and the card around them keeps its size. -->
-{#snippet householdDetail()}
+{#snippet usDetail()}
 	<div class="flex flex-col gap-2.5 px-3.5 pt-px pb-0.5">
 		<p
 			class="flex min-h-13 items-center gap-3 rounded-md bg-background px-3 py-1.5 text-caption/[1.3] text-pretty text-text-muted"
 		>
 			<Lock class="size-4.5 shrink-0" aria-hidden="true" />
-			{m.share_household_detail()}
+			{m.share_us_detail()}
 		</p>
 		<div class={footer}>
 			<a href={resolve('/settings/users')} class="{footerLink} text-text-muted">
@@ -433,10 +431,10 @@
 	</div>
 {/snippet}
 
-<!-- No choice to make: the household link, said as one card. While the
-     household's public sharing is off, the owner also learns that and
+<!-- No choice to make: the just-for-us link, said as one card. While the
+     instance's public sharing is off, the owner also learns that and
      where to switch it on. -->
-{#snippet householdFacts()}
+{#snippet usFacts()}
 	<div class="rounded-lg border border-border bg-surface">
 		<div class="flex items-center gap-3 px-3.5 pt-3 pb-2.5">
 			<span
@@ -445,9 +443,9 @@
 				<Lock class="size-4.5" aria-hidden="true" />
 			</span>
 			<span class="min-w-0 flex-1 text-body/[1.3]">
-				<span class="block font-semibold">{m.share_household()}</span>
+				<span class="block font-semibold">{m.share_us()}</span>
 				<span class="mt-0.5 block text-caption text-pretty text-text-muted">
-					{m.share_household_detail()}
+					{m.share_us_detail()}
 				</span>
 			</span>
 		</div>
@@ -511,9 +509,9 @@
 		class="overflow-hidden rounded-lg border border-border bg-surface"
 	>
 		<div class={everyone ? '' : 'bg-surface-elevated'}>
-			{@render row('household', m.share_household(), House, householdHint)}
+			{@render row('us', m.share_us(), House, usHint)}
 			{#if !everyone}
-				<div transition:slide={{ duration: unfold }}>{@render householdDetail()}</div>
+				<div transition:slide={{ duration: unfold }}>{@render usDetail()}</div>
 			{/if}
 		</div>
 		<div class="border-t border-border {everyone ? 'bg-surface-elevated' : ''}">
@@ -543,7 +541,7 @@
 				<div data-stage class="flex flex-[1_0_auto] flex-col items-center justify-center px-5 py-3">
 					{@render preview()}
 				</div>
-				<div class="shrink-0 px-5 pb-4">{@render householdFacts()}</div>
+				<div class="shrink-0 px-5 pb-4">{@render usFacts()}</div>
 			{:else}
 				<div class="flex flex-col items-center gap-3.5 px-5 pt-2.5">
 					{@render preview()}
@@ -614,19 +612,19 @@
 			{@render spoken()}
 		</div>
 	</div>
-	<!-- Heading at the top, the choice or the household's card centered
+	<!-- Heading at the top, the choice or the just-for-us card centered
 	     in the room between, level with the ticket, the actions on the
 	     stage's bottom edge. -->
 	<div class="flex flex-col py-1">
 		{@render heading()}
 		<p class="mt-1 text-body-sm text-text-muted">
-			{offered ? m.share_link_dialog_hint() : m.share_link_dialog_hint_household()}
+			{offered ? m.share_link_dialog_hint() : m.share_link_dialog_hint_us()}
 		</p>
 		<div class="flex flex-1 flex-col justify-center py-5">
 			{#if offered}
 				<div data-choice>{@render choice()}</div>
 			{:else}
-				{@render householdFacts()}
+				{@render usFacts()}
 			{/if}
 		</div>
 		<div class="flex gap-1.5">

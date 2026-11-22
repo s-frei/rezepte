@@ -52,7 +52,7 @@
 </script>
 
 <!--
-	A key tag on the household's key board: a neutral left edge (a person's
+	A key tag on the instance's key board: a neutral left edge (a person's
 	color never marks what they own; the issuer is their mark and name), the
 	bar below the name is how much of the token's life has passed,
 	and each plaque is one area's access ladder. An expired tag is faded and

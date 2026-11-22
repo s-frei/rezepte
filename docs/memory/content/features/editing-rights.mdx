@@ -1,9 +1,9 @@
 ---
 title: Editing rights
-description: A household lock and a per-recipe policy decide who may edit, re-photograph and delete a recipe
+description: An instance-wide lock and a per-recipe policy decide who may edit, re-photograph and delete a recipe
 ---
 
-Every member reads every recipe, but who may change one is a rule with two inputs: a household switch the instance owner flips on the People page, and a policy the author sets on each recipe in the editor. The rule itself is `service/internal/recipe/permission.go`; the switch lives in `service/internal/settings`; the SPA only shows and hides what the service answers. `docs/user/content/(guide)/guide/editing-rights.mdx` tells the same rule to the people cooking from the instance.
+Every member reads every recipe, but who may change one is a rule with two inputs: an instance-wide switch the owner flips on the People page, and a policy the author sets on each recipe in the editor. The rule itself is `service/internal/recipe/permission.go`; the switch lives in `service/internal/settings`; the SPA only shows and hides what the service answers. `docs/user/content/(guide)/guide/editing-rights.mdx` tells the same rule to the people cooking from the instance.
 
 <Callout type="warn" title="Traps">
 
@@ -17,7 +17,7 @@ Every member reads every recipe, but who may change one is a rule with two input
 
 **Two inputs, one effective state.** `instance_settings.recipes_locked_by_default` is a boolean, `false` out of the box, in a table that holds exactly one row. `recipes.edit_policy` is `NULL`, `'open'` or `'locked'`; `NULL` is `recipe.PolicyDefault` in Go and `"default"` on the wire. The effective state is `edit_policy ?? (recipes_locked_by_default ? locked : open)`, computed by `recipe.Locked`:
 
-| Household | Recipe | Effective |
+| Instance | Recipe | Effective |
 |---|---|---|
 | off | default | open |
 | on | default | locked |
@@ -43,11 +43,11 @@ A recipe on Default follows the switch live: nothing is copied onto the row when
 
 **An update without `editPolicy` keeps the stored policy.** `Input.EditPolicy` is optional. On create, absent or `default` stores `NULL`; on update, absent keeps what is stored. The editor always submits the field (`frontend/src/lib/recipe/form.ts`), so this only matters to other clients.
 
-**Every recipe response states what the caller may do, except the list.** `Recipe` carries `editPolicy`, `locked` (the effective state) and `canEdit`, `canDelete`, `canChangePolicy` for the caller. `Service.FillAccess` computes them against the current household setting; the handler's `fillCaller` calls it, together with the favorite lookup, on get, get by slug, create and update. `Card` carries none of them, since a card has no actions.
+**Every recipe response states what the caller may do, except the list.** `Recipe` carries `editPolicy`, `locked` (the effective state) and `canEdit`, `canDelete`, `canChangePolicy` for the caller. `Service.FillAccess` computes them against the current instance setting; the handler's `fillCaller` calls it, together with the favorite lookup, on get, get by slug, create and update. `Card` carries none of them, since a card has no actions.
 
 **The SPA shows and hides; it never re-derives the rule.** The detail page renders "Edit" (top bar and menu) only with `canEdit` and "Delete" only with `canDelete`; the menu stays even when "Copy link" is all that is left, so the top bar keeps its shape. `frontend/src/routes/recipes/[slug]/edit/+page.ts` redirects with `307` to the recipe when `canEdit` is false, so a bookmark or the back button lands on the recipe rather than on an editor that cannot save. `frontend/src/lib/recipe/access.ts` holds the two sentences: `lockNotice`, the colophon line shown for every viewer whenever `locked` is true, and `policyHint`, the line under the editor's control. Both say "you" to the author and name the author to anyone else.
 
-**The editor's last section is the policy.** `frontend/src/lib/components/editor/EditingSection.svelte` is a `SegmentedControl` of Default, Everyone and Locked, with a hint that states what applies right now; for Default it reads the household setting through `GET /api/v1/settings`. Without `canChangePolicy` - a member editing someone else's recipe - it shows a sentence instead of the control: who opened the recipe when it is `open`, the Default hint otherwise. A locked recipe never reaches that branch, because such a member never reaches its editor.
+**The editor's last section is the policy.** `frontend/src/lib/components/editor/EditingSection.svelte` is a `SegmentedControl` of Default, Everyone and Locked, with a hint that states what applies right now; for Default it reads the instance setting through `GET /api/v1/settings`. Without `canChangePolicy` - a member editing someone else's recipe - it shows a sentence instead of the control: who opened the recipe when it is `open`, the Default hint otherwise. A locked recipe never reaches that branch, because such a member never reaches its editor.
 
 **The switch is the owner's.** `settings.Service.SetRecipesLockedByDefault` refuses anyone but `Role.IsSuperadmin` with `ErrOwnerRequired`. `PATCH /api/v1/settings` takes `auth.SessionSecurity` only and answers a non-owner `403` `superadmin role required`, the wording `userapi` uses; `GET /api/v1/settings` takes any session or a token carrying `recipes:read`. `frontend/src/lib/components/settings/RecipeEditingCard.svelte` sits below the people list: a `Switch` that applies on flip for the owner, a sentence naming the owner for every other admin, and a link to the user guide's page.
 
@@ -55,7 +55,7 @@ A recipe on Default follows the switch live: nothing is copied onto the row when
 
 ## Why it is this way
 
-A household that shares a collection mostly wants to share editing too, which is why nothing changes for an instance that never touches either input. The two inputs cover the two wishes that remain: a household that wants recipes to stay with the person who wrote them, and an author who wants one recipe to behave differently from the household. Resolving the policy at read time rather than copying the default onto each row is what makes Default mean "whatever the household says", including after the owner changes their mind.
+People who share a collection mostly want to share editing too, which is why nothing changes for an instance that never touches either input. The two inputs cover the two wishes that remain: an owner who wants recipes to stay with the person who wrote them, and an author who wants one recipe to behave differently from that default. Resolving the policy at read time rather than copying the default onto each row is what makes Default mean "whatever the owner set", including after the owner changes their mind.
 
 Delete stays with the author and admins even on an open recipe. Opening a recipe invites corrections; it does not hand the recipe away, and a deleted recipe takes its photos with it and cannot be restored.
 
@@ -63,20 +63,20 @@ The rule is decided once on the server and shipped as `can*` flags, so the SPA a
 
 An update without `editPolicy` keeps the stored one because a client may not know the field. A script that omits it would otherwise reset every recipe it saves to Default, and a member's script saving an open recipe would trip `CanChangePolicy` on a change it never asked for.
 
-The switch sits on the People page because it is a household setting and that page is where admins administer the household; `/settings` is the personal page. Members see the list without the card, and admins see the card with a sentence rather than a disabled switch, because a value you can only read is a fact, not a field. The lock line sits in the colophon, where authorship already lives, and only for locked recipes: the lock is about editing, and browsing or cooking should not notice it - no badge on cards, no icon beside the title, no banner, and no tooltip, since phones have none.
+The switch sits on the People page because it is an instance setting and that page is where admins administer the instance; `/settings` is the personal page. Members see the list without the card, and admins see the card with a sentence rather than a disabled switch, because a value you can only read is a fact, not a field. The lock line sits in the colophon, where authorship already lives, and only for locked recipes: the lock is about editing, and browsing or cooking should not notice it - no badge on cards, no icon beside the title, no banner, and no tooltip, since phones have none.
 
 ## Rejected
 
 - **A key-value `settings` table.** Untyped values and parsing on every read, for one boolean. `instance_settings` is a typed row with `CHECK (id = 1)`, and a second setting is a second column.
 - **A column on the owner's `users` row.** It puts a fact about the instance on an account - the same shape [Users and authentication](/features/users-and-auth) already refuses for an owner flag.
-- **Per-user grants or groups** ("Ben may edit Anna's recipes"). A household-sized instance needs a default and an exception, not an access-control list to maintain.
+- **Per-user grants or groups** ("Ben may edit Anna's recipes"). A small instance needs a default and an exception, not an access-control list to maintain.
 - **Locking reading.** Every member still sees every recipe; a private recipe is a different feature with different questions (search, the author filter, favorites).
-- **Re-deriving the rule in the SPA** from `editPolicy`, `createdBy` and the role. It would be a second copy of the tables above, and the household setting would have to be fetched on every recipe page to evaluate it.
+- **Re-deriving the rule in the SPA** from `editPolicy`, `createdBy` and the role. It would be a second copy of the tables above, and the instance setting would have to be fetched on every recipe page to evaluate it.
 
 ## Limits
 
 - `Card` carries no access fields, so the overview cannot say which recipes are locked, and there is no filter for it.
 - Authorship cannot be handed to another member; only deleting the author moves their recipes, to the admin who deleted them.
-- The household setting is changed only in a browser session, by the owner. No API token can change it, whatever its scopes.
+- The instance setting is changed only in a browser session, by the owner. No API token can change it, whatever its scopes.
 - A token acts with its issuer's current role ([API tokens](/features/api-tokens)), and only an admin's authenticates, so a token that may write recipes may edit every recipe, locked or not, and one that also carries `recipes:delete` may delete every recipe, over REST and [MCP](/features/mcp) alike.
-- The editor's Default hint reads the household setting once, when the editor opens; a flip while it is open shows after the next load, while the service always checks the current value.
+- The editor's Default hint reads the instance setting once, when the editor opens; a flip while it is open shows after the next load, while the service always checks the current value.

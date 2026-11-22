@@ -1,6 +1,6 @@
 ---
 title: People
-description: See who has an account; admins add, reset and delete accounts, and the owner assigns roles and sets the household's switches
+description: See who has an account; admins add, reset and delete accounts, and the owner assigns roles and sets the switches for everyone
 new: v1.4.0
 ---
 
@@ -19,18 +19,18 @@ import { Audience } from '@/components/audience';
 | Manage an admin's account | – | – | ✓ |
 | Give or take back "Admin" | – | – | ✓ |
 | Change someone else's name, color or photo | – | – | ✓ |
-| Set the household's switches | – | – | ✓ |
+| Set the switches for everyone | – | – | ✓ |
 | Manage the owner's account | – | – | – |
 | Delete your own account | – | – | – |
 
 - **Your own profile** is your password, display name, color and photo.
-- **Edit someone else's recipe**: "if open" means the recipe is set to **Everyone**, or left on **Default** while the household does not lock recipes ([Editing rights](/guide/editing-rights)).
+- **Edit someone else's recipe**: "if open" means the recipe is set to **Everyone**, or left on **Default** while the owner does not lock recipes ([Editing rights](/guide/editing-rights)).
 - **Managing an account** covers adding it, resetting the password, setting the email address, sending a setup link, disconnecting single sign-on, withdrawing or restoring public sharing, and deleting it.
 - **The owner's account** cannot be deleted or demoted by anyone. Nobody else can reset its password or withdraw its public sharing.
-- **The household's switches** are recipe editing, link previews and public sharing.
+- **The switches for everyone** are recipe editing, link previews and public sharing.
 
 <Callout type="info" title="The owner account">
-  There is exactly one Owner: the account created on the very first start. It cannot be deleted, demoted or handed to anyone, so the household always keeps an admin. See [First login](/getting-started/first-login).
+  There is exactly one Owner: the account created on the very first start. It cannot be deleted, demoted or handed to anyone, so the instance always keeps an admin. See [First login](/getting-started/first-login).
 </Callout>
 
 <Screenshot name="users" caption="The list of people in Settings, as an admin sees it" />
@@ -47,7 +47,7 @@ Admins see two more things on every card:
 Your own card opens your [profile](/guide/settings#profile). As an admin, the card of anyone you may act on opens their page.
 
 <Callout type="info" title="Login names are visible">
-  Everyone in the household can see the login names in this list, never the passwords. A display name is not a login: renaming someone changes only what Rezepte shows.
+  Everyone with an account can see the login names in this list, never the passwords. A display name is not a login: renaming someone changes only what Rezepte shows.
 </Callout>
 
 ## A person's page
@@ -97,7 +97,7 @@ When mail is set up, saving a new address sends a confirmation mail that names y
 
 ## Allow or withdraw public sharing
 
-Switch "May share publicly" in the "Rights" group. Turning it off pauses the person's public links until you turn it back on. Their links stay in their **Pass on** sheet, marked paused, and they cannot create new ones. The household-wide switch is [below](#public-sharing).
+Switch "May share publicly" in the "Rights" group. Turning it off pauses the person's public links until you turn it back on. Their links stay in their **Pass on** sheet, marked paused, and they cannot create new ones. The switch for everyone is [below](#public-sharing).
 
 ## Reset a password
 
@@ -131,15 +131,15 @@ Choose "Delete account" at the end of the person's page and confirm. You cannot 
 
 ## Recipe editing<Audience role="owner" />
 
-The **Recipe editing** card below the list locks recipes to their authors and admins for the whole household. Only the owner switches it; other admins see what applies. See [Editing rights](/guide/editing-rights).
+With the **Recipe editing** card below the list, only authors and admins can edit recipes left on **Default**. Only the owner switches it; other admins see what applies. See [Editing rights](/guide/editing-rights).
 
 ## Public sharing<Audience role="owner" />
 
-Below the list, the owner sets how recipes reach people outside the household. Other admins see a sentence saying what applies.
+Below the list, the owner sets how recipes reach people without an account. Other admins see a sentence saying what applies.
 
 | Switch | Default | What it does |
 | --- | --- | --- |
-| **Show recipes in link previews** | off | A shared link shows the recipe's title, description and cover photo in chat apps, for 15 min, 1 hour or 1 day. Opening the recipe still takes an account. See [Sharing recipes](/guide/sharing#the-household-setting). |
+| **Show recipes in link previews** | off | A shared link shows the recipe's title, description and cover photo in chat apps, for 15 min, 1 hour or 1 day. Opening the recipe still takes an account. See [Sharing recipes](/guide/sharing#switch-previews-on). |
 | **Members may share recipes publicly** | off | Allows public links, with a default and a maximum lifetime. Turning it off pauses existing links. |
 | **Name Rezepte when sharing** | on | A line at the foot of public pages and recipe images names Rezepte and links to the project. |
 | **Name who shared it** | off | Public pages say "Shared by …" with the sharer's display name and photo. |
@@ -147,7 +147,7 @@ Below the list, the owner sets how recipes reach people outside the household. O
 Switching off a naming switch applies at once, including to links already sent. See [Public links](/guide/sharing#public-links).
 
 <Callout type="warn" title="Public means anyone">
-  Turning on public sharing asks first: anyone a public link reaches sees the recipe and its photos without signing in, including people outside the household.
+  Turning on public sharing asks first: anyone a public link reaches sees the recipe and its photos without signing in, even people you never invited.
 </Callout>
 
 <Screenshot name="public-sharing-card" caption="The Public sharing card, switched on" />

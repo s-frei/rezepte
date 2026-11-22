@@ -265,8 +265,8 @@ func (s *Service) Mine(ctx context.Context, actor user.User, recipeID string) (S
 	return s.buildShare(row, recipeRow.Slug, recipeRow.Title, st, actor.CanSharePublicly, nil, now)
 }
 
-// List returns actor's own shares, newest first. all lists every share in
-// the household instead, with each one's creator - admin only, else
+// List returns actor's own shares, newest first. all lists every share on
+// the instance instead, with each one's creator - admin only, else
 // ErrAdminRequired. A share whose own expiry has passed is terminal and is
 // left out of both lists, whether or not Sweep has removed the row yet.
 func (s *Service) List(ctx context.Context, actor user.User, all bool) ([]Share, error) {
@@ -341,7 +341,7 @@ func (s *Service) Revoke(ctx context.Context, actor user.User, id string) error 
 	return nil
 }
 
-// RevokeAll deletes every public link in the household. Admin only, else
+// RevokeAll deletes every public link on the instance. Admin only, else
 // ErrAdminRequired.
 func (s *Service) RevokeAll(ctx context.Context, actor user.User) error {
 	if !actor.Role.IsAdmin() {

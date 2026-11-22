@@ -44,7 +44,7 @@ func isSpecRoute(p string) bool {
 var apiTags = []*huma.Tag{
 	{Name: "auth", Description: "Signing in, signing out and reading the current session."},
 	{Name: "recipes", Description: "Creating, reading, updating and deleting recipes, and searching them."},
-	{Name: "comments", Description: "Household members' comments on a recipe."},
+	{Name: "comments", Description: "What members wrote about cooking a recipe."},
 	{Name: "tags", Description: "The tags recipes are filed under."},
 	{Name: "shopping-lists", Description: "Shopping lists: recipes copied onto a list at chosen servings, free items, ticking, the store department an ingredient is sorted under, and a Server-Sent Events stream of each list's changes. A session, or an API token with lists:read to read and lists:write to change."},
 	{Name: "meal-plans", Description: "Meal plans: recipes and free texts on days of a week or on the tray, shared like lists, put on a shopping list and kept in step with it, the staples a plan's people always have, a Server-Sent Events stream of each plan's changes, and the calendar feed. A session, or an API token with plan:read to read and plan:write to change (putting a plan on a list also needs lists:write); the calendar feed's secret is managed with a session only."},
@@ -53,7 +53,7 @@ var apiTags = []*huma.Tag{
 	{Name: "push", Description: "Devices that receive notifications: a finished cook timer, a new comment and the other notifications a member keeps on for push, and a test push."},
 	{Name: "shares", Description: "Public links to recipes: creating, listing and revoking them. Session only."},
 	{Name: "public", Description: "What anyone may read without signing in: the recipe and photos behind a public link, the cover a link preview shows, and the unsubscribe link a mail carries."},
-	{Name: "settings", Description: "The household-wide settings. Everyone reads them; only the owner changes them."},
+	{Name: "settings", Description: "The instance settings. Everyone reads them; only the owner changes them."},
 	{Name: "users", Description: "Managing the accounts of an instance, which is for administrators, and reading any account's picture."},
 	{Name: "tokens", Description: "Managing the API tokens a program authenticates with."},
 	// x-displayName: the reference in docs/user titles a tag by its name, capitalized.

@@ -78,7 +78,7 @@ Every setting is an environment variable read once at startup by `service/intern
 
 ## Why it is this way
 
-One process is the whole point. A household installs a binary and a volume, so anything that would make the deployment two things - a Node server, a database server, a reverse proxy tying them together - has to earn that cost, and none of it does at this size.
+One process is the whole point. An operator installs a binary and a volume, so anything that would make the deployment two things - a Node server, a database server, a reverse proxy tying them together - has to earn that cost, and none of it does at this size.
 
 That is why the frontend is files rather than a server. `@sveltejs/adapter-static` with `ssr = false` and `fallback: 'index.html'` writes the build into `service/internal/web/dist`, which `internal/web` embeds, so the SPA ships inside the binary and there is no Node runtime in production. There is no `svelte.config.js` (SvelteKit 3 reads none): the kit configuration, adapter options included, is passed to the `sveltekit()` plugin in `frontend/vite.config.ts`. The price is paid in the open: there are no server load functions, every page fetches through `#lib/api` in the browser, and the root `+layout.ts` has to resolve the session before any page renders. Every page sits behind a login and none of it is indexed, so what server rendering would buy is worth nothing here.
 

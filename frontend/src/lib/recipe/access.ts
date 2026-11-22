@@ -20,7 +20,7 @@ export function lockNotice(
 
 /**
  * The line under the editor's policy control. `lockedByDefault` is the
- * household setting, null while unknown. Like `lockNotice`, the author reads
+ * instance-wide setting, null while unknown. Like `lockNotice`, the author reads
  * "you" and everybody else (an admin editing someone else's recipe) reads
  * the author's name.
  */
@@ -51,7 +51,7 @@ export function policyHint(
 /**
  * The toast for a failed write from the editor. A 403 means the right to
  * edit went away while the editor was open - the author locked the recipe,
- * or the owner locked the household - so it says that instead of the
+ * or the owner locked the instance - so it says that instead of the
  * operation's generic failure.
  */
 export function refusalOr(error: unknown, fallback: string): string {

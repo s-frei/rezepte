@@ -22,7 +22,7 @@ type UserResponse struct {
 	Role        string      `json:"role" enum:"superadmin,admin,user" doc:"Authorization role"`
 	Color       string      `json:"color" enum:"amber,clay,rose,plum,sage,olive,teal,slate" doc:"Palette token identifying this person"`
 	Locale      user.Locale `json:"locale" doc:"The account holder's interface language"`
-	// CanSharePublicly decides, together with the household's publicShares
+	// CanSharePublicly decides, together with the instance-wide publicShares
 	// setting, whether the UI offers to create a public link.
 	CanSharePublicly bool    `json:"canSharePublicly" doc:"Whether an admin lets this person create public links"`
 	AvatarID         *string `json:"avatarId" nullable:"true" doc:"The account's picture, served at /avatars/{id}/{avatarId}.jpg; null when it has none"`

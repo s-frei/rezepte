@@ -6,7 +6,7 @@ import type { PageLoad } from './$types';
 
 /**
  * Loads the recipe for this slug, plus what the pass-on sheet's public link
- * needs: the household's settings (is sharing on, what lifetimes) and the
+ * needs: the instance's settings (is sharing on, what lifetimes) and the
  * caller's own link for this recipe, if any.
  *
  * Settings, the share and the comments all fail soft (`null`) rather than failing the

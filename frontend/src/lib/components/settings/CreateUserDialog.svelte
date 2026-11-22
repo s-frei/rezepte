@@ -61,7 +61,7 @@
 	let role = $state<string>('user');
 	let color = $state<UserColor>(USER_COLORS[0]);
 	// Seeded from the language this admin is reading, not from the instance
-	// default: someone setting up an account for the household almost always
+	// default: someone setting up an account for the others almost always
 	// speaks the language they are working in, whatever the instance was
 	// configured with. The new member can change it themselves afterwards -
 	// it is the one profile field nobody else may touch once the account
@@ -198,7 +198,7 @@
 					error={errors.username ?? null}
 				/>
 				<!-- Optional: an empty one means the API keeps the login name, which is
-				     exactly what a household of first names wants. -->
+				     exactly what a small instance of first names wants. -->
 				<Input
 					id="new-user-display-name"
 					label={m.users_field_display_name()}

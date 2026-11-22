@@ -12673,7 +12673,7 @@
             ]
           }
         ],
-        "summary": "Get the household settings",
+        "summary": "Get the instance settings",
         "tags": [
           "settings"
         ]
@@ -12737,7 +12737,7 @@
             "session": []
           }
         ],
-        "summary": "Change the household settings",
+        "summary": "Change the instance settings",
         "tags": [
           "settings"
         ]
@@ -13373,7 +13373,7 @@
     },
     "/api/v1/shares": {
       "delete": {
-        "description": "Every public link in the household, whoever created it. Admins only.",
+        "description": "Every public link on the instance, whoever created it. Admins only.",
         "operationId": "revoke-all-shares",
         "responses": {
           "204": {
@@ -17599,7 +17599,7 @@
       "name": "recipes"
     },
     {
-      "description": "Household members' comments on a recipe.",
+      "description": "What members wrote about cooking a recipe.",
       "name": "comments"
     },
     {
@@ -17635,7 +17635,7 @@
       "name": "public"
     },
     {
-      "description": "The household-wide settings. Everyone reads them; only the owner changes them.",
+      "description": "The instance settings. Everyone reads them; only the owner changes them.",
       "name": "settings"
     },
     {

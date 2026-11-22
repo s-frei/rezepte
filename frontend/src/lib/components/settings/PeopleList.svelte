@@ -39,7 +39,7 @@
 </script>
 
 <!--
-	The people of the household as a book's list of contributors: one group
+	Everyone on the instance as a book's list of contributors: one group
 	per role, owner first, under an italic heading in the display face - the
 	same voice the ingredient groups speak in - and a count beside every
 	heading that can hold more than one. The heading names the role, so the

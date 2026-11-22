@@ -47,7 +47,7 @@
 	let loading = $state(true);
 	let loadFailed = $state(false);
 	let revokeAllOpen = $state(false);
-	// Whether sharing is on for the household, for the notice above the list;
+	// Whether sharing is on for the instance, for the notice above the list;
 	// null until known, and when it cannot be read - then there is no notice.
 	let sharingOn = $state<boolean | null>(null);
 
@@ -189,7 +189,7 @@
 			{/if}
 		</div>
 		<!-- Why the links below do not open, said where they are listed: the
-		     household switch first, since it pauses everyone's; then the
+		     instance-wide switch first, since it pauses everyone's; then the
 		     viewer's own right. -->
 		{#if sharingOn === false || session.user?.canSharePublicly === false}
 			<div

@@ -2,7 +2,7 @@ import { m } from '#lib/paraglide/messages.js';
 import type { PublicShare, ShareLifetime } from '#lib/api/shares.js';
 
 export type StubFace =
-	| { kind: 'household' }
+	| { kind: 'us' }
 	| { kind: 'days'; value: number }
 	| { kind: 'months'; value: number }
 	| { kind: 'today'; until: Date }
@@ -16,7 +16,7 @@ const dayNumber = (d: Date): number =>
 /**
  * What the ticket stub shows for a public link: its status, or the time left
  * in local calendar days. A link not created yet passes its status and expiry
- * alone. The household face is the caller's.
+ * alone. The just-for-us face is the caller's.
  */
 export function stubFace(share: Pick<PublicShare, 'status' | 'expiresAt'>, now: Date): StubFace {
 	if (share.status !== 'active') {

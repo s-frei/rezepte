@@ -20,7 +20,7 @@ const (
 // SessionSecurity marks an operation as requiring a logged-in browser
 // session. API tokens cannot reach it: an operation that names no token
 // scheme is structurally unreachable for them, which is how the session
-// mechanics, token management and the household settings write stay
+// mechanics, token management and the instance settings write stay
 // session-only.
 // Operations without Security are public.
 var SessionSecurity = []map[string][]string{{sessionScheme: {}}}

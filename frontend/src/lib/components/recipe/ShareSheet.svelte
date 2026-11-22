@@ -51,7 +51,7 @@
 	}: {
 		open?: boolean;
 		recipe: Recipe;
-		/** The household's "name Rezepte when sharing" setting. */
+		/** The instance's "name Rezepte when sharing" setting. */
 		attribution: boolean;
 		/** The tab to open on; without one, the tab this device used last. */
 		initialTab?: Tab;

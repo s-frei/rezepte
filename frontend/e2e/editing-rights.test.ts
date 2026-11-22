@@ -10,22 +10,22 @@ import {
 	uniqueToken
 } from './helpers';
 
-test('the household lock hides editing from other members until the author opens the recipe', async ({
+test('the instance-wide lock hides editing from other members until the author opens the recipe', async ({
 	page,
 	browser
 }, testInfo) => {
 	// One switch for the whole instance: were the desktop and mobile projects
-	// both to flip it, one project's reset would open the household in the
+	// both to flip it, one project's reset would open the instance in the
 	// middle of the other's test. The menu checked below is the same
 	// component on both viewports.
 	test.skip(
 		testInfo.project.name.startsWith('mobile'),
-		'the household lock is instance-wide; one project flips it'
+		'the editing lock is instance-wide; one project flips it'
 	);
-	// The household lock is instance-wide and the suite shares one instance,
+	// The editing lock is instance-wide and the suite shares one instance,
 	// so the test turns it off again whatever happened. The reset lives here
 	// rather than in an afterEach hook, because Playwright runs afterEach for
-	// the mobile project's skipped copy too - which would open the household
+	// the mobile project's skipped copy too - which would open the instance
 	// in the middle of the desktop run.
 	try {
 		const token = uniqueToken();
@@ -36,7 +36,7 @@ test('the household lock hides editing from other members until the author opens
 		await createUser(page, { username: anna, role: 'user' });
 		await createUser(page, { username: ben, role: 'user' });
 
-		// The owner flips the household lock where the household is run.
+		// The owner flips the instance-wide lock where the people are managed.
 		await page.goto('/settings/users');
 		const lock = page.getByRole('switch', { name: 'Only authors and admins edit recipes' });
 		await lock.click();
@@ -72,9 +72,7 @@ test('the household lock hides editing from other members until the author opens
 		await page.goto(`/recipes/${recipe.slug}/edit`);
 		await page.getByRole('radio', { name: 'Everyone' }).click();
 		await expect(
-			page.getByText(
-				'Everyone in the household may edit this recipe. Only you and admins can delete it.'
-			)
+			page.getByText('Everyone may edit this recipe. Only you and admins can delete it.')
 		).toBeVisible();
 		await page.getByRole('button', { name: 'Save', exact: true }).click();
 		await expect(page).toHaveURL(`/recipes/${recipe.slug}`);

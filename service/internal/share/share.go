@@ -57,7 +57,7 @@ type RecipeRef struct {
 
 // Creator names who created a share (not recipe.Person: the OpenAPI document
 // needs every schema name once). It is only attached when listing every
-// share in the household as an admin, who filters the list by ID - display
+// share on the instance as an admin, who filters the list by ID - display
 // names need not be unique.
 type Creator struct {
 	ID          string `json:"id"`

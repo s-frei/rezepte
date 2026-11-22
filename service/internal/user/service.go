@@ -51,7 +51,7 @@ type User struct {
 	UpdatedAt   time.Time
 	// CanSharePublicly is whether this person may create or keep a public
 	// recipe link. An admin withdraws it per person; it is separate from the
-	// household-wide public sharing switch in package settings.
+	// instance-wide public sharing switch in package settings.
 	CanSharePublicly bool
 	// AvatarID names the current picture under <data>/avatars/<ID>/; nil when there is none.
 	AvatarID *string

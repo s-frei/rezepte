@@ -823,7 +823,7 @@ test('the author adds a comment photo to the recipe photos', async ({ page, brow
 	const ben = `ben${token}`.slice(0, 20);
 	await login(page);
 	await createUser(page, { username: ben, role: 'user' });
-	// Open on purpose: editing-rights.test.ts locks the household for a
+	// Open on purpose: editing-rights.test.ts locks the instance for a
 	// while, and on Default the member below could then add no photo.
 	const recipe = await createRecipe(page, {
 		...loadFixture(1),
@@ -895,7 +895,7 @@ test('the author adds a comment photo to the recipe photos', async ({ page, brow
 	}
 
 	// A member on a locked recipe may look, not add. Locked on its own, not
-	// through the household default: that switch is the instance's, and
+	// through the shared default: that switch is the instance's, and
 	// flipping it here would trip editing-rights.test.ts running beside.
 	const locked = await createRecipe(page, {
 		...loadFixture(1),

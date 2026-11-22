@@ -1,9 +1,9 @@
 ---
 title: Recipe comments
-description: Per-recipe household conversation behind a tab beside the method, up to four photos per comment, an id watermark per reader for the unread dot, comments that outlive their author
+description: Per-recipe conversation among everyone on the instance behind a tab beside the method, up to four photos per comment, an id watermark per reader for the unread dot, comments that outlive their author
 ---
 
-Behind a tab beside the method of every recipe, the household writes down what it learned cooking it: "Capers only at the very end, or they go mushy." Every member reads and writes on every recipe, locked ones included, since a comment is not an edit of the recipe. The UI calls the tab "Comments" ("Kommentare") and one item a "comment" ("Kommentar"), as do the API and the tables; the frontend's component and message names keep `diary` (`KitchenDiary.svelte`, `diary_*`). The rules live as methods on `recipe.Service` in `service/internal/recipe/comment.go`, beside [tasty](/features/tasty) and [favorites](/features/favorites); the operations in `comment_handler.go`. [Data model](/architecture/data-model) owns the tables, [HTTP API](/architecture/api) the routes.
+Behind a tab beside the method of every recipe, everyone on the instance writes down what they learned cooking it: "Capers only at the very end, or they go mushy." Every member reads and writes on every recipe, locked ones included, since a comment is not an edit of the recipe. The UI calls the tab "Comments" ("Kommentare") and one item a "comment" ("Kommentar"), as do the API and the tables; the frontend's component and message names keep `diary` (`KitchenDiary.svelte`, `diary_*`). The rules live as methods on `recipe.Service` in `service/internal/recipe/comment.go`, beside [tasty](/features/tasty) and [favorites](/features/favorites); the operations in `comment_handler.go`. [Data model](/architecture/data-model) owns the tables, [HTTP API](/architecture/api) the routes.
 
 <Callout type="warn" title="Traps">
 
@@ -71,7 +71,7 @@ Behind a tab beside the method of every recipe, the household writes down what i
 
 **An id watermark, not a timestamp.** Timestamps are RFC 3339 at second precision ([Data model](/architecture/data-model)); a comment written in the second somebody opens the page would be filed as seen. Comparing ids has no such second.
 
-**`AUTOINCREMENT`, unlike every other table's UUID.** The id doubles as the watermark, so it must only grow, and a reused id would count as already seen ([Add a migration](/howtos/add-migration)). Comment ids are not secret inside the household.
+**`AUTOINCREMENT`, unlike every other table's UUID.** The id doubles as the watermark, so it must only grow, and a reused id would count as already seen ([Add a migration](/howtos/add-migration)). Comment ids are not secret inside the instance.
 
 **`ON DELETE SET NULL` for the author.** A comment is a statement of a person. Recipes of a deleted member move to the acting admin; comments must not be put in the admin's mouth, so they stay and read "Former member". A missing author is an absent `author` key in the API, not `null`: huma cannot mark a `$ref` nullable.
 
@@ -79,7 +79,7 @@ Behind a tab beside the method of every recipe, the household writes down what i
 
 **The list is `GET /comments?recipeId=`.** A `GET` with three segments under `/recipes/{id}/…` collides with `GET /recipes/by-slug/{slug}` in `ServeMux`, the collision described in [Public shares](/features/public-shares). Writing and marking seen are `POST` and `PUT`, which do not collide, and stay under the recipe.
 
-**Comments never leave the household, photos included.** The public share page (`/s/[token]`) renders `RecipeView` without the snippet, `ShareCard` has none, `share.PublicRecipe` has no comments, and the zip export and import carry none. A remark about a recipe is said to the household, not to whoever receives a link or an image.
+**Comments never leave the instance, photos included.** The public share page (`/s/[token]`) renders `RecipeView` without the snippet, `ShareCard` has none, `share.PublicRecipe` has no comments, and the zip export and import carry none. A remark about a recipe is said to the people on the instance, not to whoever receives a link or an image.
 
 ## Rejected
 
@@ -88,7 +88,7 @@ Behind a tab beside the method of every recipe, the household writes down what i
 - **Marking seen inside the recipe GET.** See above; the editor, cook mode and MCP share it.
 - **The comments under the last step.** In the reading flow it pushes the method and the colophon apart; behind a tab it is one tap away and out of the way while cooking.
 - **A drawer or sheet opened from a chip by the title.** It hides the recipe while the comments are read and adds a second place to look on phones.
-- **A "new comments" filter on the list.** The dot is enough at a household's scale.
+- **A "new comments" filter on the list.** The dot is enough at a small instance's scale.
 - **A count or the writers' faces on the card.** They broke cards at 320 px and fought the tags for the line; one dot on the author's circles says "go look".
 
 ## Limits

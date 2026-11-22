@@ -1,4 +1,4 @@
-// Package settings holds the household-wide settings the instance owner
+// Package settings holds the instance-wide settings the instance owner
 // controls. There is exactly one row; the migration creates it.
 package settings
 
@@ -39,7 +39,7 @@ var PreviewLifetimes = []int{15, 60, 1440}
 // from a request or nil in Settings means permanent.
 var ShareLifetimes = []int{1, 7, 30, 365}
 
-// Settings is the household-wide configuration.
+// Settings is the instance-wide configuration.
 type Settings struct {
 	// RecipesLockedByDefault makes every recipe whose edit policy is
 	// "default" editable only by its author and admins.
@@ -98,7 +98,7 @@ func (s *Service) Get(ctx context.Context) (Settings, error) {
 	}, nil
 }
 
-// SetRecipesLockedByDefault switches the household default. Only the
+// SetRecipesLockedByDefault switches the instance-wide default. Only the
 // superadmin may; everybody else gets ErrOwnerRequired.
 func (s *Service) SetRecipesLockedByDefault(ctx context.Context, actor user.User, on bool) error {
 	if !actor.Role.IsSuperadmin() {

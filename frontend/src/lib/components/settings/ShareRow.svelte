@@ -18,7 +18,7 @@
 		share,
 		/** The admin "everyone" view: names who created each link. */
 		showCreator = false,
-		/** Whether the household switch is off, which is then why a link is paused. */
+		/** Whether the instance-wide switch is off, which is then why a link is paused. */
 		sharingOff = false,
 		/** Rejects (and leaves the row in place) when the API refused. */
 		onrevoke,
@@ -37,12 +37,12 @@
 	const url = $derived(location.origin + share.path);
 	const dormant = $derived(share.status !== 'active');
 
-	// A paused link is paused for one of two reasons, and the household switch
+	// A paused link is paused for one of two reasons, and the instance-wide switch
 	// wins: the person's own right only matters while sharing is on.
 	const reason = $derived(
 		share.status === 'paused'
 			? sharingOff
-				? m.settings_shares_paused_household()
+				? m.settings_shares_paused_everyone()
 				: m.settings_shares_paused_person()
 			: share.status === 'limited'
 				? m.settings_shares_limited_reason()

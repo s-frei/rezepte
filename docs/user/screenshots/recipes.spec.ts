@@ -79,7 +79,7 @@ test('editor-images', async ({ page }, testInfo) => {
 test('editor-editing', async ({ page }, testInfo) => {
 	await prepare(page, testInfo, { login: true });
 	await page.goto(`${DETAIL}/edit`);
-	// The hint names what Default means once the household setting has
+	// The hint names what Default means once the general setting has
 	// loaded; before that it only says that it follows it.
 	await expect(page.getByText('right now everyone may edit this recipe')).toBeVisible();
 	await page.getByRole('radiogroup', { name: 'Who may edit this recipe' }).scrollIntoViewIfNeeded();

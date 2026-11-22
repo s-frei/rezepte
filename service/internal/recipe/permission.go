@@ -14,7 +14,7 @@ var (
 )
 
 // Policy says who may edit a recipe besides its author and admins.
-// PolicyDefault follows the household setting; the other two override it.
+// PolicyDefault follows the instance-wide setting; the other two override it.
 type Policy string
 
 // The three policies. The database stores PolicyDefault as NULL.
@@ -48,7 +48,7 @@ type Guarded struct {
 }
 
 // Locked reports whether g is closed to everyone but its author and admins,
-// given the household default.
+// given the instance-wide default.
 func Locked(g Guarded, lockedByDefault bool) bool {
 	switch g.Policy {
 	case PolicyOpen:

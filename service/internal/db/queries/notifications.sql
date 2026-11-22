@@ -37,7 +37,7 @@ UPDATE instance_settings SET mail_alert_last_at = ? WHERE id = 1;
 -- name: ListCommentRecipients :many
 -- Who a new comment by author_id on recipe_id goes to on channel: its
 -- followers (the creator and everyone with a comment on it, as for the
--- unread dot) with neither the comment kind nor the household group
+-- unread dot) with neither the comment kind nor the 'household' group
 -- switched off there, never the author. Whether a mail has an address to go
 -- to is the caller's: a push needs none.
 SELECT u.id, u.email, u.email_verified, u.locale, CAST(u.id = r.created_by AS BOOLEAN) AS is_creator
@@ -56,7 +56,7 @@ ORDER BY u.username COLLATE unicode;
 
 -- name: ListRecipeDigestRecipients :many
 -- Who gets the daily new recipes digest on channel: everyone with neither
--- the recipe kind nor the household group switched off there. Whose own
+-- the recipe kind nor the 'household' group switched off there. Whose own
 -- recipes to leave out, and whether a mail has an address, is the caller's.
 SELECT id, email, email_verified, locale
 FROM users

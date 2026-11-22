@@ -4,7 +4,7 @@ import { api } from './client';
 /** How many minutes a link preview lasts: 15 minutes, an hour or a day. */
 export type PreviewLifetime = 15 | 60 | 1440;
 
-/** The household-wide settings the instance owner controls. */
+/** The instance-wide settings the instance owner controls. */
 export type Settings = {
 	recipesLockedByDefault: boolean;
 	/** Whether a recipe link shared from the app shows the recipe in chat previews. */

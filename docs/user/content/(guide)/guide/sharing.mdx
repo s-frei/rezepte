@@ -1,15 +1,15 @@
 ---
 title: Sharing recipes
-description: Send a recipe to the household, what the chat preview shows, and public links for people outside it
+description: Pass a recipe on as an image or a link, what the chat preview shows, and public links for anyone
 ---
 
 import { Audience } from '@/components/audience';
 
-Send a recipe to someone in your household, or to anyone, as an image or a link.
+Send a recipe to the people on your Rezepte, or to anyone, as an image or a link.
 
 On a recipe's page, **Copy link** in the "…" menu copies the recipe's address. **Pass on** opens a sheet with two tabs, **Image** and **Link**. On a phone, **Pass on** is the share button at the top of the page; on a computer, it is a button in the top bar.
 
-The household link is the recipe's normal address. Whoever opens it needs an account on your instance, so the link does not let anyone in. For people without an account, use a [public link](#public-links).
+**Just for us** is the recipe's normal address. It opens after signing in, so only people with an account here can read it. For people without an account, use a [public link](#public-links).
 
 ## The link preview
 
@@ -21,7 +21,7 @@ Once the owner switches previews on, a link from **Copy link** or **Pass on** sh
   While previews are on, anyone the link reaches in that time, forwarded or not, sees the title, description and cover photo without an account.
 </Callout>
 
-## The household setting<Audience role="owner" />
+## Switch previews on<Audience role="owner" />
 
 Previews are off until the owner switches on **Show recipes in link previews** under **Settings → People → Link previews**. Then the owner picks how long a shared link shows the recipe: **15 min** (the default), **1 hour** or **1 day**.
 
@@ -48,7 +48,7 @@ Some chat apps only show a picture from an `https` address; [Reverse proxy](/ope
 
 ## Public links
 
-A public link opens the recipe for anyone who has it, with no account, until you revoke it or it expires. The owner decides whether public links are allowed at all (see [People](/guide/users#public-sharing)). Until the owner allows them, the **Link** tab offers only the household link.
+A public link opens the recipe for anyone who has it, with no account, until you revoke it or it expires. The owner decides whether public links are allowed at all (see [People](/guide/users#public-sharing)). Until the owner allows them, the **Link** tab offers only **Just for us**.
 
 <Steps>
   <Step>
@@ -79,7 +79,7 @@ A public link opens the recipe for anyone who has it, with no account, until you
     Once you have a link, a **Shared publicly** marker sits above the recipe's title, and **Manage link** sits at the end of the page. Only you see them: each member has their own link to a recipe. Both open **Pass on** on the **Link** tab.
 
     - **Change the lifetime:** pick another time. It counts from now, and the address stays the same. Pick the current time again to renew a link that is running out.
-    - **Stop sharing:** press **Revoke** and confirm. Choosing **For the household** again does not revoke the link.
+    - **Stop sharing:** press **Revoke** and confirm. Choosing **Just for us** again does not revoke the link.
     - **See all your links:** **Shared links**, next to **Revoke** or under **Settings → Shared links**, lists every public link you created. Copy, open or revoke them there. Admins see everyone's links.
 
     <Callout type="warn" title="Revoking cannot be undone">

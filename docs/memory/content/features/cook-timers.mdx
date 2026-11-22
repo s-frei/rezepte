@@ -93,7 +93,7 @@ A cook who reads "90 Minuten schmoren" in cook mode taps the time and a timer ru
 
 ## Why it is this way
 
-- **State in the browser, time from `endsAt`.** A timer is a promise about this kitchen, not household data; nothing on the server needs it, and deriving the remaining time from a timestamp is the only form that survives a sleeping phone.
+- **State in the browser, time from `endsAt`.** A timer is a promise about this kitchen, not shared data; nothing on the server needs it, and deriving the remaining time from a timestamp is the only form that survives a sleeping phone.
 - **The dock collapses on phones.** At 320 px and the default type size a panel of rows would take the step's room; one capsule keeps the step readable and still says how much is left on the timer that matters next.
 - **The ring is the pause button, with a glyph.** It is where the eye already is; without ⏸/▶ in its center nobody would guess a ring is tappable.
 - **The banner at the top, under the progress bar.** It is where the cook looks first, it leaves the footer's "Weiter" where the thumb expects it, and the running timers stay in the dock below.
@@ -121,7 +121,7 @@ A cook who reads "90 Minuten schmoren" in cook mode taps the time and a timer ru
 
 ## Limits
 
-- Timers live per device and per browser; another device of the same household never sees them.
+- Timers live per device and per browser; another device, even the same person's, never sees them.
 - A range ("20 bis 25 Minuten") runs on its lower bound, with no choice offered.
 - A timer that ended while the page was closed comes back ringing, but the browser plays no sound before the first tap after a reload; the banner or the player shows the end silently before that tap.
 - The chime gives up after `CHIME_LIMIT_MS`; only the banner or the player keeps showing the end.

@@ -28,7 +28,7 @@ type IngredientSuggestion struct {
 // with q (folded), the names starting with q as a whole first, then the most
 // used. limit is clamped to 1..50, 10 when unset.
 //
-// ponytail: reads every ingredient name per call and pairs keys in O(keys²); fine at household scale, cache or index if instances grow to thousands of recipes.
+// ponytail: reads every ingredient name per call and pairs keys in O(keys²); fine at a small instance's scale, cache or index if instances grow to thousands of recipes.
 func (s *Service) IngredientSuggestions(ctx context.Context, q string, limit int) ([]IngredientSuggestion, error) {
 	if limit <= 0 {
 		limit = 10

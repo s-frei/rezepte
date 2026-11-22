@@ -26,7 +26,7 @@ export type Source = {
 	/** Who typed a free item in, so the row can show their mark and the page say "by you". */
 	addedBy: ListPerson | null;
 	/**
-	 * `addedBy` the way the household calls them: the first name, the full
+	 * `addedBy` the way the people on the list call them: the first name, the full
 	 * name when two people on the list share it (`holderNames`).
 	 */
 	addedByName: string | null;

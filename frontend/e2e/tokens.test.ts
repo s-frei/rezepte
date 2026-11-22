@@ -137,7 +137,7 @@ test('a token with no access says so before it is submitted', async ({ page }) =
 	await expect(hint).toBeHidden();
 });
 
-test("an admin sees another admin's token only in the household view", async ({ page }) => {
+test("an admin sees another admin's token only in the everyone view", async ({ page }) => {
 	const issuer = `iss${uniqueToken()}`;
 	const theirs = `theirs-${uniqueToken()}`;
 	await login(page);
@@ -158,13 +158,13 @@ test("an admin sees another admin's token only in the household view", async ({ 
 	// Own tokens by default: theirs is not in the list.
 	await expect(list.getByRole('heading', { name: theirs })).toHaveCount(0);
 
-	await list.getByRole('switch', { name: 'Everyone in the household' }).click();
+	await list.getByRole('switch', { name: "Everyone's tokens" }).click();
 	await expect(page).toHaveURL(/all=1/);
 	const tag = list
 		.getByRole('listitem')
 		.filter({ has: page.getByRole('heading', { name: theirs }) });
 	await expect(tag).toBeVisible();
-	// The household view names the issuer on the tag...
+	// The everyone view names the issuer on the tag...
 	await expect(tag).toContainText(issuer);
 	// ...by mark and name only: the tag's edge stays neutral, never the issuer's color.
 	expect(

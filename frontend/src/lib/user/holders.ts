@@ -17,11 +17,11 @@ export function colorHolders(
 	return people.filter((p) => p.color === color && p.id !== selfId).sort(compareByName);
 }
 
-/** The first word of a name, the way a household calls someone. */
+/** The first word of a name, the way the people you cook with call someone. */
 export const firstWord = (name: string) => name.trim().split(/\s+/)[0];
 
 /**
- * Each holder by first name, the way a household talks. Two holders with the
+ * Each holder by first name, the way the people you cook with talk. Two holders with the
  * same first name are both named in full, or the line would say "Anna, Anna".
  */
 export function holderNames(holders: Pick<PersonEntry, 'displayName'>[]): string[] {

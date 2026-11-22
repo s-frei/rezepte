@@ -341,7 +341,7 @@ test('the owner creates, promotes, resets and deletes a user', async ({ page }) 
 		.click();
 	await expect(page).toHaveURL('/settings/users');
 	// The list has loaded once the owner's group shows: the only group every
-	// household has. The Admins group exists only while some other test holds
+	// instance has. The Admins group exists only while some other test holds
 	// an admin, since a role nobody holds gets no group.
 	await expect(people(page).getByRole('list', { name: 'Owner' })).toBeVisible();
 	await expect(personRow(page, username)).toHaveCount(0);

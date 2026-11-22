@@ -232,7 +232,7 @@ func TestDeleteReassignsRecipesEditedByTheDeletedUser(t *testing.T) {
 
 // A recipe its author locked stays locked when the author is deleted: the
 // lock moves to the acting admin together with the recipe, rather than
-// opening the recipe to the whole household on the way.
+// opening the recipe to everyone on the instance on the way.
 func TestDeleteKeepsTheEditPolicyOfReassignedRecipes(t *testing.T) {
 	ctx := context.Background()
 	conn, svc, sam, kim := seedTwo(t)
