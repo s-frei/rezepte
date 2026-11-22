@@ -81,6 +81,10 @@
 	// from the URL lets a shared/reloaded link resume where "Load more" left
 	// off; searching or changing tags resets it back to 1.
 	let pageNum = $state(untrack(() => data.page));
+	// The page "Load more" is still bringing, 0 when none: a re-sort that
+	// cuts it off ("Done" while it loads) fetches it along. Not `pageNum`,
+	// which the URL names, and nothing renders from it.
+	let asking = 0;
 
 	// Read once: a page left open past midnight keeps yesterday's date,
 	// which is fine for a running head.
@@ -114,9 +118,13 @@
 	/** The pill under the mouse, marked in every card's missing line. */
 	let hovered = $state<string | null>(null);
 	/**
-	 * Room kept under the results from the first focus until the query
-	 * changes: a re-sort or a shorter missing line would otherwise shorten
-	 * the page, and the browser would pull the pinned card up with it.
+	 * Room kept under the screen while a card is held, from its stamp until
+	 * the re-sort "Done" starts is shown: the scroll to the card, a row that
+	 * changes height and a re-sort that shortens the page would otherwise
+	 * reach the page's end, and the browser would pull the pinned card with
+	 * it. The next list lets go of it in the update it glides to, so the
+	 * released card stays where it is while the list reaches past the
+	 * screen, and glides down with the page's end where it does not.
 	 */
 	let reserve = $state(0);
 	/**
@@ -375,6 +383,8 @@
 		animate = true,
 		{ quiet = false, anchor }: { quiet?: boolean; anchor?: string } = {}
 	) {
+		// A re-sort aborts a "Load more" still loading and takes its page along.
+		if (quiet) pageToFetch = Math.max(pageToFetch, asking);
 		abortController?.abort();
 		const controller = new AbortController();
 		abortController = controller;
@@ -481,9 +491,31 @@
 					rowFor = frozenFor;
 				}
 				pageNum = result.page;
+				asking = 0;
 				if (!append) {
 					frozen = false;
+					reserve = 0;
 					rankedHave = sentHave;
+					// A list the filters asked for lets go of a card a stamp
+					// focused on the old cards while it loaded, as `refilter`
+					// let go of the one before; held on, the row stayed
+					// focused on a layout no longer frozen. The
+					// keyboard goes back to that card's stamp, as from
+					// "Done", or to the search field if the card is gone.
+					if (!quiet && focusedId !== null) {
+						const was = focusedId;
+						const fromRow = tickRow?.contains(document.activeElement);
+						focusedId = null;
+						rowHeight = 0;
+						if (fromRow) {
+							void tick().then(() =>
+								(
+									document.querySelector<HTMLElement>(`main [data-card="${was}"] [data-stamp]`) ??
+									document.getElementById('overview-search')
+								)?.focus({ preventScroll: true })
+							);
+						}
+					}
 				}
 				// Inside the update, so the glide's picture of the new state
 				// already has the skeleton or the empty state where it belongs.
@@ -512,7 +544,19 @@
 			if (err instanceof DOMException && err.name === 'AbortError') {
 				return;
 			}
-			frozen = false;
+			asking = 0;
+			// No list comes to let go of the held layout and its room in its
+			// glide, so they go in one of their own, from the card let go of:
+			// at once, that card jumped down with the page's end.
+			if (!append && (frozen || reserve)) {
+				const pinned = anchor
+					? document.querySelector<HTMLElement>(`main [data-card="${anchor}"]`)
+					: null;
+				void glide(() => {
+					frozen = false;
+					reserve = 0;
+				}, pinned ?? false);
+			}
 			toast.error(m.overview_load_error());
 		} finally {
 			settle();
@@ -613,9 +657,20 @@
 
 	function clearTicks() {
 		const before = have;
+		// "Clear ticks" goes with its ticks, and the undo with its toast; the
+		// keyboard stays in the row, on its first pill, either way.
+		const toRow = () =>
+			tickRow?.querySelector<HTMLElement>('[role="group"] button')?.focus({ preventScroll: true });
+		toRow();
 		setTicks([]);
 		toast(before.length === 1 ? m.ticks_cleared_one() : m.ticks_cleared({ count: before.length }), {
-			action: { label: m.ticks_undo(), onClick: () => setTicks(before) }
+			action: {
+				label: m.ticks_undo(),
+				onClick: () => {
+					setTicks(before);
+					toRow();
+				}
+			}
 		});
 	}
 
@@ -629,13 +684,18 @@
 	 * Focuses the tick row on a card, or lets go of it (a second tap, or
 	 * "Done"). The card keeps its place on screen as the row above it
 	 * changes; a focused card under the sticky row comes out below it, and
-	 * one let go of stays put while the others re-sort and glide.
+	 * one let go of stays put while the others re-sort and glide. Let go of
+	 * from the row, or by "Done" (`toStamp`), the keyboard goes back to the
+	 * card's stamp.
 	 */
-	async function focusCard(id: string | null) {
+	async function focusCard(id: string | null, toStamp = false) {
 		const was = focusedId;
+		// Read before the row changes: "Done" is gone once it has.
+		const fromRow = toStamp || !!tickRow?.contains(document.activeElement);
 		const pinned = id ?? was;
 		if (pinned === null) return;
 		const before = cardY(pinned);
+		reserve = Math.max(reserve, roomBelow(320));
 		if (id !== null) {
 			// The card holds still from here: a re-sort the last ticks
 			// started waits for "Done", which fetches anyway.
@@ -643,7 +703,6 @@
 			if (abortController !== null && abortController === quietController) {
 				abortController.abort();
 			}
-			if (results) reserve = Math.max(reserve, results.offsetHeight + 320);
 			frozen = true;
 			if (was === null) rowHeight = phone.current ? 0 : (tickRow?.offsetHeight ?? 0);
 		} else {
@@ -675,19 +734,38 @@
 			const rowBottom = tickRow?.getBoundingClientRect().bottom ?? 0;
 			const gap = (card?.getBoundingClientRect().top ?? Infinity) - (rowBottom + 12);
 			// On a phone the card always comes to sit 12px under the sticky
-			// row; a desktop only lifts one the row would cover.
+			// row, and the page reaches as far as that scroll goes; a desktop
+			// only lifts one the row would cover.
 			if (gap < 0 || (gap !== Infinity && phone.current)) {
+				reserve = Math.max(reserve, roomBelow(gap));
+				await tick();
 				window.scrollBy(0, gap);
 			}
 		} else if (was !== null) {
-			// Let go from the row, the keyboard goes back to the stamp it came from.
-			if (tickRow?.contains(document.activeElement)) {
+			if (fromRow) {
 				document
 					.querySelector<HTMLElement>(`main [data-card="${was}"] [data-stamp]`)
 					?.focus({ preventScroll: true });
 			}
 			void fetchPage(pageNum, false, true, { quiet: true, anchor: was });
 		}
+	}
+
+	/**
+	 * The results' height that ends the page `room` px below the screen.
+	 * Measured from the screen, never from the results' own height: that
+	 * holds the last room already, and every stamp added another under it.
+	 */
+	function roomBelow(room: number): number {
+		return results ? window.innerHeight - results.getBoundingClientRect().top + room : 0;
+	}
+
+	/** The results' own height, without the room a held card keeps under them. */
+	function ownHeight(): number {
+		const last = results?.lastElementChild;
+		return results && last
+			? last.getBoundingClientRect().bottom - results.getBoundingClientRect().top
+			: 0;
 	}
 
 	function focusTarget(): HTMLElement | null {
@@ -701,11 +779,7 @@
 	/** Escape in the focused row is "Done". */
 	function handleKeydown(event: KeyboardEvent) {
 		if (event.key !== 'Escape' || event.defaultPrevented || focusedId === null) return;
-		const id = focusedId;
-		void focusCard(null);
-		document
-			.querySelector<HTMLElement>(`main [data-card="${id}"] [data-stamp]`)
-			?.focus({ preventScroll: true });
+		void focusCard(null, true);
 	}
 
 	let tickRow = $state<HTMLElement>();
@@ -714,8 +788,10 @@
 	// While a card is focused it stays where it is on screen: whatever moves
 	// it on the page - a missing line above it shrinking as items are ticked,
 	// the masonry placing it anew - the window scrolls by as much. Its place
-	// on the page is read every frame and after every move the masonry
-	// writes, so the correction lands before the browser paints.
+	// on the page is read after every move the masonry writes and every
+	// frame while anything may be moving: from a tap, a key, or a size change
+	// in the row or the results, until a second has passed quietly. A loop
+	// for the whole focus read the layout every frame for minutes.
 	$effect(() => {
 		const id = focusedId;
 		if (id === null) return;
@@ -727,16 +803,31 @@
 			}
 			y = now;
 		};
-		let frame = requestAnimationFrame(function loop() {
+		let frame = 0;
+		let quiet = 0;
+		const loop = () => {
+			const was = y;
 			hold();
-			frame = requestAnimationFrame(loop);
-		});
+			quiet = y === was ? quiet + 1 : 0;
+			frame = quiet < 60 ? requestAnimationFrame(loop) : 0;
+		};
+		const wake = () => {
+			quiet = 0;
+			if (!frame) frame = requestAnimationFrame(loop);
+		};
+		wake();
 		const moves = new MutationObserver(hold);
 		const card = document.querySelector(`main [data-card="${id}"]`);
 		if (card) moves.observe(card, { attributes: true, attributeFilter: ['style'] });
+		const sizes = new ResizeObserver(wake);
+		for (const el of [tickRow, results]) if (el) sizes.observe(el);
+		const events = ['pointerdown', 'click', 'keydown'] as const;
+		for (const name of events) window.addEventListener(name, wake, { capture: true });
 		return () => {
 			cancelAnimationFrame(frame);
 			moves.disconnect();
+			sizes.disconnect();
+			for (const name of events) window.removeEventListener(name, wake, { capture: true });
 		};
 	});
 
@@ -788,7 +879,8 @@
 	}
 
 	function loadMore() {
-		void fetchPage(pageNum + 1, true);
+		asking = pageNum + 1;
+		void fetchPage(asking, true);
 	}
 
 	// With a search text or chips the default order puts the best hits first (most
@@ -950,7 +1042,13 @@
 			change();
 			await tick();
 			if (anchor && top !== undefined && window.scrollY > 0) {
-				window.scrollBy(0, anchor.getBoundingClientRect().top - top);
+				// Kept within the page, whose end the change may have pulled up
+				// (the room a held card kept goes with it): asked to scroll past
+				// the end, Safari went there later in the glide and stayed,
+				// with nothing on screen below the cards.
+				const end = document.documentElement.scrollHeight - window.innerHeight;
+				const y = window.scrollY + anchor.getBoundingClientRect().top - top;
+				window.scrollTo(0, Math.max(0, Math.min(y, end)));
 			}
 			if (!animate) {
 				return;
@@ -982,18 +1080,21 @@
 		// after the first was lost.
 		// The fallback is `document`'s, not `<html>`'s: only Chromium gives
 		// elements a `startViewTransition`, and Safari threw on the root's.
-		// A size change keeps its place over the whole document too: a scoped
-		// transition holds its scope at the old height until it ends, so the
-		// page could not scroll past the old bottom, and a phone going to one
-		// card per row (the list twice as tall) lost the reader's card.
+		// A glide that keeps a place runs over the whole document too, a size
+		// change as well as "Done": a scoped transition holds its scope at the
+		// old height until it ends, so the page could not scroll past the old
+		// bottom, and a phone going to one card per row (the list twice as
+		// tall) lost the reader's card. Its pictures also lie on the scope,
+		// which the scroll that keeps the place moves at once: the card let go
+		// of jumped down with the page's end instead of gliding.
 		// So does a long list: Chromium's picture of a scope much taller than
 		// the window drew stretched for its first frame, and the whole grid
 		// jumped down and back (seen from about twice the window's height).
 		const scoped =
-			keepPlace !== true &&
+			!keepPlace &&
 			results &&
 			'startViewTransition' in results &&
-			results.offsetHeight <= 1.5 * window.innerHeight
+			ownHeight() <= 1.5 * window.innerHeight
 				? results
 				: null;
 		const marked = scoped ?? root;
@@ -1289,17 +1390,23 @@
 				{focus}
 				ontoggle={toggleTick}
 				onclear={clearTicks}
-				ondone={() => focusCard(null)}
+				ondone={() => focusCard(null, true)}
 				{hint}
 				onhover={(item) => (hovered = item?.key ?? null)}
 			/>
 		</div>
 	{/if}
 
+	<!-- While the layout is frozen the page keeps the held card in place
+	     itself (`focusCard`, the hold effect, the re-sort's glide), so no
+	     card may anchor Chromium's scroll anchoring: it would make up for
+	     the row's new height a second time, and answer a missing line
+	     rewrapping inside a frozen card by scrolling the page. -->
 	<div
 		bind:this={results}
 		data-arrival={arrival || undefined}
 		style:min-height={reserve ? `${reserve}px` : undefined}
+		style:overflow-anchor={frozen ? 'none' : undefined}
 		class="mt-7 md:mt-9"
 	>
 		{#if bandPerson}

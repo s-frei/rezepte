@@ -3552,10 +3552,10 @@ test.describe('ingredient search', () => {
 	// The German recipes the service tests use, behind a tag of the test's
 	// own so other tests' recipes stay out of the grid, read by an account
 	// that reads German. Returns the tag.
-	async function kitchen(page: Page): Promise<string> {
+	async function kitchen(page: Page, count = 12): Promise<string> {
 		const token = uniqueToken();
-		for (let i = 0; i < 12; i++) {
-			const recipe = loadFixture(i, 'de');
+		for (let i = 0; i < count; i++) {
+			const recipe = loadFixture(i % 12, 'de');
 			await createRecipe(page, { ...recipe, tags: [...recipe.tags, token] });
 		}
 		const username = `koch${token}`;
@@ -3581,6 +3581,79 @@ test.describe('ingredient search', () => {
 	const hint = (page: Page) =>
 		page.getByText('für ein Rezept: auf der Karte').filter({ visible: true });
 	const haveParam = (page: Page) => new URL(page.url()).searchParams.getAll('have').join(',');
+	// Nothing moving any more: no glide under way, no animation running (the
+	// hover lift easing back, a glide's pictures; an endless one does not
+	// count), and two frames for a layout the last change set off.
+	async function still(page: Page) {
+		await page.waitForFunction(
+			() =>
+				!document.querySelector('[data-card-transition]') &&
+				document
+					.getAnimations()
+					.every(
+						(a) => a.playState !== 'running' || a.effect?.getComputedTiming().endTime === Infinity
+					)
+		);
+		await page.evaluate(
+			() => new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done)))
+		);
+	}
+	// "Done" and the re-sort it starts: shown once the cards let go of the
+	// heights the focus froze, over once its glide is.
+	async function done(page: Page) {
+		await page.getByRole('button', { name: 'Fertig' }).click();
+		await page.waitForFunction(() =>
+			[...document.querySelectorAll<HTMLElement>('main [data-card]')].every(
+				(el) => !el.style.minHeight
+			)
+		);
+		await still(page);
+	}
+	// How far the page runs on under its last card.
+	const tail = (page: Page) =>
+		page.evaluate(() => {
+			const cards = [...document.querySelectorAll('main [data-card]')];
+			const last = Math.max(...cards.map((el) => el.getBoundingClientRect().bottom));
+			return Math.round(document.documentElement.scrollHeight - scrollY - last);
+		});
+	// Scrolls to the page's end and names the card lowest on it.
+	const lastCard = (page: Page) =>
+		page.evaluate(() => {
+			window.scrollTo(0, document.documentElement.scrollHeight);
+			const cards = [...document.querySelectorAll('main [data-card]')];
+			const bottom = (el: Element) => el.getBoundingClientRect().bottom;
+			const last = cards.reduce((a, b) => (bottom(b) > bottom(a) ? b : a));
+			return last.querySelector('h3')!.textContent!.trim();
+		});
+	// Records the card as a glide paints it, its view-transition group's
+	// place in every frame; the returned function reads the path.
+	async function record(page: Page, box: Locator) {
+		await page.evaluate(
+			(id) => {
+				const path: number[][] = [];
+				Object.assign(window, { path });
+				const pseudo = `::view-transition-group(card-${id})`;
+				const frame = () => {
+					const style = getComputedStyle(document.documentElement, pseudo).transform;
+					const matrix = style
+						.match(/^matrix\((.+)\)$/)?.[1]
+						.split(',')
+						.map(Number);
+					if (matrix) path.push([matrix[4], matrix[5]]);
+					requestAnimationFrame(frame);
+				};
+				requestAnimationFrame(frame);
+			},
+			(await box.getAttribute('data-card'))!
+		);
+		return () => page.evaluate(() => (window as unknown as { path: number[][] }).path);
+	}
+	type Point = { x: number; y: number };
+	// A card that moved glided there: some frame shows it on the way.
+	function glided(path: number[][], from: Point, to: Point) {
+		const off = ([x, y]: number[], at: Point) => Math.hypot(x - at.x, y - at.y) > 2;
+		return !off([to.x, to.y], from) || path.some((at) => off(at, from) && off(at, to));
+	}
 
 	test('ticks off what one recipe still needs while its card stays put', async ({ page }) => {
 		const token = await kitchen(page);
@@ -3624,14 +3697,18 @@ test.describe('ingredient search', () => {
 	// Ticking shortens the focused card and the ones around it; the masonry
 	// would move it to another column, a section above it would shrink. The
 	// layout is frozen while a card is focused, so nothing moves under the
-	// reader's eye.
-	test('a focused card holds still, x and y, through every tick', async ({ page, isMobile }) => {
-		test.skip(isMobile, 'sets its own phone and desktop widths');
+	// reader's eye. A missing line
+	// still rewraps inside its frozen card, and Chromium's scroll anchoring,
+	// anchored in such a card, would scroll the page by a line (Käsespätzle).
+	test('a focused card holds still, x and y, through every tick', async ({ page }, testInfo) => {
+		// The Pixel project would only repeat the Chromium run; WebKit holds
+		// the card on the native `grid-lanes` path.
+		test.skip(testInfo.project.name === 'mobile', 'sets its own phone and desktop widths');
 		const token = await kitchen(page);
 		const url = `/?tags=${token}&ingredients=Kartoffel&ingredients=Zwiebel`;
 		const cases: [number, number, string[]][] = [
 			[360, 780, ['Rinderrouladen', 'Sauerbraten']],
-			[1440, 900, ['Flammkuchen', 'Rinderrouladen']]
+			[1440, 900, ['Flammkuchen', 'Rinderrouladen', 'Käsespätzle']]
 		];
 		for (const [width, height, titles] of cases) {
 			await page.setViewportSize({ width, height });
@@ -3639,19 +3716,19 @@ test.describe('ingredient search', () => {
 				await page.goto(url);
 				const box = card(page, title);
 				await box.scrollIntoViewIfNeeded();
-				await page.mouse.wheel(0, 150);
+				await page.evaluate(() => window.scrollBy(0, 150));
 				await box.getByRole('button', { name: /fehl/ }).click();
 				const pills = page.getByRole('group', { name: `Fehlt bei ${title}` }).getByRole('button');
 				await expect(pills.first()).toBeVisible();
 				// Off the card, whose hover lift would move its box.
 				await page.mouse.move(0, 0);
-				await page.waitForTimeout(400);
+				await still(page);
 				const at = (await box.boundingBox())!;
 				const moves: string[] = [];
 				for (const [i, pill] of (await pills.all()).entries()) {
 					await pill.click();
 					await page.mouse.move(0, 0);
-					await page.waitForTimeout(250);
+					await still(page);
 					const now = (await box.boundingBox())!;
 					if (Math.abs(now.x - at.x) > 1 || Math.abs(now.y - at.y) > 1) {
 						moves.push(`${width} ${title} tick ${i}: ${at.x},${at.y} -> ${now.x},${now.y}`);
@@ -3668,13 +3745,178 @@ test.describe('ingredient search', () => {
 		const first = page.getByRole('main').getByRole('article').first();
 		await expect(first).toBeVisible();
 		await page.mouse.move(0, 0);
-		await page.waitForTimeout(300);
+		await still(page);
 		const before = (await first.boundingBox())!.y;
 		await first.getByRole('button', { name: /fehl/ }).click();
 		await expect(page.getByRole('button', { name: 'Fertig' })).toBeVisible();
 		await page.mouse.move(0, 0);
-		await page.waitForTimeout(300);
+		await still(page);
 		expect(Math.abs((await first.boundingBox())!.y - before)).toBeLessThanOrEqual(1);
+	});
+
+	// The room a focus keeps under the list comes from the screen: taken
+	// from the results' height, which holds that room already, every stamp
+	// stacked it again. "Done" lets go of it in the re-sort's glide, also
+	// where the screen shows it, so no band of nothing stays at the end.
+	test('focused cards never stretch the page past the list', async ({ page }) => {
+		const token = await kitchen(page);
+		await page.goto(`/?tags=${token}&ingredients=Kartoffel&ingredients=Zwiebel`);
+		await expect(page.getByRole('main').getByRole('article')).toHaveCount(11);
+		const margin = await tail(page);
+		for (const title of ['Kartoffelsalat', 'Sauerbraten', 'Rinderrouladen', 'Frikadellen']) {
+			await card(page, title).getByRole('button', { name: /fehl/ }).click();
+			await page
+				.getByRole('group', { name: `Fehlt bei ${title}` })
+				.getByRole('button')
+				.first()
+				.click();
+		}
+		// Down to the page's end, into the room the stamps keep, and "Done".
+		await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+		await done(page);
+		expect(await tail(page)).toBeLessThanOrEqual(margin + 1);
+	});
+
+	// A re-sort that fails brings no list to let go in, so the held layout
+	// and the room go in a glide of their own: at once, the card let go of
+	// at the page's end jumped down with it.
+	test('a card let go of with Done glides down even when its re-sort fails', async ({ page }) => {
+		const token = await kitchen(page);
+		await page.goto(`/?tags=${token}&ingredients=Kartoffel&ingredients=Zwiebel`);
+		await expect(page.getByRole('main').getByRole('article')).toHaveCount(11);
+		const margin = await tail(page);
+		const name = await lastCard(page);
+		const box = card(page, name);
+		await box.getByRole('button', { name: /fehl/ }).click();
+		await page
+			.getByRole('group', { name: `Fehlt bei ${name}` })
+			.getByRole('button')
+			.first()
+			.click();
+		await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+		await page.mouse.move(0, 0);
+		await still(page);
+		await page.route(
+			(url) => url.pathname === '/api/v1/recipes' && url.searchParams.has('have'),
+			(route) => route.fulfill({ status: 500, body: '{}' })
+		);
+		const from = (await box.boundingBox())!;
+		const path = await record(page, box);
+		await done(page);
+		const to = (await box.boundingBox())!;
+		await expect(page.getByText('Rezepte konnten nicht geladen werden.')).toBeVisible();
+		expect(await tail(page)).toBeLessThanOrEqual(margin + 1);
+		expect(glided(await path(), from, to), `${from.x},${from.y} -> ${to.x},${to.y}`).toBe(true);
+	});
+
+	// "Done" keeps the card it lets go of where it is on screen, unless that
+	// takes room below the last card: the room goes in the re-sort's glide,
+	// and the card glides down with the page's end. Anchored to a card,
+	// Chromium's scroll anchoring would make up for the row's new height a
+	// second time (Sauerbraten, Maultaschen). The last card is let go of from
+	// the page's end, inside the room its focus kept.
+	test('a card let go of with Done holds its place, or glides down with the end', async ({
+		page,
+		isMobile
+	}) => {
+		const token = await kitchen(page);
+		const url = `/?tags=${token}&ingredients=Kartoffel&ingredients=Zwiebel`;
+		await page.goto(url);
+		await expect(page.getByRole('main').getByRole('article')).toHaveCount(11);
+		const margin = await tail(page);
+		const faults: string[] = [];
+		for (const title of ['Sauerbraten', 'Maultaschen in der Brühe', '']) {
+			await page.goto(url);
+			await expect(page.getByRole('main').getByRole('article')).toHaveCount(11);
+			const atEnd = title === '';
+			const name = atEnd ? await lastCard(page) : title;
+			const box = card(page, name);
+			await box.scrollIntoViewIfNeeded();
+			if (!isMobile && !atEnd) await page.evaluate(() => window.scrollBy(0, 150));
+			await box.getByRole('button', { name: /fehl/ }).click();
+			await page
+				.getByRole('group', { name: `Fehlt bei ${name}` })
+				.getByRole('button')
+				.first()
+				.click();
+			if (atEnd) {
+				await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+			}
+			// Off the card, whose hover lift would move its box.
+			await page.mouse.move(0, 0);
+			await still(page);
+			const from = (await box.boundingBox())!;
+			const path = await record(page, box);
+			await done(page);
+			const to = (await box.boundingBox())!;
+			const end = await page.evaluate(
+				() => window.scrollY + window.innerHeight >= document.documentElement.scrollHeight - 1
+			);
+			const below = await tail(page);
+			if (below > margin + 1) faults.push(`${name}: ${below}px under the last card`);
+			// Safari scrolls by whole pixels, and "Done" corrects twice (the
+			// row's new height, then the re-sort), each up to a pixel off.
+			if (Math.abs(to.y - from.y) > 2 && !(end && to.y > from.y)) {
+				faults.push(`${name}: ${from.y} -> ${to.y}`);
+			}
+			if (!glided(await path(), from, to)) {
+				faults.push(`${name}: jumped from ${from.x},${from.y} to ${to.x},${to.y}`);
+			}
+		}
+		expect(faults).toEqual([]);
+	});
+
+	// "Done" while "Load more" still loads: the re-sort cut that answer off
+	// and fetched only the pages already shown, so the reader's next page
+	// never came.
+	test('Done while more cards load keeps the page Load more asked for', async ({ page }) => {
+		const token = await kitchen(page, 28);
+		await page.goto(`/?tags=${token}&ingredients=Zwiebel`);
+		const cards = page.getByRole('main').getByRole('article');
+		await expect(cards).toHaveCount(24);
+		await page.route(
+			(url) => url.pathname === '/api/v1/recipes' && url.searchParams.get('page') === '2',
+			async (route) => {
+				await new Promise((resolve) => setTimeout(resolve, 1_000));
+				await route.continue().catch(() => {});
+			}
+		);
+		await cards.first().getByRole('button', { name: /fehl/ }).click();
+		await page
+			.getByRole('group', { name: /^Fehlt bei / })
+			.getByRole('button')
+			.first()
+			.click();
+		await page.getByRole('button', { name: 'Mehr laden' }).click();
+		await done(page);
+		await expect(cards).toHaveCount(26);
+		expect(new URL(page.url()).searchParams.get('page')).toBe('2');
+	});
+
+	// "Load more" counts its page when it is asked for, but the address
+	// names the pages on screen: a tick meanwhile wrote the next one, and a
+	// reload after a failed load showed a page more than there was.
+	test('the address names only the pages on screen while more load', async ({ page }) => {
+		const token = await kitchen(page, 28);
+		await page.goto(`/?tags=${token}&ingredients=Zwiebel`);
+		await expect(page.getByRole('main').getByRole('article')).toHaveCount(24);
+		let fail = () => {};
+		const failing = new Promise<void>((resolve) => (fail = resolve));
+		await page.route(
+			(url) => url.pathname === '/api/v1/recipes' && url.searchParams.get('page') === '2',
+			async (route) => {
+				await failing;
+				await route.fulfill({ status: 500, body: '{}' }).catch(() => {});
+			}
+		);
+		const more = page.getByRole('button', { name: 'Mehr laden' });
+		await more.click();
+		await general(page).getByRole('button', { name: 'Salz', exact: true }).click();
+		expect(new URL(page.url()).searchParams.get('page')).toBeNull();
+		fail();
+		await expect(page.getByText('Rezepte konnten nicht geladen werden.')).toBeVisible();
+		await expect(more).toBeEnabled();
+		expect(new URL(page.url()).searchParams.get('page')).toBeNull();
 	});
 
 	test('the focus flow works from the keyboard and tells a screen reader', async ({
@@ -3698,6 +3940,15 @@ test.describe('ingredient search', () => {
 		await expect(page.getByRole('button', { name: 'Fertig' })).toBeFocused();
 
 		await page.keyboard.press('Escape');
+		await expect(general(page)).toBeVisible();
+		await expect(stamp).toBeFocused();
+
+		// "Done" hands the focus back to the stamp too, though it goes
+		// with the row.
+		await page.keyboard.press('Enter');
+		await expect(pills.first()).toBeFocused();
+		await page.getByRole('button', { name: 'Fertig' }).focus();
+		await page.keyboard.press('Enter');
 		await expect(general(page)).toBeVisible();
 		await expect(stamp).toBeFocused();
 	});
@@ -3779,8 +4030,12 @@ test.describe('ingredient search', () => {
 
 		await page.getByRole('button', { name: 'Haken entfernen' }).click();
 		await expect(pills.and(page.locator('[aria-pressed="true"]'))).toHaveCount(0);
+		// The button goes with the ticks; the focus stays in the row.
+		await expect(pills.first()).toBeFocused();
 		await page.getByRole('button', { name: 'Rückgängig' }).click();
 		await expect.poll(pressed).toEqual(was);
+		// The undo goes with its toast; the focus goes back to the row.
+		await expect(pills.first()).toBeFocused();
 		// Wait out the re-sort, which never moves a pill.
 		await page.waitForTimeout(1_200);
 		expect(await pills.allTextContents()).toEqual(before);
@@ -3792,18 +4047,21 @@ test.describe('ingredient search', () => {
 	test('a re-sort the ticks started waits while a card is focused', async ({ page }) => {
 		const token = await kitchen(page);
 		await page.goto(`/?tags=${token}&ingredients=Kartoffel&ingredients=Zwiebel`);
+		await expect(general(page).getByRole('button').first()).toBeVisible();
+		// Counted from the tick on: the list requests a re-sort would send.
+		let lists = 0;
+		page.on('request', (request) => {
+			if (new URL(request.url()).pathname === '/api/v1/recipes') lists++;
+		});
 		await general(page).getByRole('button', { name: 'Salz', exact: true }).click();
-		const salad = card(page, 'Kartoffelsalat');
-		await salad.getByRole('button', { name: '5 fehlen' }).click();
-		const focused = page.getByRole('group', { name: 'Fehlt bei Kartoffelsalat' });
-		// Off the card, whose hover lift would move its box.
-		await page.mouse.move(0, 0);
-		await expect(focused.getByRole('button')).toHaveCount(6);
-		await page.waitForTimeout(300);
-		const y = (await salad.boundingBox())!.y;
-		await page.waitForTimeout(1_200);
-		await expect(focused.getByRole('button')).toHaveCount(6);
-		expect(Math.abs((await salad.boundingBox())!.y - y)).toBeLessThanOrEqual(1);
+		await card(page, 'Kartoffelsalat').getByRole('button', { name: '5 fehlen' }).click();
+		await expect(page.getByRole('group', { name: 'Fehlt bei Kartoffelsalat' })).toBeVisible();
+		// Past the 0.9 s the tick's re-sort would have waited.
+		await page.waitForTimeout(1_500);
+		expect(lists).toBe(0);
+		// "Done" sends it.
+		await page.getByRole('button', { name: 'Fertig' }).click();
+		await expect.poll(() => lists).toBe(1);
 	});
 
 	test('a new order lets go of the focused card, and ticks re-sort again', async ({
@@ -3837,6 +4095,57 @@ test.describe('ingredient search', () => {
 		await page.getByRole('button', { name: /^Filter bis 30 Min.* entfernen$/ }).click();
 		await expect(page).not.toHaveURL(/maxMinutes=/);
 		await expect.poll(() => pills.count()).toBeGreaterThan(few);
+	});
+
+	// A stamp tapped on the old cards while a new list loads: the list
+	// arrives unfrozen, so it lets go of that card too.
+	test('a new list lets go of a card focused while it loaded', async ({ page }) => {
+		const token = await kitchen(page);
+		await page.goto(`/?tags=${token}&ingredients=Kartoffel&ingredients=Zwiebel`);
+		await expect(general(page)).toBeVisible();
+		let release = () => {};
+		const held = new Promise<void>((resolve) => (release = resolve));
+		await page.route(
+			(url) =>
+				url.pathname === '/api/v1/recipes' && url.searchParams.getAll('ingredients').length === 1,
+			async (route) => {
+				await held;
+				await route.continue();
+			}
+		);
+		await page.getByRole('button', { name: 'Zwiebel entfernen' }).click();
+		// From the keyboard, which the row's first pill takes.
+		const stamp = card(page, 'Kartoffelsalat').locator('[data-stamp]');
+		await stamp.focus();
+		await page.keyboard.press('Enter');
+		await expect(page.getByRole('button', { name: 'Fertig' })).toBeVisible();
+		release();
+		await expect(page.getByRole('button', { name: 'Fertig' })).toHaveCount(0);
+		await expect(general(page)).toBeVisible();
+		// The focus goes back to the stamp, as from "Done".
+		await expect(card(page, 'Kartoffelsalat').locator('[data-stamp]')).toBeFocused();
+	});
+
+	// The hold reads the focused card's place every frame only while
+	// something may move it; a focus left alone costs no frames.
+	test('a focused card left alone reads no layout every frame', async ({ page }) => {
+		await page.addInitScript(() => {
+			const frame = window.requestAnimationFrame.bind(window);
+			(window as unknown as { frames: number }).frames = 0;
+			window.requestAnimationFrame = (callback) => {
+				(window as unknown as { frames: number }).frames++;
+				return frame(callback);
+			};
+		});
+		const token = await kitchen(page);
+		await page.goto(`/?tags=${token}&ingredients=Kartoffel&ingredients=Zwiebel`);
+		await card(page, 'Kartoffelsalat').locator('[data-stamp]').click();
+		await expect(page.getByRole('button', { name: 'Fertig' })).toBeVisible();
+		await page.waitForTimeout(2_000);
+		const frames = () => page.evaluate(() => (window as unknown as { frames: number }).frames);
+		const before = await frames();
+		await page.waitForTimeout(1_000);
+		expect((await frames()) - before).toBeLessThan(10);
 	});
 
 	test('changing the chips lets go of the focused card', async ({ page }) => {

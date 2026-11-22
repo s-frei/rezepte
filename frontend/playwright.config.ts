@@ -35,12 +35,13 @@ export default defineConfig({
 			testMatch: /(share-image|step-times)\.test\.ts/
 		},
 		// Safari 26.4 lays the overview out with native `grid-lanes`, the path
-		// the Chromium projects (the JS fallback) never exercise.
+		// the Chromium projects (the JS fallback) never exercise, and scrolls
+		// on its own terms while a focused card is held and let go of.
 		{
 			name: 'webkit-masonry',
 			use: { ...devices['iPhone 15'] },
 			testMatch: /recipes\.test\.ts/,
-			grep: /text card|cards (never|re-flow)|card per row/
+			grep: /text card|cards (never|re-flow)|card per row|holds still|let go of with Done/
 		},
 		// The desktop card sizes on the same native path.
 		{
