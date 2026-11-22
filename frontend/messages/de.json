@@ -1534,6 +1534,7 @@
 	"plan_move_title": "Auf Tag verschieben",
 	"plan_moved": "{title} auf {day} verschoben",
 	"plan_add_day": "Tag",
+	"plan_add_day_change": "Tag ändern:",
 	"plan_add_field": "Rezept oder Notiz",
 	"plan_add_placeholder": "Rezept suchen oder Notiz schreiben",
 	"plan_add_note": "„{text}“ als Notiz eintragen",

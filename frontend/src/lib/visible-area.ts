@@ -158,3 +158,19 @@ export const softKeyboard = {
 		return keyboardQuery.current;
 	}
 };
+
+/**
+ * Keeps `node` (a search field, or the block holding it) at the top of the
+ * sheet it scrolls in while it has focus on a phone: the keyboard comes up
+ * after the focus and shrinks the view (the app's viewport resizes the
+ * content), so one pin on focus lands on the full-height sheet and the
+ * names end under the keyboard. Pins now and whenever the visual viewport
+ * resizes; returns the cleanup.
+ */
+export function pinWhileTyping(node: HTMLElement): () => void {
+	const pin = () => node.scrollIntoView({ block: 'start' });
+	const viewport = window.visualViewport;
+	pin();
+	viewport?.addEventListener('resize', pin);
+	return () => viewport?.removeEventListener('resize', pin);
+}

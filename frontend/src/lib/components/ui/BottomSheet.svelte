@@ -91,7 +91,7 @@
 <script lang="ts">
 	import { countWhileOpen, keepForToasts } from '#lib/ui/open-dialogs.svelte.js';
 	import { Dialog } from 'bits-ui';
-	import { tick, type Snippet } from 'svelte';
+	import { tick, untrack, type Snippet } from 'svelte';
 	import { fly } from 'svelte/transition';
 	import { followVisibleArea, type VisibleArea } from '#lib/visible-area.js';
 	import Overlay from './Overlay.svelte';
@@ -109,6 +109,7 @@
 		onCloseAutoFocus,
 		onInteractOutside,
 		tall = false,
+		fill = false,
 		spotlight = null,
 		children
 	}: {
@@ -127,6 +128,12 @@
 		 * iPhone about 660px, and 80dvh of that dropped the pass-on ticket.
 		 */
 		tall?: boolean;
+		/**
+		 * Exactly as high as `tall` allows, whatever the content: a search
+		 * sheet while its field has focus, so neither the sheet's top nor the
+		 * field moves as the results change under the typing.
+		 */
+		fill?: boolean;
 		/**
 		 * An element the dim leaves out: it stays as bright as the sheet and
 		 * takes taps, for a sheet about something on the page, such as a
@@ -222,6 +229,30 @@
 	});
 
 	const duration = $derived(prefersReducedMotion.current ? 0 : 250);
+
+	// `fill` turning on or off glides the panel's edge to its new height,
+	// with the curve of the sheet's own keyboard, alongside `TypingFold`;
+	// px to px, as the class change lands between `auto` and `dvh`. The
+	// height before the change is read ahead of the DOM update.
+	let before = 0;
+	$effect.pre(() => {
+		void fill;
+		before = untrack(() => panel?.offsetHeight ?? 0);
+	});
+	$effect(() => {
+		void fill;
+		untrack(() => {
+			const after = panel?.offsetHeight ?? 0;
+			if (!panel || !before || after === before || prefersReducedMotion.current) return;
+			panel.animate(
+				[
+					{ height: `${before}px`, maxHeight: 'none' },
+					{ height: `${after}px`, maxHeight: 'none' }
+				],
+				{ duration: 250, easing: 'cubic-bezier(0.32, 0.72, 0, 1)' }
+			);
+		});
+	});
 
 	/**
 	 * The dim with a hole where `spotlight` is: a clip path, so the hole is
@@ -347,13 +378,18 @@
 					<div
 						{...props}
 						bind:this={panel}
-						class="fixed inset-x-0 bottom-0 z-50 mx-auto flex {tall
-							? 'max-h-[92dvh]'
-							: 'max-h-[80dvh]'} w-full max-w-[640px] flex-col {lifted
+						class="fixed inset-x-0 bottom-0 z-50 mx-auto flex {fill
+							? 'h-[92dvh] max-h-[92dvh]'
+							: tall
+								? 'max-h-[92dvh]'
+								: 'max-h-[80dvh]'} w-full max-w-[640px] flex-col {lifted
 							? 'rounded-3xl'
 							: 'rounded-t-3xl'} bg-background shadow-sheet outline-none"
 						style:bottom={lifted ? `${area.bottom}px` : undefined}
 						style:max-height={lifted
+							? `calc(100dvh - ${area.top + area.bottom + 16}px)`
+							: undefined}
+						style:height={lifted && fill
 							? `calc(100dvh - ${area.top + area.bottom + 16}px)`
 							: undefined}
 						transition:fly={{ duration, y: 200 }}

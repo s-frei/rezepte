@@ -378,10 +378,11 @@ test('plans a recipe and a note on a day', async ({ page }) => {
 	if (phone(page)) {
 		await expect(field).not.toBeFocused();
 		await expect(sheet).toBeFocused();
-		await field.click();
 	}
-	await expect(field).toBeFocused();
+	// The day first: on a phone the chips fold away while the field has focus.
 	await sheet.getByRole('radio', { name: 'Wednesday, November 18' }).click();
+	await field.click();
+	await expect(field).toBeFocused();
 	await field.fill(title.slice(0, 12));
 	await sheet.getByRole('option', { name: title }).click();
 	await expect(sheet).toBeHidden();
@@ -1956,10 +1957,199 @@ test('on a phone, the keyboard leaves the search and its names in view', async (
 				return !!box && box.y >= 0 && box.y + box.height <= view;
 			})
 			.toBe(true);
+		// More keys: the field and the sheet's top stay where they are.
+		expect(await drift(sheet, field, ['x', 'Backspace', 'x', 'Backspace'])).toBeLessThanOrEqual(2);
 		await page.keyboard.press('Escape');
 		await page.keyboard.press('Escape');
 		await expect(sheet).toBeHidden();
 	}
+});
+
+/** Samples `box`'s height every frame until the returned stop, which gives the lowest. */
+async function lowestHeight(box: Locator): Promise<() => Promise<number>> {
+	await box.evaluate((el) => {
+		const w = window as unknown as { lowest: number; sampling: boolean };
+		w.lowest = Infinity;
+		w.sampling = true;
+		const sample = () => {
+			w.lowest = Math.min(w.lowest, el.getBoundingClientRect().height);
+			if (w.sampling) requestAnimationFrame(sample);
+		};
+		sample();
+	});
+	return () =>
+		box.page().evaluate(() => {
+			const w = window as unknown as { lowest: number; sampling: boolean };
+			w.sampling = false;
+			return w.lowest;
+		});
+}
+
+test('the staples search holds its height while the names change under the typing', async ({
+	page
+}) => {
+	await loginFresh(page);
+	// Six names of their own, the search's cap: "x" after them matches none.
+	const t = uniqueToken().toLowerCase();
+	await createRecipe(page, {
+		...loadFixture(0),
+		title: `Pie ${t}`,
+		ingredientGroups: [
+			{
+				name: null,
+				ingredients: ['one', 'two', 'three', 'four', 'five', 'six'].map((n) => ({
+					quantity: 1,
+					unit: null,
+					name: `zq${t} ${n}`,
+					note: null
+				}))
+			}
+		],
+		steps: [{ text: 'Mix.', references: [], times: [] }]
+	});
+	await openOwn(page);
+	await page.getByRole('main').getByRole('button', { name: 'More actions' }).click();
+	await page.getByRole('menuitem', { name: 'We always have it' }).click();
+	const sheet = page.getByRole('dialog', { name: 'We always have it' });
+	await sheet.getByRole('button', { name: 'Add ingredient' }).click();
+	const field = sheet.getByRole('combobox', { name: 'Search ingredients' });
+	await field.fill(`zq${t}`);
+	const options = sheet.getByRole('option');
+	await expect(options).toHaveCount(7);
+	const box = sheet.locator('#staple-options').locator('..');
+	await expect.poll(async () => (await box.boundingBox())?.height).toBeGreaterThan(300);
+	const full = (await box.boundingBox())!.height;
+	const lowest = await lowestHeight(box);
+	// Typed fast: no answer comes between the keys, the last names stay.
+	for (const key of ['x', 'Backspace', 'x', 'Backspace']) {
+		await field.press(key);
+		await page.waitForTimeout(60);
+	}
+	// 6, then 0 once "x" answers, and a key at once: the box waits for the next answer.
+	await field.press('x');
+	await page.waitForFunction(
+		() => document.querySelectorAll('#staple-options [role=option]').length === 1,
+		undefined,
+		{ polling: 'raf' }
+	);
+	await field.press('Backspace');
+	await expect(options).toHaveCount(7);
+	await page.waitForTimeout(400);
+	expect(await lowest()).toBeGreaterThanOrEqual(full - 1);
+	// Once one answer rests, the box follows it.
+	await field.press('x');
+	await expect(options).toHaveCount(1);
+	await expect.poll(async () => (await box.boundingBox())!.height).toBeLessThan(full / 2);
+	// An empty field waits for nothing: the box lets go of the rows.
+	await field.fill('');
+	await expect(options).toHaveCount(0);
+	await expect.poll(async () => (await box.boundingBox())!.height).toBeLessThan(10);
+});
+
+/**
+ * Types `keys` one by one, an answer's time apart, and gives how far the
+ * field's top and the sheet's top moved at most from where they were.
+ */
+async function drift(sheet: Locator, field: Locator, keys: string[]): Promise<number> {
+	const at = async () => [(await field.boundingBox())!.y, (await sheet.boundingBox())!.y];
+	const start = await at();
+	let most = 0;
+	for (const key of keys) {
+		await field.press(key);
+		for (const wait of [60, 300]) {
+			await sheet.page().waitForTimeout(wait);
+			const now = await at();
+			most = Math.max(most, ...now.map((v, i) => Math.abs(v - start[i])));
+		}
+	}
+	return most;
+}
+
+test('on a phone, the add sheet heads with its field while typing, the day on a chip', async ({
+	page,
+	isMobile
+}) => {
+	test.skip(!isMobile, 'a phone path');
+	await page.clock.setFixedTime(new Date('2026-11-18T10:00:00'));
+	await loginFresh(page);
+	const t = uniqueToken();
+	for (const n of ['one', 'two', 'three', 'four'])
+		await createRecipe(page, { ...loadFixture(0), title: `Zq${t} ${n}` });
+	for (const width of [320, 390]) {
+		await page.setViewportSize({ width, height: 700 });
+		await openOwn(page);
+		const sheet = await openDialog(page, emptyWeekAdd(page), 'Plan a meal');
+		await sheet.getByRole('radio', { name: 'Thursday, November 19' }).click();
+		const field = sheet.getByRole('combobox', { name: 'Recipe or note' });
+		// The title and the chips fold inside one clipping box (8px: its ring padding, in no flow).
+		const folding = sheet.getByRole('heading', { name: 'Plan a meal' }).locator('..');
+		await field.click();
+		// The keyboard comes up after the tap and takes its height from the view.
+		await page.setViewportSize({ width, height: 380 });
+		await field.fill(`Zq${t}`);
+		await expect(sheet.getByRole('option')).toHaveCount(5);
+		const chip = sheet.getByRole('button', { name: 'Change the day: Thu 19' });
+		await expect(chip).toBeVisible();
+		// Title and chips folded away; the field and three rows above the keyboard.
+		await expect.poll(async () => (await folding.boundingBox())?.height ?? 0).toBeLessThan(9);
+		const inView = async (target: Locator) => {
+			const box = await target.boundingBox();
+			const view = await page.evaluate(() => window.visualViewport?.height ?? innerHeight);
+			return !!box && box.y >= 0 && box.y + box.height <= view;
+		};
+		await expect.poll(() => inView(field)).toBe(true);
+		for (const i of [0, 1, 2])
+			await expect.poll(() => inView(sheet.getByRole('option').nth(i))).toBe(true);
+		// The chip puts the keyboard away and brings the chips back, on the picked day.
+		await chip.click();
+		await page.setViewportSize({ width, height: 700 });
+		const thursday = sheet.getByRole('radio', { name: 'Thursday, November 19' });
+		await expect(thursday).toBeFocused();
+		await expect.poll(async () => (await folding.boundingBox())?.height ?? 0).toBeGreaterThan(100);
+		await expect(chip).toBeHidden();
+
+		// The keyboard put away without a blur (Android's back): the sheet takes the focus, the top comes back.
+		await field.click();
+		await page.setViewportSize({ width, height: 380 });
+		await expect.poll(async () => (await folding.boundingBox())?.height ?? 0).toBeLessThan(9);
+		await page.setViewportSize({ width, height: 700 });
+		await expect(sheet).toBeFocused();
+		await expect.poll(async () => (await folding.boundingBox())?.height ?? 0).toBeGreaterThan(100);
+
+		// Typing, neither the field nor the sheet's top moves, whatever the rows do.
+		await field.click();
+		await page.setViewportSize({ width, height: 380 });
+		await expect.poll(async () => (await folding.boundingBox())?.height ?? 0).toBeLessThan(9);
+		await field.fill('');
+		await page.waitForTimeout(300);
+		expect(await drift(sheet, field, ['Z', 'q', 'x', 'Backspace', ...t])).toBeLessThanOrEqual(2);
+		// A tap on a row while folded lands: nothing unfolds under the finger.
+		const third = sheet.getByRole('option').nth(2);
+		const title = (await third.locator('span').last().textContent())!.trim();
+		const planned = day(page, 'Thursday, November 19').getByRole('link', { name: title });
+		const before = await planned.count();
+		await third.tap();
+		await expect(sheet).toBeHidden();
+		await page.setViewportSize({ width, height: 700 });
+		await expect(planned).toHaveCount(before + 1);
+	}
+});
+
+test('a narrow desktop window keeps the add sheet whole while typing', async ({
+	page,
+	isMobile
+}) => {
+	test.skip(isMobile, 'a mouse path');
+	await loginFresh(page);
+	await page.setViewportSize({ width: 390, height: 700 });
+	await openOwn(page);
+	const sheet = await openDialog(page, emptyWeekAdd(page), 'Plan a meal');
+	const field = sheet.getByRole('combobox', { name: 'Recipe or note' });
+	await field.click();
+	await field.fill('Pizza');
+	await expect(sheet.getByRole('heading', { name: 'Plan a meal' })).toBeInViewport();
+	await expect(sheet.getByRole('radio', { name: 'Someday' })).toBeInViewport();
+	await expect(sheet.getByRole('button', { name: /^Change the day/ })).toHaveCount(0);
 });
 
 test('creates and replaces the calendar link', async ({ page }) => {

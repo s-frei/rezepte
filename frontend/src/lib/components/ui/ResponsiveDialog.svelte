@@ -19,6 +19,8 @@
 		onCloseAutoFocus,
 		bodyClass = 'pb-4',
 		footerClass = 'flex flex-wrap gap-3 px-5 pt-3.5',
+		fill = false,
+		top = false,
 		body,
 		footer,
 		children
@@ -35,6 +37,10 @@
 		bodyClass?: string;
 		/** The sheet footer's layout and padding. */
 		footerClass?: string;
+		/** The phone's sheet at its full height whatever the content (`BottomSheet`'s `fill`). */
+		fill?: boolean;
+		/** The computer's dialog anchored near the top (`BaseDialog`'s `top`). */
+		top?: boolean;
 		body?: Snippet;
 		footer?: Snippet;
 		children?: Snippet;
@@ -68,11 +74,11 @@
 {/snippet}
 
 {#if narrow.current}
-	<BottomSheet bind:open {closeLabel} {onOpenAutoFocus} {onCloseAutoFocus}>
+	<BottomSheet bind:open {closeLabel} {onOpenAutoFocus} {onCloseAutoFocus} {fill}>
 		{@render laidOut(sheet, 'flex min-h-0 flex-1 flex-col')}
 	</BottomSheet>
 {:else}
-	<BaseDialog bind:open {onOpenAutoFocus} {onCloseAutoFocus}>
+	<BaseDialog bind:open {onOpenAutoFocus} {onCloseAutoFocus} {top}>
 		{@render laidOut(dialog)}
 	</BaseDialog>
 {/if}

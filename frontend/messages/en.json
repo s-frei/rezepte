@@ -1534,6 +1534,7 @@
 	"plan_move_title": "Move to a day",
 	"plan_moved": "{title} moved to {day}",
 	"plan_add_day": "Day",
+	"plan_add_day_change": "Change the day:",
 	"plan_add_field": "Recipe or note",
 	"plan_add_placeholder": "Search a recipe or write a note",
 	"plan_add_note": "Add “{text}” as a note",

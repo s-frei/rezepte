@@ -14,6 +14,7 @@
 		dismissible = true,
 		wide = false,
 		bleed = false,
+		top = false,
 		onOpenAutoFocus,
 		onCloseAutoFocus,
 		children
@@ -37,6 +38,12 @@
 		 * along the edge instead of inside it.
 		 */
 		bleed?: boolean;
+		/**
+		 * Anchored near the top instead of centered, as the command palette:
+		 * a dialog with a live search grows and shrinks downward only, so its
+		 * field stays where the eye and the pointer are.
+		 */
+		top?: boolean;
 		/** Forwarded to Bits UI: where focus goes once the dialog has opened. */
 		onOpenAutoFocus?: (event: Event) => void;
 		/** Forwarded to Bits UI: where focus goes once the dialog has closed. */
@@ -79,9 +86,11 @@
 					     the two, 20px (28px from md) in all. -->
 					<div
 						{...props}
-						class="fixed top-1/2 left-1/2 z-50 flex max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] {wide
+						class="fixed left-1/2 z-50 flex w-[calc(100%-2rem)] {top
+							? 'top-[max(8vh,2rem)] max-h-[calc(100dvh-max(8vh,2rem)-1rem)]'
+							: 'top-1/2 max-h-[calc(100dvh-2rem)] -translate-y-1/2'} {wide
 							? 'max-w-[720px]'
-							: 'max-w-[440px]'} -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden rounded-3xl bg-surface shadow-dialog {bleed
+							: 'max-w-[440px]'} -translate-x-1/2 flex-col overflow-hidden rounded-3xl bg-surface shadow-dialog {bleed
 							? ''
 							: 'px-1.5 py-3'}"
 						transition:scale={{ duration, start: 0.95 }}

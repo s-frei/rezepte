@@ -12,7 +12,10 @@
 	import { getStaples, setStaple, type Staple } from '#lib/api/mealplan.js';
 	import Button from '#lib/components/ui/Button.svelte';
 	import ResponsiveDialog from '#lib/components/ui/ResponsiveDialog.svelte';
+	import TypingFold from '#lib/components/ui/TypingFold.svelte';
 	import { narrow } from '#lib/ui/narrow.js';
+	import { phone } from '#lib/ui/phone.svelte.js';
+	import { settleHeight, STALE_ROW } from '#lib/ui/settle-height.js';
 	import { m } from '#lib/paraglide/messages.js';
 	import { ingredientKey } from '#lib/recipe/key.js';
 
@@ -110,27 +113,17 @@
 	/** On a phone the footer gives way while the field has focus, so the names are never behind "Fertig". */
 	let typing = $state(false);
 
-	/** The field to the sheet's top, the names under it: a phone's keyboard leaves little room. */
-	function pin() {
-		input?.scrollIntoView({ block: 'start' });
-	}
-	// The keyboard comes up after the focus and shrinks the view (the app's
-	// viewport resizes the content), so one pin on unfolding lands on the
-	// full-height sheet and the names end under the keyboard. While the field
-	// has focus on a phone, pin again whenever the view resizes and whenever
-	// names arrive.
-	$effect(() => {
-		if (!typing || !narrow.current) return;
-		const view = window.visualViewport;
-		view?.addEventListener('resize', pin);
-		return () => view?.removeEventListener('resize', pin);
-	});
-	$effect(() => {
-		if (typing && narrow.current && suggested.items) untrack(pin);
-	});
+	/**
+	 * A phone's search with its soft keyboard up: the sheet takes its full
+	 * height and the title and its text fold away (`TypingFold`), so the
+	 * field heads the sheet and stays put while the names change under it.
+	 */
+	const onPhone = $derived(typing && narrow.current && phone.value);
+	/** The sheet at its full height: while searching and until the top has unfolded. */
+	let held = $state(false);
 	/** What a pick or a fold says to a screen reader. */
 	let said = $state('');
-	/** The server's last answer with the text it answers, so an old word's names never stand under a new one. */
+	/** The server's last answer with the text it answers; `fresh` tells whether it answers the field's. */
 	let suggested = $state<{ q: string; items: IngredientSuggestion[] }>({ q: '', items: [] });
 	const query = $derived(text.trim());
 
@@ -156,17 +149,28 @@
 	const typed = $derived<Option | null>(
 		ingredientKey(query) ? { key: ingredientKey(query), name: query, typed: true } : null
 	);
+	/** Whether the names shown answer the text in the field. */
+	const fresh = $derived(suggested.q === query.toLocaleLowerCase());
+	/** A keystroke whose answer is not in; nothing is, without text. */
+	const pending = $derived(!!typed && !fresh);
 	/**
 	 * The names in use, then what was typed unless one of them is it already
-	 * (by key). Nothing until the answer for this text is in, so the rows
-	 * never shift under a highlight.
+	 * (by key). Until the answer for this text is in, the last answer's names
+	 * that still hold the text stay, dimmed and out of reach, above the typed
+	 * row: the list keeps its size between keystrokes instead of emptying and
+	 * filling on each. A name that cannot match any more goes.
 	 */
-	const options = $derived.by((): Option[] => {
-		if (!typed || suggested.q !== query.toLocaleLowerCase()) return [];
-		const out: Option[] = suggested.items.map((i) => ({ key: i.key, name: i.name, typed: false }));
+	const rows = $derived.by((): Option[] => {
+		if (!typed) return [];
+		const q = query.toLocaleLowerCase();
+		const out: Option[] = suggested.items
+			.filter((i) => fresh || i.name.toLocaleLowerCase().includes(q))
+			.map((i) => ({ key: i.key, name: i.name, typed: false }));
 		if (!out.some((o) => o.key === typed.key)) out.push(typed);
 		return out;
 	});
+	/** What the keys and Enter reach: every row once fresh, else only the typed one, so the rows never shift under a highlight. */
+	const options = $derived(fresh ? rows : rows.filter((o) => o.typed));
 	let highlighted = $state<string | null>(null);
 	/**
 	 * What Enter takes: the highlighted option, else the one with the typed
@@ -184,7 +188,6 @@
 		said = '';
 		await tick();
 		input?.focus();
-		pin();
 	}
 
 	async function fold() {
@@ -257,12 +260,14 @@
 </script>
 
 {#snippet body()}
-	<Dialog.Title class="font-display text-heading font-medium">{m.plan_staple()}</Dialog.Title>
-	<Dialog.Description class="mt-2 text-body-sm text-text-muted">
-		{m.plan_staples_text()}
-	</Dialog.Description>
+	<TypingFold shut={onPhone} field={input} bind:held>
+		<Dialog.Title class="font-display text-heading font-medium">{m.plan_staple()}</Dialog.Title>
+		<Dialog.Description class="mt-2 pb-5 text-body-sm text-text-muted">
+			{m.plan_staples_text()}
+		</Dialog.Description>
+	</TypingFold>
 
-	<div class="mt-5" aria-busy={view.kind === 'loading'}>
+	<div aria-busy={view.kind === 'loading'}>
 		{#if view.kind === 'loading'}
 			<div class="h-14 animate-pulse rounded-2xl bg-surface-elevated"></div>
 		{:else if view.kind === 'failed'}
@@ -327,57 +332,71 @@
 								<ChevronUp class="size-4" aria-hidden="true" />
 							</button>
 						</div>
-						<!-- A press keeps the focus in the field, so the keyboard stays up for the next name. -->
+						<!-- A press keeps the focus in the field, so the keyboard stays up for the next name.
+						     The box settles: it grows with the names at once and shrinks only once they rest. -->
 						<div
-							id="staple-options"
-							role="listbox"
-							tabindex="-1"
-							aria-label={m.plan_staples_search()}
-							onpointerdown={(event) => event.preventDefault()}
-							class={options.length > 0 ? 'border-t border-border pt-1' : ''}
+							{@attach settleHeight(
+								() => pending,
+								() => text
+							)}
+							class="overflow-y-clip transition-[height] duration-200 ease-out motion-reduce:transition-none"
 						>
-							{#each options as option (option.key)}
-								{@const have = stored.get(option.key)}
-								<!-- svelte-ignore a11y_click_events_have_key_events -->
-								<div
-									id={optionId(option.key)}
-									role="option"
-									tabindex="-1"
-									aria-selected={current === option}
-									aria-disabled={have !== undefined || busy !== ''}
-									onclick={() => void add(option)}
-									class="flex min-h-11 items-center gap-3 rounded-lg pr-3 pl-2.5 text-body {have !==
-									undefined
-										? 'text-text-muted'
-										: 'cursor-pointer hover:bg-popover-highlight'} {current === option &&
-									have === undefined
-										? 'bg-popover-highlight'
-										: ''}"
-								>
-									{#if option.typed && have === undefined}
-										<Plus class="size-4 shrink-0 text-primary" aria-hidden="true" />
-									{:else}
-										<House
-											class="size-4 shrink-0 {have !== undefined
-												? 'text-primary'
-												: 'text-text-muted'}"
-											fill={have !== undefined ? 'currentColor' : 'none'}
-											fill-opacity={have !== undefined ? 0.18 : 0}
-											aria-hidden="true"
-										/>
-									{/if}
-									<!-- One already in reads as stored: "Zwiebel" for a typed "Zwiebeln". -->
-									<span class="min-w-0 flex-1 py-2 [overflow-wrap:anywhere]">
-										{have ??
-											(option.typed
-												? m.plan_staples_add_typed({ name: option.name })
-												: option.name)}
-									</span>
-									{#if have !== undefined}
-										<span class="shrink-0 text-caption">{m.plan_staples_have()}</span>
-									{/if}
-								</div>
-							{/each}
+							<div
+								id="staple-options"
+								role="listbox"
+								tabindex="-1"
+								aria-label={m.plan_staples_search()}
+								aria-busy={pending}
+								onpointerdown={(event) => event.preventDefault()}
+								class={rows.length > 0 ? 'border-t border-border pt-1' : ''}
+							>
+								<!-- The typed row keyed by '' (no name's key): it changes its text in place. -->
+								{#each rows as option (option.typed ? '' : option.key)}
+									{@const have = stored.get(option.key)}
+									{@const stale = !options.includes(option)}
+									<!-- svelte-ignore a11y_click_events_have_key_events -->
+									<div
+										id={optionId(option.key)}
+										role="option"
+										tabindex="-1"
+										aria-selected={current === option}
+										aria-disabled={stale || have !== undefined || busy !== ''}
+										onclick={() => void add(option)}
+										style:animation-fill-mode="backwards"
+										class="flex min-h-11 items-center gap-3 rounded-lg pr-3 pl-2.5 text-body transition-opacity {option.typed
+											? ''
+											: 'animate-fade-in'} {stale ? STALE_ROW : ''} {have !== undefined
+											? 'text-text-muted'
+											: 'cursor-pointer hover:bg-popover-highlight'} {current === option &&
+										have === undefined
+											? 'bg-popover-highlight'
+											: ''}"
+									>
+										{#if option.typed && have === undefined}
+											<Plus class="size-4 shrink-0 text-primary" aria-hidden="true" />
+										{:else}
+											<House
+												class="size-4 shrink-0 {have !== undefined
+													? 'text-primary'
+													: 'text-text-muted'}"
+												fill={have !== undefined ? 'currentColor' : 'none'}
+												fill-opacity={have !== undefined ? 0.18 : 0}
+												aria-hidden="true"
+											/>
+										{/if}
+										<!-- One already in reads as stored: "Zwiebel" for a typed "Zwiebeln". -->
+										<span class="min-w-0 flex-1 py-2 [overflow-wrap:anywhere]">
+											{have ??
+												(option.typed
+													? m.plan_staples_add_typed({ name: option.name })
+													: option.name)}
+										</span>
+										{#if have !== undefined}
+											<span class="shrink-0 text-caption">{m.plan_staples_have()}</span>
+										{/if}
+									</div>
+								{/each}
+							</div>
 						</div>
 					</div>
 				{/if}
@@ -430,6 +449,8 @@
 <ResponsiveDialog
 	bind:open
 	closeLabel={m.common_close()}
+	fill={held}
+	top
 	{body}
 	footer={narrow.current && searching && typing ? undefined : footer}
 />
