@@ -339,6 +339,9 @@
           "newComments": {
             "type": "boolean"
           },
+          "pantry": {
+            "$ref": "#/components/schemas/CardPantry"
+          },
           "slug": {
             "type": "string"
           },
@@ -394,6 +397,39 @@
           "coverHeight",
           "createdBy",
           "updatedBy"
+        ],
+        "type": "object"
+      },
+      "CardPantry": {
+        "additionalProperties": false,
+        "properties": {
+          "chips": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "missing": {
+            "items": {
+              "$ref": "#/components/schemas/PantryItem"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "used": {
+            "items": {
+              "type": "string"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "chips",
+          "used",
+          "missing"
         ],
         "type": "object"
       },
@@ -1891,6 +1927,33 @@
         ],
         "type": "object"
       },
+      "IngredientList": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/api/v1/schemas/IngredientList.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/IngredientSuggestion"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "type": "object"
+      },
       "IngredientPick": {
         "additionalProperties": false,
         "properties": {
@@ -1939,6 +2002,37 @@
           "word",
           "groupName",
           "ingredientName"
+        ],
+        "type": "object"
+      },
+      "IngredientSuggestion": {
+        "additionalProperties": false,
+        "properties": {
+          "also": {
+            "items": {
+              "type": "string"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "count": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "key": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "key",
+          "count",
+          "also"
         ],
         "type": "object"
       },
@@ -3019,6 +3113,9 @@
             "format": "int64",
             "type": "integer"
           },
+          "pantry": {
+            "$ref": "#/components/schemas/PagePantry"
+          },
           "sections": {
             "additionalProperties": {
               "format": "int64",
@@ -3036,6 +3133,57 @@
           "page",
           "limit",
           "total"
+        ],
+        "type": "object"
+      },
+      "PagePantry": {
+        "additionalProperties": false,
+        "properties": {
+          "row": {
+            "items": {
+              "$ref": "#/components/schemas/PantryItem"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "sections": {
+            "additionalProperties": {
+              "format": "int64",
+              "type": "integer"
+            },
+            "type": "object"
+          },
+          "ticked": {
+            "items": {
+              "$ref": "#/components/schemas/PantryItem"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "row",
+          "ticked"
+        ],
+        "type": "object"
+      },
+      "PantryItem": {
+        "additionalProperties": false,
+        "properties": {
+          "key": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "key"
         ],
         "type": "object"
       },
@@ -4670,7 +4818,7 @@
             "type": "string"
           },
           "password": {
-            "description": "New password; ends all of the user's sessions",
+            "description": "New password; ends all of the user's sessions and closes an open setup link",
             "maxLength": 128,
             "minLength": 8,
             "type": "string"
@@ -7045,6 +7193,75 @@
         ]
       }
     },
+    "/api/v1/ingredients": {
+      "get": {
+        "description": "The ingredient names with a word starting with q, best first, each with how many recipes use it and the other names it covers.",
+        "operationId": "list-ingredients",
+        "parameters": [
+          {
+            "description": "Offer the ingredient names with a word starting with this text",
+            "explode": false,
+            "in": "query",
+            "name": "q",
+            "schema": {
+              "description": "Offer the ingredient names with a word starting with this text",
+              "maxLength": 100,
+              "type": "string"
+            }
+          },
+          {
+            "description": "Most suggestions to return",
+            "explode": false,
+            "in": "query",
+            "name": "limit",
+            "schema": {
+              "default": 10,
+              "description": "Most suggestions to return",
+              "format": "int64",
+              "maximum": 50,
+              "minimum": 1,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IngredientList"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "token": [
+              "recipes:read"
+            ]
+          }
+        ],
+        "summary": "Suggest ingredients for the ingredient search",
+        "tags": [
+          "recipes"
+        ]
+      }
+    },
     "/api/v1/people": {
       "get": {
         "description": "Every account's login name, display name, color, role, recipe and shopping-list counts and newest recipes, readable by any signed-in account so everyone can see who takes part. Managing accounts, and their language and creation date, is /api/v1/users, which requires an admin.",
@@ -7856,6 +8073,40 @@
             "schema": {
               "description": "Restrict to recipes carrying all of these tags",
               "items": {
+                "type": "string"
+              },
+              "type": [
+                "array",
+                "null"
+              ]
+            }
+          },
+          {
+            "description": "Ingredient chips, one parameter each (a name may hold a comma), the first 20 counting: only recipes using at least one, best match first, with a pantry on the page",
+            "explode": true,
+            "in": "query",
+            "name": "ingredients",
+            "schema": {
+              "description": "Ingredient chips, one parameter each (a name may hold a comma), the first 20 counting: only recipes using at least one, best match first, with a pantry on the page",
+              "items": {
+                "maxLength": 120,
+                "type": "string"
+              },
+              "type": [
+                "array",
+                "null"
+              ]
+            }
+          },
+          {
+            "description": "Ingredients the caller has, one parameter each, the first 100 counting: they lower a recipe's missing count, not its chips; needs ingredients",
+            "explode": true,
+            "in": "query",
+            "name": "have",
+            "schema": {
+              "description": "Ingredients the caller has, one parameter each, the first 100 counting: they lower a recipe's missing count, not its chips; needs ingredients",
+              "items": {
+                "maxLength": 120,
                 "type": "string"
               },
               "type": [

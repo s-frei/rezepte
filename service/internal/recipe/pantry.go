@@ -98,7 +98,7 @@ func (s *Service) listPantry(ctx context.Context, p ListParams, chips []PantryIt
 		seen := map[string]bool{}
 		for _, name := range names[r.ID] {
 			key := ingredient.Key(name)
-			if seen[key] {
+			if key == "" || seen[key] {
 				continue
 			}
 			seen[key] = true
@@ -148,7 +148,8 @@ func (s *Service) listPantry(ctx context.Context, p ListParams, chips []PantryIt
 		}
 	}
 
-	start := min((page-1)*limit, len(rs))
+	// page-1 is capped first: a huge page times limit would overflow.
+	start := min(min(page-1, len(rs))*limit, len(rs))
 	pageRanks := rs[start:min(start+limit, len(rs))]
 	rows := make([]sqlc.Recipe, len(pageRanks))
 	for i, r := range pageRanks {

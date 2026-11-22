@@ -4,6 +4,7 @@
   "pages": [
     "index",
     "list-authors",
+    "list-ingredients",
     "create-recipe-draft",
     "get-recipe-draft-photo",
     "list-recipes",

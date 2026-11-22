@@ -2,6 +2,7 @@ package recipe_test
 
 import (
 	"context"
+	"math"
 	"reflect"
 	"slices"
 	"strings"
@@ -298,5 +299,29 @@ func TestListWithoutIngredientsUnchanged(t *testing.T) {
 		if c.Pantry != nil {
 			t.Fatalf("%s: pantry without chips", c.Title)
 		}
+	}
+}
+
+// A page far past the end is empty, not a slice out of range: the offset
+// would overflow before it was clamped.
+func TestListPantryHugePage(t *testing.T) {
+	svc := seedAll(t)
+	p := listPantry(t, svc, recipe.ListParams{Ingredients: pantryChips, Limit: 24, Page: math.MaxInt})
+	if len(p.Items) != 0 || p.Total == 0 {
+		t.Fatalf("page = %d items, total %d", len(p.Items), p.Total)
+	}
+}
+
+// An ingredient whose name is only blanks has no key: it is never missing.
+func TestListPantrySkipsBlankIngredients(t *testing.T) {
+	svc, uid := setup(t)
+	in := loadFixtures(t)[9] // Kartoffelsalat
+	in.IngredientGroups[0].Ingredients = append(in.IngredientGroups[0].Ingredients, recipe.Ingredient{Name: "   "})
+	if _, err := svc.Create(context.Background(), uid, in); err != nil {
+		t.Fatal(err)
+	}
+	c := cardByTitle(t, listPantry(t, svc, recipe.ListParams{Ingredients: []string{"Kartoffel"}}), in.Title)
+	if slices.Contains(missingKeys(c), "") {
+		t.Fatalf("missing %v", missingKeys(c))
 	}
 }

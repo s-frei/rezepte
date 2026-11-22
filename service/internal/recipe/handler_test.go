@@ -1031,3 +1031,53 @@ func TestCreateRejectsAPhotoLink(t *testing.T) {
 		t.Fatalf("errors = %+v", problem.Errors)
 	}
 }
+
+// Chips and ticks are repeated parameters, so a name may carry a comma; a
+// 120-character name (an ingredient's longest) and more chips than the
+// service ranks by are capped silently, never refused.
+func TestPantryQueryParams(t *testing.T) {
+	h := newRecipeHandler(t)
+	cookie := loginCookie(t, h)
+	fx := loadFixtures(t)
+	if rec := doReq(h, http.MethodPost, "/api/v1/recipes", mustMarshal(t, fx[9]), cookie); rec.Code != http.StatusCreated {
+		t.Fatalf("create status %d: %s", rec.Code, rec.Body.String())
+	}
+	list := func(query url.Values) recipe.Page {
+		t.Helper()
+		rec := doReq(h, http.MethodGet, "/api/v1/recipes?"+query.Encode(), "", cookie)
+		if rec.Code != http.StatusOK {
+			t.Fatalf("%s: status %d: %s", query.Encode(), rec.Code, rec.Body.String())
+		}
+		var page recipe.Page
+		if err := json.Unmarshal(rec.Body.Bytes(), &page); err != nil {
+			t.Fatal(err)
+		}
+		return page
+	}
+
+	page := list(url.Values{"ingredients": {"Kartoffeln", "Zwiebel"}, "have": {"Milch 1,5 %", "Essig"}})
+	if page.Total != 1 || page.Items[0].Pantry.Chips != 2 {
+		t.Fatalf("total %d, items %+v", page.Total, page.Items)
+	}
+	if got := page.Pantry.Ticked; len(got) != 2 || got[0].Name != "Milch 1,5 %" {
+		t.Fatalf("ticked %v", got)
+	}
+
+	many := url.Values{"ingredients": {"Kartoffeln", strings.Repeat("x", 120)}}
+	for i := range 20 {
+		many.Add("ingredients", fmt.Sprintf("chip%d", i))
+	}
+	if page := list(many); page.Total != 1 {
+		t.Fatalf("21 chips: total %d", page.Total)
+	}
+
+	// 120 characters pass (above); one more is refused, for a chip and a tick.
+	for _, param := range []string{"ingredients", "have"} {
+		query := url.Values{"ingredients": {"Kartoffeln"}}
+		query.Add(param, strings.Repeat("x", 121))
+		rec := doReq(h, http.MethodGet, "/api/v1/recipes?"+query.Encode(), "", cookie)
+		if rec.Code != http.StatusUnprocessableEntity {
+			t.Fatalf("121-character %s: status %d, want 422", param, rec.Code)
+		}
+	}
+}

@@ -13,6 +13,8 @@ import (
 type listInput struct {
 	Query         string   `query:"q" maxLength:"100" doc:"Full-text search: every word must occur in the title, description, ingredients or tags, also inside a longer word from 3 characters on"`
 	Tags          []string `query:"tags" doc:"Restrict to recipes carrying all of these tags"`
+	Ingredients   []string `query:"ingredients,explode" maxLength:"120" doc:"Ingredient chips, one parameter each (a name may hold a comma), the first 20 counting: only recipes using at least one, best match first, with a pantry on the page"`
+	Have          []string `query:"have,explode" maxLength:"120" doc:"Ingredients the caller has, one parameter each, the first 100 counting: they lower a recipe's missing count, not its chips; needs ingredients"`
 	MaxMinutes    int      `query:"maxMinutes" minimum:"0" maximum:"1440" doc:"Only recipes whose total time is at most this many minutes"`
 	FavoritesOnly bool     `query:"favorites" doc:"Restrict to the caller's own favorites"`
 	Author        string   `query:"author" maxLength:"50" doc:"Restrict to recipes written by this username"`
@@ -81,6 +83,20 @@ type tagListOutput struct {
 	Body TagList
 }
 
+// IngredientList is the response body of the list-ingredients operation.
+type IngredientList struct {
+	Items []IngredientSuggestion `json:"items"`
+}
+
+type ingredientListInput struct {
+	Query string `query:"q" maxLength:"100" doc:"Offer the ingredient names with a word starting with this text"`
+	Limit int    `query:"limit" minimum:"1" maximum:"50" default:"10" doc:"Most suggestions to return"`
+}
+
+type ingredientListOutput struct {
+	Body IngredientList
+}
+
 // AuthorList is the response body of the list-authors operation.
 type AuthorList struct {
 	Items []AuthorCount `json:"items"`
@@ -115,6 +131,8 @@ func Register(api huma.API, svc *Service) {
 		page, err := svc.List(ctx, ListParams{
 			Query:         in.Query,
 			Tags:          in.Tags,
+			Ingredients:   in.Ingredients,
+			Have:          in.Have,
 			MaxMinutes:    in.MaxMinutes,
 			FavoritesOnly: in.FavoritesOnly,
 			Author:        in.Author,
@@ -379,6 +397,22 @@ func Register(api huma.API, svc *Service) {
 			tags = []TagCount{}
 		}
 		return &tagListOutput{Body: TagList{Items: tags}}, nil
+	})
+
+	huma.Register(api, huma.Operation{
+		OperationID: "list-ingredients",
+		Method:      http.MethodGet,
+		Path:        "/api/v1/ingredients",
+		Summary:     "Suggest ingredients for the ingredient search",
+		Description: "The ingredient names with a word starting with q, best first, each with how many recipes use it and the other names it covers.",
+		Tags:        []string{"recipes"},
+		Security:    auth.Protected(auth.ScopeRecipesRead),
+	}, func(ctx context.Context, in *ingredientListInput) (*ingredientListOutput, error) {
+		items, err := svc.IngredientSuggestions(ctx, in.Query, in.Limit)
+		if err != nil {
+			return nil, err
+		}
+		return &ingredientListOutput{Body: IngredientList{Items: items}}, nil
 	})
 
 	huma.Register(api, huma.Operation{

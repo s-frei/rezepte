@@ -28,14 +28,16 @@ func init() {
 // cannot fail an output-schema check the REST API never had.
 
 type searchIn struct {
-	Query      string   `json:"query,omitempty" jsonschema:"Full-text search over title, description, ingredient names and tags; every word must occur, also inside a longer word (3+ characters), max 100 characters"`
-	Tags       []string `json:"tags,omitempty" jsonschema:"Only recipes carrying all of these tags (see list_tags)"`
-	MaxMinutes int      `json:"maxMinutes,omitempty" jsonschema:"Only recipes whose prep plus cook time is at most this many minutes, 0-1440; 0 is off"`
-	Favorites  bool     `json:"favorites,omitempty" jsonschema:"Only the token owner's favorites"`
-	Author     string   `json:"author,omitempty" jsonschema:"Only recipes written by this username (createdBy.username in get_recipe), max 50 characters"`
-	Sort       string   `json:"sort,omitempty" jsonschema:"Result order: updated (default; with a query, best matches first), created, title or tasty (most tasty marks first)"`
-	Page       int      `json:"page,omitempty" jsonschema:"1-based page, default 1"`
-	Limit      int      `json:"limit,omitempty" jsonschema:"Page size, 1-100, default 24"`
+	Query       string   `json:"query,omitempty" jsonschema:"Full-text search over title, description, ingredient names and tags; every word must occur, also inside a longer word (3+ characters), max 100 characters"`
+	Tags        []string `json:"tags,omitempty" jsonschema:"Only recipes carrying all of these tags (see list_tags)"`
+	Ingredients []string `json:"ingredients,omitempty" jsonschema:"Ingredient chips, max 120 characters each, the first 20 counting: only recipes using at least one, best match first; each card then carries a pantry (chips used, ingredients missing)"`
+	Have        []string `json:"have,omitempty" jsonschema:"Ingredients the user has, max 120 characters each, the first 100 counting: they lower each card's missing list; needs ingredients"`
+	MaxMinutes  int      `json:"maxMinutes,omitempty" jsonschema:"Only recipes whose prep plus cook time is at most this many minutes, 0-1440; 0 is off"`
+	Favorites   bool     `json:"favorites,omitempty" jsonschema:"Only the token owner's favorites"`
+	Author      string   `json:"author,omitempty" jsonschema:"Only recipes written by this username (createdBy.username in get_recipe), max 50 characters"`
+	Sort        string   `json:"sort,omitempty" jsonschema:"Result order: updated (default; with a query, best matches first), created, title or tasty (most tasty marks first)"`
+	Page        int      `json:"page,omitempty" jsonschema:"1-based page, default 1"`
+	Limit       int      `json:"limit,omitempty" jsonschema:"Page size, 1-100, default 24"`
 }
 
 // maxSearchPage bounds search_recipes' page. REST leaves page open-ended,
@@ -57,6 +59,9 @@ func searchSchema() (*jsonschema.Schema, error) {
 	}
 	p := s.Properties
 	p["query"].MaxLength = jsonschema.Ptr(100)
+	// An ingredient name's own limit; more names than count are dropped, not refused.
+	p["ingredients"].Items.MaxLength = jsonschema.Ptr(120)
+	p["have"].Items.MaxLength = jsonschema.Ptr(120)
 	p["author"].MaxLength = jsonschema.Ptr(50)
 	p["maxMinutes"].Minimum, p["maxMinutes"].Maximum = jsonschema.Ptr(0.0), jsonschema.Ptr(1440.0)
 	// "" is the default, as REST's ?sort= is: huma applies the default
@@ -70,13 +75,15 @@ func searchSchema() (*jsonschema.Schema, error) {
 func addSearchRecipes(s *mcp.Server, c caller) {
 	mcp.AddTool(s, &mcp.Tool{
 		Name:        "search_recipes",
-		Description: "Search the recipe collection. Returns one page of recipe cards (id, slug, title, tags, total time) and the total number of matches. Use get_recipe for ingredients and steps.",
+		Description: "Search the recipe collection. Returns one page of recipe cards (id, slug, title, tags, total time) and the total number of matches. With ingredients (what the user has), the best match uses most of them, and each card's pantry lists the ingredients it uses and still misses; have marks more as at hand. Use get_recipe for ingredients and steps.",
 		InputSchema: c.search,
 		Annotations: &mcp.ToolAnnotations{ReadOnlyHint: true, OpenWorldHint: new(false)},
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in searchIn) (*mcp.CallToolResult, any, error) {
 		page, err := c.svc.List(ctx, recipe.ListParams{
 			Query:         in.Query,
 			Tags:          in.Tags,
+			Ingredients:   in.Ingredients,
+			Have:          in.Have,
 			MaxMinutes:    in.MaxMinutes,
 			FavoritesOnly: in.Favorites,
 			Author:        in.Author,

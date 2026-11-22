@@ -732,6 +732,41 @@ func (q *Queries) ListIngredientGroupsByRecipe(ctx context.Context, recipeID str
 	return items, nil
 }
 
+const listIngredientNames = `-- name: ListIngredientNames :many
+SELECT g.recipe_id, i.name
+FROM ingredients i
+JOIN ingredient_groups g ON g.id = i.group_id
+`
+
+type ListIngredientNamesRow struct {
+	RecipeID string
+	Name     string
+}
+
+// Every ingredient name with its recipe, for the ingredient suggestions.
+func (q *Queries) ListIngredientNames(ctx context.Context) ([]ListIngredientNamesRow, error) {
+	rows, err := q.db.QueryContext(ctx, listIngredientNames)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListIngredientNamesRow{}
+	for rows.Next() {
+		var i ListIngredientNamesRow
+		if err := rows.Scan(&i.RecipeID, &i.Name); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listIngredientNamesForRecipes = `-- name: ListIngredientNamesForRecipes :many
 SELECT g.recipe_id, i.name
 FROM ingredients i

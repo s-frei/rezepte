@@ -228,3 +228,9 @@ ORDER BY created_at, id;
 
 -- name: ClearAnnouncements :exec
 UPDATE recipes SET announce_pending = FALSE WHERE id IN (sqlc.slice(ids));
+
+-- Every ingredient name with its recipe, for the ingredient suggestions.
+-- name: ListIngredientNames :many
+SELECT g.recipe_id, i.name
+FROM ingredients i
+JOIN ingredient_groups g ON g.id = i.group_id;
