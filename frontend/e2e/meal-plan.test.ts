@@ -744,7 +744,13 @@ async function plan(
 	const id = await ownPlan(page);
 	const made = await page.request.post(`/api/v1/meal-plans/${id}/entries`, { data: entry });
 	expect(made.ok(), await made.text()).toBe(true);
-	return (await made.json()) as Plan;
+	if (!entry.day) return (await made.json()) as Plan;
+	// The answer holds the server's own week, and the server keeps the real
+	// date while a test fixes only the browser's clock: read the entry's day
+	// back by its range, or a test pinned to a past week loses it.
+	const read = await page.request.get(`/api/v1/meal-plans/${id}?from=${entry.day}&to=${entry.day}`);
+	expect(read.ok(), await read.text()).toBe(true);
+	return (await read.json()) as Plan;
 }
 
 const day = (page: Page, name: string) => page.getByRole('region', { name });
@@ -2541,36 +2547,45 @@ test('the staples search holds its height while the names change under the typin
 	await expect.poll(async () => (await box.boundingBox())?.height).toBeGreaterThan(300);
 	const full = (await box.boundingBox())!.height;
 	const lowest = await lowestHeight(box);
-	// Typed fast: no answer comes between the keys, the last names stay.
-	for (const key of ['x', 'Backspace', 'x', 'Backspace']) {
-		await field.press(key);
-		await page.waitForTimeout(60);
-	}
-	// 6, then 0 once "x" answers, and a key at once: the box waits for the next answer.
-	// The page itself takes the key back, 60ms after the answer lands - well
-	// inside the box's 180ms settle, and not hostage to how long a Playwright
-	// key press takes to arrive on a loaded CI runner.
-	await field.press('x');
+	// The keys are typed inside the page, on its own timers: Playwright's key
+	// presses travel through the test runner, and on a loaded CI runner one
+	// can arrive later than the search's 150ms debounce or the box's 180ms
+	// settle, which turns "typed fast" into "typed slowly" and makes the box
+	// rightly shrink.
 	await page.evaluate(
 		() =>
 			new Promise<void>((resolve) => {
-				const back = () => {
-					if (document.querySelectorAll('#staple-options [role=option]').length !== 1) {
-						requestAnimationFrame(back);
+				const input = document.querySelector<HTMLInputElement>('[role=dialog] [role=combobox]')!;
+				const typed = input.value;
+				const set = (value: string) => {
+					input.value = value;
+					input.dispatchEvent(new InputEvent('input', { bubbles: true }));
+				};
+				const count = () => document.querySelectorAll('#staple-options [role=option]').length;
+				// Typed fast, 60ms apart: no answer comes between the keys, the last names stay.
+				const keys = [`${typed}x`, typed, `${typed}x`, typed];
+				const next = () => {
+					const key = keys.shift();
+					if (key !== undefined) {
+						set(key);
+						setTimeout(next, 60);
 						return;
 					}
-					setTimeout(() => {
-						const input = document.querySelector<HTMLInputElement>(
-							'[role=dialog] [role=combobox]'
-						)!;
-						input.value = input.value.slice(0, -1);
-						input.dispatchEvent(
-							new InputEvent('input', { bubbles: true, inputType: 'deleteContentBackward' })
-						);
-						resolve();
-					}, 60);
+					// 6, then 0 once "x" answers, and a key 60ms later: the box waits for the next answer.
+					set(`${typed}x`);
+					const answered = () => {
+						if (count() !== 1) {
+							requestAnimationFrame(answered);
+							return;
+						}
+						setTimeout(() => {
+							set(typed);
+							resolve();
+						}, 60);
+					};
+					answered();
 				};
-				back();
+				setTimeout(next, 60);
 			})
 	);
 	await expect(options).toHaveCount(7);
