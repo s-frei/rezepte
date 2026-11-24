@@ -83,13 +83,22 @@ export type SearchFind = {
  */
 export type SearchMatch = { section: SearchSection; title?: FindPart[]; finds: SearchFind[] };
 
-export type Image = {
+/** A photo as a gallery shows it, on the recipe page and on a share. */
+export type GalleryImage = {
 	id: string;
 	width: number;
 	height: number;
 	position: number;
 	/** The point every crop of the photo keeps in view. */
 	focus: ImageFocus;
+};
+
+/** A recipe's photo as its editor knows it. */
+export type Image = GalleryImage & {
+	/** The disk space the photo takes, across its three variants. */
+	sizeBytes: number;
+	/** When the photo was added, as an ISO date. */
+	createdAt: string;
 };
 
 export type ImageVariant = 'thumb' | 'detail' | 'original';
@@ -186,9 +195,11 @@ export type RecipeContent = Pick<
 	| 'tags'
 	| 'ingredientGroups'
 	| 'steps'
-	| 'images'
 	| 'coverImageId'
->;
+> & {
+	// The share's photos carry no size or date: only the editor shows those.
+	images: GalleryImage[];
+};
 
 export type RecipePage = {
 	items: RecipeCard[];

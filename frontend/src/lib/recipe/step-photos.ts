@@ -1,4 +1,5 @@
 import type { StepPhoto } from '#lib/api/recipes.js';
+import type { ImageFocus } from '#lib/images/focus.js';
 import type { FormPhoto, FormStep } from './form';
 import { firstWordMatch } from './references';
 import { overlapsAny } from './step-times';
@@ -7,12 +8,24 @@ import { overlapsAny } from './step-times';
  * One photo the step editor may link to, as `ImagesSection` shows it: stored,
  * queued for a new recipe, or still uploading. `key` is the tile's key, which
  * a link holds and which survives the upload; `id` is the server's image id,
- * null until the photo is stored.
+ * null until the photo is stored. `width`/`height` (0 until a local file is
+ * decoded) and `focus` let a thumbnail keep the photo's focus in view.
  */
-export type PhotoTile = { key: string; id: string | null; thumb: string; detail: string };
+export type PhotoTile = {
+	key: string;
+	id: string | null;
+	thumb: string;
+	detail: string;
+	width: number;
+	height: number;
+	focus: ImageFocus;
+};
 
-/** A photo queued for a recipe not created yet, with the key its tile and its links go by. */
-export type QueuedPhoto = { key: string; file: File };
+/**
+ * A photo queued for a recipe not created yet, with the key its tile and its
+ * links go by, and the focus the create flow sends once it is uploaded.
+ */
+export type QueuedPhoto = { key: string; file: File; focus?: ImageFocus };
 
 /** The step's photo links whose phrase the text still holds. */
 export function presentPhotos(photos: FormPhoto[], text: string): FormPhoto[] {

@@ -20,7 +20,15 @@ const step = (overrides: Partial<FormStep> = {}): FormStep => ({
 	...overrides
 });
 
-const tile = (key: string): PhotoTile => ({ key, id: key, thumb: `${key}.t`, detail: `${key}.d` });
+const tile = (key: string): PhotoTile => ({
+	key,
+	id: key,
+	thumb: `${key}.t`,
+	detail: `${key}.d`,
+	width: 4,
+	height: 3,
+	focus: { x: 0.5, y: 0.5 }
+});
 
 describe('photoBlocker', () => {
 	test('refuses a phrase overlapping a stored time', () => {

@@ -632,7 +632,9 @@ func (s *Service) load(ctx context.Context, row sqlc.Recipe) (Recipe, error) {
 
 	images := make([]Image, len(imgRows))
 	for i, im := range imgRows {
-		images[i] = ToImage(im)
+		if images[i], err = ToImage(im); err != nil {
+			return Recipe{}, err
+		}
 	}
 
 	return Recipe{
@@ -835,6 +837,13 @@ func nonEmpty(p *string) *string {
 }
 
 // ToImage maps a stored photo to its API shape.
-func ToImage(im sqlc.Image) Image {
-	return Image{ID: im.ID, Width: int(im.Width), Height: int(im.Height), Position: int(im.Position), Focus: ImageFocus{X: im.FocusX, Y: im.FocusY}}
+func ToImage(im sqlc.Image) (Image, error) {
+	created, err := db.ParseTime(im.CreatedAt)
+	if err != nil {
+		return Image{}, fmt.Errorf("image %s: %w", im.ID, err)
+	}
+	return Image{
+		ID: im.ID, Width: int(im.Width), Height: int(im.Height), Position: int(im.Position),
+		Focus: ImageFocus{X: im.FocusX, Y: im.FocusY}, SizeBytes: im.SizeBytes, CreatedAt: created,
+	}, nil
 }

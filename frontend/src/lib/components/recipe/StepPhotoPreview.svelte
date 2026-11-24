@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { Dialog, Popover } from 'bits-ui';
-	import type { Image, StepPhoto } from '#lib/api/recipes.js';
+	import type { GalleryImage, StepPhoto } from '#lib/api/recipes.js';
 	import BottomSheet, { revealAbove, scrollBox } from '#lib/components/ui/BottomSheet.svelte';
 	import { m } from '#lib/paraglide/messages.js';
 	import { phone } from '#lib/ui/phone.svelte.js';
@@ -27,7 +27,7 @@
 		photo: StepPhoto | null;
 		/** The phrase that was activated; the card sits at it. */
 		anchor: HTMLElement | null;
-		images: Image[];
+		images: GalleryImage[];
 		src: (imageId: string, variant: 'thumb' | 'detail') => string;
 		stepNumber: number;
 		onenlarge: (index: number) => void;

@@ -5,6 +5,7 @@
 	import BottomSheet from '#lib/components/ui/BottomSheet.svelte';
 	import Button from '#lib/components/ui/Button.svelte';
 	import { m } from '#lib/paraglide/messages.js';
+	import { objectFocus } from '#lib/images/focus.js';
 	import type { PhotoTile } from '#lib/recipe/step-photos.js';
 	import { swipeDirection } from '#lib/recipe/swipe.js';
 
@@ -166,7 +167,13 @@
 					? 'outline-2 outline-primary'
 					: 'opacity-80 hover:opacity-100'}"
 			>
-				<img src={tile.thumb} alt="" draggable="false" class="size-full object-cover" />
+				<img
+					src={tile.thumb}
+					alt=""
+					draggable="false"
+					{@attach objectFocus(() => tile)}
+					class="size-full object-cover"
+				/>
 			</button>
 		{/each}
 	</div>

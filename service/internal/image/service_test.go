@@ -102,6 +102,18 @@ func TestUploadWritesVariantsAndSetsFirstCover(t *testing.T) {
 			t.Fatalf("%s: %v", name, err)
 		}
 	}
+	// The photo reports the disk space of its variants and when it came.
+	var disk int64
+	for _, name := range []string{first.ID + ".jpg", first.ID + "_detail.jpg", first.ID + "_thumb.jpg"} {
+		info, err := os.Stat(filepath.Join(e.dir, e.recipe.ID, name))
+		if err != nil {
+			t.Fatal(err)
+		}
+		disk += info.Size()
+	}
+	if first.SizeBytes != disk || first.CreatedAt.IsZero() || time.Since(first.CreatedAt) > time.Minute {
+		t.Fatalf("sizeBytes = %d (files %d), createdAt = %v", first.SizeBytes, disk, first.CreatedAt)
+	}
 	second := upload(t, e, 640, 480)
 	if second.Position != 1 || second.Width != 640 {
 		t.Fatalf("second = %+v", second)

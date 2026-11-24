@@ -1909,6 +1909,10 @@
             "readOnly": true,
             "type": "string"
           },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
           "focus": {
             "$ref": "#/components/schemas/ImageFocus"
           },
@@ -1923,6 +1927,10 @@
             "format": "int64",
             "type": "integer"
           },
+          "sizeBytes": {
+            "format": "int64",
+            "type": "integer"
+          },
           "width": {
             "format": "int64",
             "type": "integer"
@@ -1933,7 +1941,9 @@
           "width",
           "height",
           "position",
-          "focus"
+          "focus",
+          "sizeBytes",
+          "createdAt"
         ],
         "type": "object"
       },

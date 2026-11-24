@@ -75,6 +75,10 @@ type Image struct {
 	Height   int        `json:"height"`
 	Position int        `json:"position"`
 	Focus    ImageFocus `json:"focus"`
+	// SizeBytes is the disk space the photo takes, across its three variants.
+	SizeBytes int64 `json:"sizeBytes"`
+	// CreatedAt is when the photo was added to the recipe.
+	CreatedAt time.Time `json:"createdAt"`
 }
 
 // ImageFocus is the point of a photo that stays in view wherever it is

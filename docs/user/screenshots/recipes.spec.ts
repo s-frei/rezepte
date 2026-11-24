@@ -76,6 +76,25 @@ test('editor-images', async ({ page }, testInfo) => {
 	await shot(page, 'editor-images');
 });
 
+test('image-focus', async ({ page }, testInfo) => {
+	await prepare(page, testInfo, { login: true });
+	// Lemon Drizzle Cake's upright cover is seeded centered: the dialog shows
+	// it before a point is set, hint and all.
+	await page.goto('/recipes/lemon-drizzle-cake/edit');
+	await page.getByRole('button', { name: 'Photo focus', exact: true }).click();
+	const dialog = page.getByRole('dialog');
+	// The stage holds the cover and its neighbors; the point goes on the cover.
+	const current = dialog.getByRole('application').locator('[data-current]');
+	await expect(current.locator('img')).toHaveJSProperty('complete', true);
+	// The point on the slice in front, low in the frame.
+	const box = (await current.boundingBox())!;
+	await page.mouse.click(box.x + box.width * 0.5, box.y + box.height * 0.7);
+	await page.mouse.move(0, 0);
+	// Let the point glide in and the sheet settle.
+	await page.waitForTimeout(400);
+	await shot(page, 'image-focus');
+});
+
 test('editor-editing', async ({ page }, testInfo) => {
 	await prepare(page, testInfo, { login: true });
 	await page.goto(`${DETAIL}/edit`);

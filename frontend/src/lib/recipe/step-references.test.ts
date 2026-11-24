@@ -397,7 +397,15 @@ describe('times among the proposals', () => {
 			...step('Den Teig 10 Minuten ruhen lassen.'),
 			photos: [{ phrase: 'Teig 10 Minuten ruhen', imageKey: 'p1' }]
 		});
-		const tile = { key: 'p1', id: 'p1', thumb: '', detail: '' };
+		const tile = {
+			key: 'p1',
+			id: 'p1',
+			thumb: '',
+			detail: '',
+			width: 1,
+			height: 1,
+			focus: { x: 0.5, y: 0.5 }
+		};
 		expect(countPending([linked()], groups, [tile])).toBe(0);
 		const steps = [linked()];
 		expect(acceptAll(steps, groups, [tile])).toBe(0);

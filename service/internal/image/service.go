@@ -136,7 +136,7 @@ func (s *Service) insertRecipeImage(ctx context.Context, q *sqlc.Queries, row sq
 	} else if err := q.TouchRecipe(ctx, sqlc.TouchRecipeParams{UpdatedBy: actorID, UpdatedAt: now, ID: row.ID}); err != nil {
 		return recipe.Image{}, fmt.Errorf("touch recipe: %w", err)
 	}
-	return recipe.ToImage(inserted), nil
+	return recipe.ToImage(inserted)
 }
 
 // guard runs recipe.GuardEdit and translates its not-found into this
@@ -312,7 +312,10 @@ func (s *Service) order(ctx context.Context, q *sqlc.Queries, actor user.User, r
 	out := make([]recipe.Image, len(ordered))
 	for i, im := range ordered {
 		im.Position = int64(i)
-		out[i] = recipe.ToImage(im)
+		var err error
+		if out[i], err = recipe.ToImage(im); err != nil {
+			return nil, err
+		}
 	}
 	return out, nil
 }
@@ -344,8 +347,8 @@ func (s *Service) SetFocus(ctx context.Context, recipeID, imageID string, actor 
 		if err != nil {
 			return fmt.Errorf("get image: %w", err)
 		}
-		out = recipe.ToImage(im)
-		return nil
+		out, err = recipe.ToImage(im)
+		return err
 	})
 	if err != nil {
 		return recipe.Image{}, err

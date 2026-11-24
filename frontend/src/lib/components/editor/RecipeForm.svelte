@@ -5,6 +5,8 @@
 	import { resolve } from '$app/paths';
 	import { resolvePath } from '#lib/paths.js';
 	import type { Path, ResolvedPathname } from '$app/types';
+	import Focus from '@lucide/svelte/icons/focus';
+	import Button from '#lib/components/ui/Button.svelte';
 	import FieldError from '#lib/components/ui/FieldError.svelte';
 	import ErrorDot from '#lib/components/ui/ErrorDot.svelte';
 	import { toast } from 'svelte-sonner';
@@ -677,12 +679,27 @@
 				id="editor-section-images"
 				class="{sectionCard} data-dropping:bg-accent/45 data-dropping:outline-2 data-dropping:-outline-offset-2 data-dropping:outline-primary data-dropping:outline-dashed"
 			>
-				<h2 class="{sectionTitle} flex items-baseline justify-between gap-3">
-					{m.editor_section_images()}
-					<span class="font-sans text-caption font-normal text-text-muted tabular-nums">
-						{photoCounter[0]}<b class="font-semibold text-text">{photoCount}</b>{photoCounter[1]}
-					</span>
-				</h2>
+				<!-- The focus button sits by the heading, where it stays put however
+				     many photos there are, and opens on the cover to walk them all. -->
+				<div class="mb-3 flex flex-wrap items-center justify-between gap-x-3 gap-y-2 md:mb-4">
+					<h2 class="font-display text-heading font-medium">{m.editor_section_images()}</h2>
+					<div class="flex items-center gap-3">
+						{#if images?.canFocus()}
+							<Button
+								variant="accent"
+								size="sm"
+								class="h-8 gap-1.5 px-3"
+								onclick={() => images?.focusAll()}
+							>
+								<Focus class="size-4" aria-hidden="true" />
+								{m.images_focus_open()}
+							</Button>
+						{/if}
+						<span class="text-caption whitespace-nowrap text-text-muted tabular-nums">
+							{photoCounter[0]}<b class="font-semibold text-text">{photoCount}</b>{photoCounter[1]}
+						</span>
+					</div>
+				</div>
 				<ImagesSection
 					bind:this={images}
 					recipeId={existing?.id}

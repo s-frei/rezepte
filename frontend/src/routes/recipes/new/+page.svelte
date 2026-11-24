@@ -8,11 +8,14 @@
 		createRecipe,
 		emptyInput,
 		updateRecipe,
+		setImageFocus,
 		uploadImage,
 		type Recipe,
 		type RecipeInput
 	} from '#lib/api/recipes.js';
 	import RecipeForm from '#lib/components/editor/RecipeForm.svelte';
+	import { isCentered } from '#lib/images/focus.js';
+	import { refusalOr } from '#lib/recipe/access.js';
 	import { m } from '#lib/paraglide/messages.js';
 	import { takeDraft, type ImportedDraft } from '#lib/recipe/draft.js';
 	import { resolvePhotos, type QueuedPhoto } from '#lib/recipe/step-photos.js';
@@ -82,13 +85,23 @@
 		let recipe = await createRecipe({ ...input, steps: withPhotos(new Map()) });
 		const uploaded: [string, string][] = [];
 		const failed: string[] = [];
-		for (const { key, file } of pending) {
+		let focusError: unknown = null;
+		for (const { key, file, focus } of pending) {
+			let id: string;
 			try {
-				uploaded.push([key, (await uploadImage(recipe.id, file)).id]);
+				id = (await uploadImage(recipe.id, file)).id;
 			} catch {
 				failed.push(key);
+				continue;
+			}
+			uploaded.push([key, id]);
+			// A point chosen before the recipe existed; a centered one is the default.
+			if (focus && !isCentered(focus)) {
+				await setImageFocus(recipe.id, id, focus).catch((err) => (focusError = err));
 			}
 		}
+		// One toast for any number of points that did not save.
+		if (focusError) toast.error(refusalOr(focusError, m.images_focus_error()));
 		const ids = new Map(uploaded);
 		const linked = input.steps.flatMap((step) => step.photos ?? []);
 		if (linked.some((photo) => failed.includes(photo.imageId))) {

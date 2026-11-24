@@ -1,5 +1,14 @@
 <script module lang="ts">
-	const rest = { state: 'stored' as const, progress: 0, width: 0, height: 0 };
+	import { CENTER } from '#lib/images/focus.js';
+
+	const rest = {
+		state: 'stored' as const,
+		progress: 0,
+		width: 0,
+		height: 0,
+		focus: CENTER,
+		bytes: 0
+	};
 </script>
 
 <script lang="ts">
@@ -13,6 +22,7 @@
 	import ArrowLeft from '@lucide/svelte/icons/arrow-left';
 	import ArrowRight from '@lucide/svelte/icons/arrow-right';
 	import CircleAlert from '@lucide/svelte/icons/circle-alert';
+	import Crosshair from '@lucide/svelte/icons/crosshair';
 	import Ellipsis from '@lucide/svelte/icons/ellipsis';
 	import Eye from '@lucide/svelte/icons/eye';
 	import Plus from '@lucide/svelte/icons/plus';
@@ -28,12 +38,14 @@
 		getRecipe,
 		imageUrl,
 		reorderImages,
+		setImageFocus,
 		uploadImage,
 		type Image
 	} from '#lib/api/recipes.js';
 	import { ApiError } from '#lib/api/client.js';
 	import Lightbox from '#lib/components/ui/Lightbox.svelte';
 	import ProgressRing from '#lib/components/ui/ProgressRing.svelte';
+	import { isCentered, objectFocus, type ImageFocus } from '#lib/images/focus.js';
 	import { acceptFiles, uploadErrorMessage } from '#lib/images/pick.js';
 	import { m } from '#lib/paraglide/messages.js';
 	import { refusalOr } from '#lib/recipe/access.js';
@@ -42,6 +54,7 @@
 	import { flip } from '#lib/sortable/flip.js';
 	import { moveItem } from '#lib/sortable/order.js';
 	import { sortable } from '#lib/sortable/sortable.svelte.js';
+	import ImageFocusDialog from './ImageFocusDialog.svelte';
 	import { fresh } from './motion';
 
 	let {
@@ -93,6 +106,12 @@
 		progress: number;
 		width: number;
 		height: number;
+		/** For a file not yet stored, the point its upload sends once it lands. */
+		focus: ImageFocus;
+		/** A stored photo's disk space; a file has its own size. */
+		bytes: number;
+		/** When a stored photo was added. */
+		added?: string;
 	};
 
 	// The props seed the section once (see the `svelte-ignore` comments);
@@ -106,17 +125,21 @@
 		state: 'stored',
 		progress: 1,
 		width: image.width,
-		height: image.height
+		height: image.height,
+		focus: image.focus,
+		bytes: image.sizeBytes,
+		added: image.createdAt
 	});
 	// svelte-ignore state_referenced_locally
 	let tiles = $state<Tile[]>(
 		recipeId === undefined
-			? pending.map(({ key, file }) => ({
+			? pending.map(({ key, file, focus }) => ({
 					key,
 					id: key,
 					url: URL.createObjectURL(file),
 					file,
-					...rest
+					...rest,
+					focus: focus ?? CENTER
 				}))
 			: initialImages.map((image) => storedTile(image))
 	);
@@ -143,7 +166,10 @@
 					key: tile.key,
 					id,
 					thumb: tile.url,
-					detail: id === null ? tile.url : imageUrl(recipeId as string, id, 'detail')
+					detail: id === null ? tile.url : imageUrl(recipeId as string, id, 'detail'),
+					width: tile.width,
+					height: tile.height,
+					focus: tile.focus
 				};
 			});
 	});
@@ -191,7 +217,9 @@
 
 	function syncPending() {
 		if (queued) {
-			pending = tiles.flatMap((tile) => (tile.file ? [{ key: tile.key, file: tile.file }] : []));
+			pending = tiles.flatMap((tile) =>
+				tile.file ? [{ key: tile.key, file: tile.file, focus: tile.focus }] : []
+			);
 		}
 	}
 
@@ -244,8 +272,18 @@
 			await serial(async () => {
 				const image = await uploadImage(id, tile.file as File, (p) => (tile.progress = p));
 				revoke(tile);
-				Object.assign(tile, { ...storedTile(image, key), file: undefined });
+				// A point chosen while it went up goes after it, in the same turn.
+				const focus = tile.focus;
+				Object.assign(tile, { ...storedTile(image, key), file: undefined, focus });
 				savedKeys = [...savedKeys, key];
+				if (!isCentered(focus)) {
+					try {
+						tile.focus = (await setImageFocus(id, image.id, focus)).focus;
+					} catch (error) {
+						tile.focus = image.focus;
+						toast.error(refusalOr(error, m.images_focus_error()));
+					}
+				}
 				// The server appended it after the photos it holds: stored
 				// tiles stay a prefix, ahead of a failed one still waiting.
 				const index = tiles.indexOf(tile);
@@ -330,7 +368,14 @@
 		for (const [key, tile] of pendingDeletes) {
 			if (!held.has(tile.id) && !deleting.has(key)) pendingDeletes.delete(key);
 		}
-		const all = images.map((image) => known.get(image.id) ?? storedTile(image));
+		// A known tile keeps its key, but takes what another member may have
+		// changed meanwhile.
+		const all = images.map((image) => {
+			const tile = known.get(image.id);
+			if (!tile) return storedTile(image);
+			Object.assign(tile, { focus: image.focus, width: image.width, height: image.height });
+			return tile;
+		});
 		savedKeys = all.map((tile) => tile.key);
 		await flip(grid, () => {
 			tiles = [
@@ -467,6 +512,72 @@
 		return new Set(tiles.filter((tile) => tile.state === 'failed').map((tile) => tile.key));
 	}
 
+	// The dialog sets the points of every photo that has a size, starting on
+	// the one whose menu opened it, or on the cover from the button below.
+	let focusStart = $state<string | null>(null);
+	let focusOpen = $state(false);
+	let focusBusy = $state(false);
+	const focusPhotos = $derived(
+		tiles
+			.filter((tile) => tile.width > 0 && tile.state !== 'failed')
+			.map((tile) => ({
+				key: tile.key,
+				src: tile.file ? tile.url : imageUrl(recipeId as string, tile.id, 'detail'),
+				width: tile.width,
+				height: tile.height,
+				focus: tile.focus,
+				bytes: tile.file?.size ?? tile.bytes,
+				added: tile.added
+			}))
+	);
+
+	function editFocus(key: string) {
+		focusStart = key;
+		focusOpen = true;
+	}
+
+	/** Whether any photo can take a focus yet, for the parent's header button. */
+	export function canFocus(): boolean {
+		return focusPhotos.length > 0;
+	}
+
+	/** Opens the focus dialog on the cover, to walk every photo from there. */
+	export function focusAll() {
+		if (focusPhotos.length > 0) editFocus(focusPhotos[0].key);
+	}
+
+	/**
+	 * A file not stored yet keeps its point on its tile, and its upload (or the
+	 * create flow) sends it. Stored photos go out one by one through the queue;
+	 * each that lands takes the server's point, so after a failure the dialog
+	 * stays open with only the rest still changed.
+	 */
+	async function saveFocus(changes: { key: string; focus: ImageFocus }[]) {
+		let failed: unknown = null;
+		focusBusy = true;
+		try {
+			for (const { key, focus } of changes) {
+				const tile = tiles.find((t) => t.key === key);
+				if (!tile) continue;
+				if (tile.file) {
+					tile.focus = focus;
+					syncPending();
+					continue;
+				}
+				try {
+					const image = await serial(() => setImageFocus(recipeId as string, tile.id, focus));
+					tile.focus = image.focus;
+				} catch (error) {
+					failed ??= error;
+				}
+			}
+		} finally {
+			focusBusy = false;
+		}
+		if (failed) toast.error(refusalOr(failed, m.images_focus_error()));
+		else focusOpen = false;
+	}
+
 	function view(index: number) {
 		viewIndex = index;
 		viewing = true;
@@ -600,10 +711,11 @@
 							<img
 								src={tile.url}
 								alt=""
+								{@attach objectFocus(() => tile)}
 								decoding="async"
 								draggable="false"
 								onload={(event) => {
-									// A local file's size, for the lightbox.
+									// A local file's size, for the lightbox and the focus.
 									const img = event.currentTarget as HTMLImageElement;
 									if (tile.width === 0) {
 										tile.width = img.naturalWidth;
@@ -620,62 +732,75 @@
 							<div class="pointer-events-none absolute inset-0 grid place-items-center bg-overlay">
 								<ProgressRing progress={tile.progress} size={40} />
 							</div>
+						{/if}
+						<!-- Hidden while `flip` resizes the tile, or they stretch with it. -->
+						{#if tile.state === 'failed'}
+							<span class="pointer-events-none absolute inset-0 bg-destructive/35"></span>
+							<span
+								class="pointer-events-none absolute bottom-1.5 left-1.5 inline-flex h-[22px] items-center gap-1 rounded-pill bg-destructive pr-2 pl-1.5 text-micro font-semibold text-destructive-foreground max-[340px]:w-[22px] max-[340px]:justify-center max-[340px]:px-0"
+							>
+								<RotateCcw class="size-[13px] stroke-[2.5]" aria-hidden="true" />
+								<span class="max-[340px]:hidden">{m.images_retry()}</span>
+							</span>
+						{:else if tile.state === 'uploading'}
+							<!-- No badge while it goes up: the ring says enough. -->
+						{:else if index === 0}
+							<span
+								class="pointer-events-none absolute top-2 left-2 rounded-pill bg-primary px-2.5 py-0.5 text-label font-semibold tracking-wide text-primary-foreground group-data-resizing:opacity-0"
+							>
+								{m.images_cover_badge()}
+							</span>
 						{:else}
-							<!-- Hidden while `flip` resizes the tile, or they stretch with it. -->
-							{#if tile.state === 'failed'}
-								<span class="pointer-events-none absolute inset-0 bg-destructive/35"></span>
+							<span
+								aria-hidden="true"
+								class="pointer-events-none absolute bottom-1.5 left-1.5 h-[18px] min-w-[18px] rounded-pill bg-surface/90 px-1.5 text-center text-label leading-[18px] font-semibold text-text-muted tabular-nums group-data-resizing:opacity-0"
+							>
+								{index + 1}
+							</span>
+						{/if}
+						<!-- An uploading photo may be looked at and get its focus, but not
+							     move or go: the queue owns it until it lands. -->
+						<DropdownMenu.Root>
+							<DropdownMenu.Trigger
+								data-sortable-ignore
+								aria-label={m.images_actions({ number: index + 1 })}
+								class="group/more absolute top-0 right-0 grid size-10 place-items-center text-text outline-none group-data-resizing:opacity-0"
+							>
 								<span
-									class="pointer-events-none absolute bottom-1.5 left-1.5 inline-flex h-[22px] items-center gap-1 rounded-pill bg-destructive pr-2 pl-1.5 text-micro font-semibold text-destructive-foreground max-[340px]:w-[22px] max-[340px]:justify-center max-[340px]:px-0"
+									class="grid size-6 place-items-center rounded-pill bg-surface/90 shadow-card group-focus-visible/more:outline-2 group-focus-visible/more:outline-offset-2 group-focus-visible/more:outline-primary group-data-[state=open]/more:bg-surface group-data-[state=open]/more:outline-2 group-data-[state=open]/more:outline-offset-1 group-data-[state=open]/more:outline-primary"
 								>
-									<RotateCcw class="size-[13px] stroke-[2.5]" aria-hidden="true" />
-									<span class="max-[340px]:hidden">{m.images_retry()}</span>
+									<Ellipsis class="size-3.5" aria-hidden="true" />
 								</span>
-							{:else if index === 0}
-								<span
-									class="pointer-events-none absolute top-2 left-2 rounded-pill bg-primary px-2.5 py-0.5 text-label font-semibold tracking-wide text-primary-foreground group-data-resizing:opacity-0"
+							</DropdownMenu.Trigger>
+							<DropdownMenu.Portal>
+								<DropdownMenu.Content
+									preventScroll={false}
+									sideOffset={2}
+									align="end"
+									class="z-50 min-w-46 rounded-md border border-popover-border bg-popover p-1.5 shadow-dialog"
 								>
-									{m.images_cover_badge()}
-								</span>
-							{:else}
-								<span
-									aria-hidden="true"
-									class="pointer-events-none absolute bottom-1.5 left-1.5 h-[18px] min-w-[18px] rounded-pill bg-surface/90 px-1.5 text-center text-label leading-[18px] font-semibold text-text-muted tabular-nums group-data-resizing:opacity-0"
-								>
-									{index + 1}
-								</span>
-							{/if}
-							<DropdownMenu.Root>
-								<DropdownMenu.Trigger
-									data-sortable-ignore
-									aria-label={m.images_actions({ number: index + 1 })}
-									class="group/more absolute top-0 right-0 grid size-10 place-items-center text-text outline-none group-data-resizing:opacity-0"
-								>
-									<span
-										class="grid size-6 place-items-center rounded-pill bg-surface/90 shadow-card group-focus-visible/more:outline-2 group-focus-visible/more:outline-offset-2 group-focus-visible/more:outline-primary group-data-[state=open]/more:bg-surface group-data-[state=open]/more:outline-2 group-data-[state=open]/more:outline-offset-1 group-data-[state=open]/more:outline-primary"
-									>
-										<Ellipsis class="size-3.5" aria-hidden="true" />
-									</span>
-								</DropdownMenu.Trigger>
-								<DropdownMenu.Portal>
-									<DropdownMenu.Content
-										preventScroll={false}
-										sideOffset={2}
-										align="end"
-										class="z-50 min-w-46 rounded-md border border-popover-border bg-popover p-1.5 shadow-dialog"
-									>
-										{#if tile.state === 'failed'}
-											<DropdownMenu.Item
-												onSelect={() => retry(tile.key)}
-												class="{menuItem} text-text"
-											>
-												<RotateCcw class="size-4" aria-hidden="true" />
-												{m.images_retry()}
-											</DropdownMenu.Item>
-										{:else}
-											<DropdownMenu.Item onSelect={() => view(index)} class="{menuItem} text-text">
-												<Eye class="size-4" aria-hidden="true" />
-												{m.images_view()}
-											</DropdownMenu.Item>
+									{#if tile.state === 'failed'}
+										<DropdownMenu.Item
+											onSelect={() => retry(tile.key)}
+											class="{menuItem} text-text"
+										>
+											<RotateCcw class="size-4" aria-hidden="true" />
+											{m.images_retry()}
+										</DropdownMenu.Item>
+									{:else}
+										<DropdownMenu.Item onSelect={() => view(index)} class="{menuItem} text-text">
+											<Eye class="size-4" aria-hidden="true" />
+											{m.images_view()}
+										</DropdownMenu.Item>
+										<DropdownMenu.Item
+											disabled={tile.width === 0}
+											onSelect={() => editFocus(tile.key)}
+											class="{menuItem} text-text"
+										>
+											<Crosshair class="size-4" aria-hidden="true" />
+											{m.images_focus()}
+										</DropdownMenu.Item>
+										{#if tile.state === 'stored'}
 											<DropdownMenu.Item
 												disabled={index === 0}
 												onSelect={() => move(index, 0, m.images_cover_error())}
@@ -701,6 +826,8 @@
 												{m.images_move_later()}
 											</DropdownMenu.Item>
 										{/if}
+									{/if}
+									{#if tile.state !== 'uploading'}
 										<DropdownMenu.Separator class="mx-0.5 my-1 h-px bg-border" />
 										<DropdownMenu.Item
 											onSelect={() => remove(index)}
@@ -709,10 +836,10 @@
 											<Trash class="size-4" aria-hidden="true" />
 											{m.common_remove()}
 										</DropdownMenu.Item>
-									</DropdownMenu.Content>
-								</DropdownMenu.Portal>
-							</DropdownMenu.Root>
-						{/if}
+									{/if}
+								</DropdownMenu.Content>
+							</DropdownMenu.Portal>
+						</DropdownMenu.Root>
 					</div>
 				</li>
 			{/each}
@@ -779,3 +906,14 @@
 	images={tiles}
 	src={lightboxSrc}
 />
+
+{#if focusStart !== null && focusPhotos.length > 0}
+	<ImageFocusDialog
+		bind:open={focusOpen}
+		photos={focusPhotos}
+		start={focusStart}
+		{title}
+		busy={focusBusy}
+		onsave={saveFocus}
+	/>
+{/if}

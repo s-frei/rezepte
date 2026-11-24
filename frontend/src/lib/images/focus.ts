@@ -13,6 +13,11 @@ export function isCentered(focus: ImageFocus): boolean {
 	return Math.abs(focus.x - 0.5) < 0.005 && Math.abs(focus.y - 0.5) < 0.005;
 }
 
+/** Whether two points are the same one, apart from float noise. */
+export function sameFocus(a: ImageFocus, b: ImageFocus): boolean {
+	return Math.abs(a.x - b.x) < 0.0005 && Math.abs(a.y - b.y) < 0.0005;
+}
+
 /** The recipe card keeps the photo's own shape between 4:5 portrait and 16:9 landscape. */
 export const CARD_MIN = 4 / 5,
 	CARD_MAX = 16 / 9;

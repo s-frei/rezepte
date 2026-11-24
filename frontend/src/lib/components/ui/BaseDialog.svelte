@@ -29,8 +29,9 @@
 		/**
 		 * 720px instead of 440px: the pass-on dialog sets its card beside its
 		 * actions, the add-account form its two columns side by side.
+		 * `stage` is 960px, for the photo focus's stage beside its previews.
 		 */
-		wide?: boolean;
+		wide?: boolean | 'stage';
 		/**
 		 * All of the padding inside the scroller, none around it, so content
 		 * can bleed to the rounded edge with `-m-7` (the pass-on dialog's
@@ -88,9 +89,11 @@
 						{...props}
 						class="fixed left-1/2 z-50 flex w-[calc(100%-2rem)] {top
 							? 'top-[max(8vh,2rem)] max-h-[calc(100dvh-max(8vh,2rem)-1rem)]'
-							: 'top-1/2 max-h-[calc(100dvh-2rem)] -translate-y-1/2'} {wide
-							? 'max-w-[720px]'
-							: 'max-w-[440px]'} -translate-x-1/2 flex-col overflow-hidden rounded-3xl bg-surface shadow-dialog {bleed
+							: 'top-1/2 max-h-[calc(100dvh-2rem)] -translate-y-1/2'} {wide === 'stage'
+							? 'max-w-[960px]'
+							: wide
+								? 'max-w-[720px]'
+								: 'max-w-[440px]'} -translate-x-1/2 flex-col overflow-hidden rounded-3xl bg-surface shadow-dialog {bleed
 							? ''
 							: 'px-1.5 py-3'}"
 						transition:scale={{ duration, start: 0.95 }}

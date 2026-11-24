@@ -2,7 +2,7 @@
 	import { untrack } from 'svelte';
 	import { fade } from 'svelte/transition';
 	import { prefersReducedMotion } from 'svelte/motion';
-	import { imageUrl, type Image, type ImageVariant } from '#lib/api/recipes.js';
+	import { imageUrl, type GalleryImage, type ImageVariant } from '#lib/api/recipes.js';
 	import { m } from '#lib/paraglide/messages.js';
 	import ScrollFade from '#lib/components/ui/ScrollFade.svelte';
 	import { decoded } from '#lib/images/decoded.js';
@@ -21,7 +21,7 @@
 		recipeId: string;
 		title: string;
 		/** At least one image - the page renders the placeholder otherwise. */
-		images: Image[];
+		images: GalleryImage[];
 		/** The recipe's cover image: what the gallery shows first. */
 		coverId: string | null;
 		/** `mobile`: snap-scroll carousel with pager dots. `desktop`: 4:3 cover plus a thumbnail row. */

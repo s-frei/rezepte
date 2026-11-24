@@ -15,6 +15,7 @@
 	import { slide } from 'svelte/transition';
 	import type { StepTime } from '#lib/api/recipes.js';
 	import { Announcement } from '#lib/announcement.svelte.js';
+	import { objectFocus } from '#lib/images/focus.js';
 	import { m } from '#lib/paraglide/messages.js';
 	import type { FormRef } from '#lib/recipe/form.js';
 	import type { PhotoTile } from '#lib/recipe/step-photos.js';
@@ -392,7 +393,12 @@
 		{#each photos as { phrase, tile }, at (phrase)}
 			<li class={ROW}>
 				<span class="flex min-w-0 items-center gap-2.5">
-					<img src={tile.thumb} alt="" class="size-8 shrink-0 rounded-word object-cover" />
+					<img
+						src={tile.thumb}
+						alt=""
+						{@attach objectFocus(() => tile)}
+						class="size-8 shrink-0 rounded-word object-cover"
+					/>
 					<span id="step-photo-{stepId}-{at}" class="min-w-0 font-medium">{phrase}</span>
 				</span>
 				<span class={ACTIONS}>
