@@ -48,6 +48,9 @@ description: End-to-end tests and screenshots, no browser extensions
     - A click on a button that something loading late pushes away: the password meter's label, which arrives 250 ms after typing, holds its line from the start.
     - A drop on a spot that itself moves the page (see the edge trap in [Images](/features/images)).
     - A step that takes longer than the 5s an `expect` waits by default (300 recipe cards in phone WebKit).
+    - A wall-clock budget on the app's answer: `toBeChecked({ timeout: 150 })` measured the machine. To prove a click lands during an animation, stretch the animation in the test (`page.addStyleTag`) and wait as long as usual.
+    - Two Playwright calls that must fall inside one short window, such as closing a dialog and reopening it during its 200 ms fade: run both inside the page, a frame apart (`import.test.ts`).
+    - A tap before the page has the content it acts on: the search field scrolls to the top once on focus, and before the cards are in the page is too short to scroll.
 
     Fonts are not one of them: the app ships Karla and Literata, so the Playwright image's fonts (its `sans-serif` is WenQuanYi Zen Hei) against the runner's DejaVu change nothing.
 

@@ -1110,7 +1110,9 @@ test('one card per row on a phone shows the desktop card, and stays', async ({
 // A size change glides document-wide, and a running view transition took
 // every click on the page for its length: the next size, clicked during
 // the glide, did nothing. Clicked by the mouse at the spot, since
-// Playwright's own click waits until the radio would receive it.
+// Playwright's own click waits until the radio would receive it. The glide
+// is stretched to 3 s, so every click lands in the one before however
+// slowly a loaded machine answers; a lost click never checks its radio.
 test('the card size takes clicks in quick succession', async ({ page, isMobile }) => {
 	test.skip(isMobile, 'the same control on a phone has two options');
 	const token = uniqueToken();
@@ -1121,13 +1123,16 @@ test('the card size takes clicks in quick succession', async ({ page, isMobile }
 	await page.goto(`/?q=${token}`);
 	await expect(cards(page)).toHaveCount(6);
 	await columnCount(page);
+	await page.addStyleTag({
+		content: '::view-transition-group(.card) { animation-duration: 3s !important; }'
+	});
 
 	for (const size of ['Small cards', 'Large cards', 'Medium cards', 'Large cards']) {
 		const radio = page.getByRole('radio', { name: size });
 		const box = (await radio.boundingBox())!;
 		await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
-		// Taken at once, while the one before still glides.
-		await expect(radio, size).toBeChecked({ timeout: 150 });
+		// Taken while the one before still glides.
+		await expect(radio, size).toBeChecked();
 	}
 	// The last one cut the one before short and glides on its own.
 	expect(await page.evaluate(() => 'cardTransition' in document.documentElement.dataset)).toBe(
@@ -4882,6 +4887,9 @@ test.describe('ingredient search', () => {
 			for (let i = 0; i < 6; i++) await createRecipe(page, loadFixture(i));
 			await page.setViewportSize({ width, height });
 			await page.goto('/');
+			// The field scrolls to the top once, on focus: tapped before the
+			// cards are in, the page is too short to scroll.
+			await expect(cards(page).nth(5)).toBeVisible();
 			const field = searchField(page);
 			await field.tap();
 			// The keyboard comes up as the field glides to the top.

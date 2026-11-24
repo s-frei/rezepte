@@ -199,9 +199,16 @@ test('the dialog reopened while it fades out still imports', async ({ page, isMo
 	const trigger = page.getByRole('banner').getByRole('button', { name: 'Import', exact: true });
 	await openImport(page);
 	await field(page).fill('kept');
-	// Close and reopen in one go, before the dialog has unmounted its form.
-	await page.keyboard.press('Escape');
-	await trigger.dispatchEvent('click');
+	// Close, and reopen a frame into the 200 ms fade-out, before the dialog has
+	// unmounted its form. In the page, since two Playwright calls take long
+	// enough on a loaded machine for the fade to end in between.
+	await trigger.evaluate(async (button) => {
+		document.activeElement!.dispatchEvent(
+			new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })
+		);
+		await new Promise(requestAnimationFrame);
+		(button as HTMLElement).click();
+	});
 	// The same form came back, not a fresh one.
 	await expect(field(page)).toHaveValue('kept');
 	const title = `Reopened ${uniqueToken()}`;
