@@ -7,9 +7,18 @@ import { DEMO_USER } from "../scripts/demo-user";
 // an offset, so the instant does not depend on the machine's time zone.
 export const FIXED_TIME = new Date("2026-09-17T10:30:00+02:00");
 
+/**
+ * The project's form and scheme, `desktop-light` to `mobile-dark`: the suffix
+ * of every screenshot's file name. Not the project name, since settings.spec.ts
+ * runs in projects of its own (playwright.config.ts).
+ */
+export function look(testInfo: TestInfo): string {
+  return testInfo.project.metadata.look as string;
+}
+
 /** True for the Pixel 7 projects. */
 export function isMobile(testInfo: TestInfo): boolean {
-  return testInfo.project.name.startsWith("mobile");
+  return look(testInfo).startsWith("mobile");
 }
 
 /**
@@ -23,7 +32,7 @@ export async function prepare(
   testInfo: TestInfo,
   opts: { login?: boolean; runningClock?: boolean } = {},
 ): Promise<void> {
-  const theme = testInfo.project.name.endsWith("-dark") ? "dark" : "light";
+  const theme = look(testInfo).endsWith("-dark") ? "dark" : "light";
   // A film needs time to pass, so its timers count down on screen: the clock
   // starts at FIXED_TIME and then runs at real speed.
   if (opts.runningClock) await page.clock.install({ time: FIXED_TIME });
@@ -39,13 +48,22 @@ export async function prepare(
     (t) => window.localStorage.setItem("rezepte-theme", t),
     theme,
   );
+  // Signs in over the API: page.request shares the context's cookie jar, so
+  // the session cookie signs the page in without the form, its sheet and a
+  // page load (auth.spec.ts shoots the form itself). The login throttle counts
+  // an attempt when it begins, so workers signing the demo admin in at the
+  // same moment can lock the name for an instant: a 429 is that race, tried again.
   if (opts.login) {
-    await page.goto("/login");
-    await openSheet(page);
-    await page.getByLabel("Username").fill(DEMO_USER.username);
-    await page.getByLabel("Password").fill(DEMO_USER.password);
-    await page.getByRole("button", { name: "Sign in" }).click();
-    await expect(page).toHaveURL("/");
+    for (let attempt = 0; ; attempt++) {
+      const res = await page.request.post("/api/v1/auth/login", {
+        data: { username: DEMO_USER.username, password: DEMO_USER.password },
+      });
+      if (res.ok()) break;
+      if (res.status() !== 429 || attempt === 5)
+        throw new Error(`demo login failed: ${res.status()}`);
+      await page.waitForTimeout(250 * (attempt + 1));
+    }
+    await page.goto("/");
     await page.getByRole("main").waitFor();
   }
 }

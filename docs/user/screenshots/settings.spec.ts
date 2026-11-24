@@ -1,6 +1,6 @@
 import path from 'node:path';
 import { expect, test } from '@playwright/test';
-import { configureMail, isMobile, offerInstall, prepare, shot, turnMailOff } from './helpers';
+import { configureMail, isMobile, look, offerInstall, prepare, shot, turnMailOff } from './helpers';
 
 test('settings', async ({ page }, testInfo) => {
 	await prepare(page, testInfo, { login: true });
@@ -191,7 +191,7 @@ test('setup-link-dialog', async ({ page }, testInfo) => {
 	await page.goto('/settings/users');
 	await page.getByRole('button', { name: 'Add account' }).click();
 	await expect(page.getByLabel('Username')).toBeFocused();
-	const username = `invited-${testInfo.project.name}`;
+	const username = `invited-${look(testInfo)}`;
 	await page.getByLabel('Username').fill(username);
 	await page
 		.getByRole('dialog')

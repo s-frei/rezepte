@@ -24,12 +24,15 @@ env = { RZP_DEMO_INSTANCE_PORT = "{{ env.RZP_SCREENSHOTS_PORT }}", RZP_DEMO_MAIL
 
 [tasks.screenshots]
 description = "Regenerate the screenshots against rezepte --demo on its own port, :8080 by default (needs a Chromium that starts; not run in CI)"
+# With arguments (`--grep <names>`) the run is serial and skips the settings
+# chain in playwright.config.ts: otherwise a filtered run would first rerun,
+# and rewrite, every settings shot of the looks before.
 # `--update-snapshots` alone writes only what exceeds maxDiffPixelRatio, so a
 # change too small for the tolerance - a typeface swap across a few lines of a
 # 1440x900 page - leaves stale PNGs behind. Regenerating means all of them.
 usage = 'arg "[args]..." var=#true help="Passed to Playwright: spec files or --grep to regenerate only some screenshots"'
 run = [
-	"mise run //:demo -- bunx playwright test --update-snapshots=all{% for a in usage.args %} {{ a | quote }}{% endfor %}",
+	"mise run //:demo -- bunx playwright test --update-snapshots=all{% if usage.args %} --no-deps --workers=1{% endif %}{% for a in usage.args %} {{ a | quote }}{% endfor %}",
 	"bun run readme-images",
 	"bun run hero-images",
 	"bun run screenshots:compress",
@@ -83,5 +86,5 @@ run = "bun run screenshots:audit"
 [tasks."screenshots:check"]
 description = "Report screenshot drift against rezepte --demo (local only)"
 usage = 'arg "[args]..." var=#true help="Passed to Playwright: spec files or --grep to check only some screenshots"'
-run = "mise run //:demo -- bunx playwright test{% for a in usage.args %} {{ a | quote }}{% endfor %}"
+run = "mise run //:demo -- bunx playwright test{% if usage.args %} --no-deps --workers=1{% endif %}{% for a in usage.args %} {{ a | quote }}{% endfor %}"
 env = { RZP_DEMO_MAIL = "off", RZP_DEMO_LOCALE = "en", RZP_DEMO_NOW = "2026-09-17T10:30:00+02:00", RZP_DEMO_INSTANCE_PORT = "{{ env.RZP_SCREENSHOTS_PORT }}", REZEPTE_PUBLIC_URL = "http://localhost:{{ env.RZP_SCREENSHOTS_PORT }}", RZP_DEMO_OIDC = "stub" } # see tasks.screenshots

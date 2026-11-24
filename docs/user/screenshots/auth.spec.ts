@@ -1,5 +1,5 @@
 import { expect, test, type Page, type TestInfo } from '@playwright/test';
-import { configureMail, devPassword, openSheet, prepare, shot, turnMailOff } from './helpers';
+import { configureMail, devPassword, look, openSheet, prepare, shot, turnMailOff } from './helpers';
 
 test('login', async ({ page }, testInfo) => {
 	await prepare(page, testInfo);
@@ -16,7 +16,7 @@ test('login', async ({ page }, testInfo) => {
 test('welcome', async ({ page }, testInfo) => {
 	await prepare(page, testInfo, { login: true });
 	const res = await page.request.post('/api/v1/users', {
-		data: { username: `welcome-${testInfo.project.name}`, role: 'user' }
+		data: { username: `welcome-${look(testInfo)}`, role: 'user' }
 	});
 	const created = (await res.json()) as { id: string; setupLink: { path: string } };
 	const session = (await page.context().cookies()).filter((c) => c.name === 'rezepte_session');
