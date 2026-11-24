@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { parseListQuery } from './query';
+import { DEFAULT_SORT, parseListQuery } from './query';
 import { applyRememberedSort } from './sort-preference';
 
 const at = (search: string) => new URL(`https://rezepte.test/${search}`);
@@ -10,7 +10,7 @@ describe('applyRememberedSort', () => {
 		expect(applyRememberedSort(parseListQuery(url), url, 'title').sort).toBe('title');
 	});
 
-	it("keeps the address's own order, the default included", () => {
+	it("keeps the address's own order", () => {
 		const url = at('?sort=updated');
 		expect(applyRememberedSort(parseListQuery(url), url, 'title').sort).toBe('updated');
 	});
@@ -24,7 +24,7 @@ describe('applyRememberedSort', () => {
 describe('applyRememberedSort with ingredient chips', () => {
 	it('ignores the remembered order while the address has chips and no sort', () => {
 		const url = at('?ingredients=Gurke');
-		expect(applyRememberedSort(parseListQuery(url), url, 'title').sort).toBe('updated');
+		expect(applyRememberedSort(parseListQuery(url), url, 'title').sort).toBe(DEFAULT_SORT);
 	});
 
 	it('keeps an order the address names next to chips', () => {

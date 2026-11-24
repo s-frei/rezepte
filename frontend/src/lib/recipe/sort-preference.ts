@@ -1,6 +1,6 @@
 import type { ReadonlyURL } from '$app/state';
 import { load, save } from '#lib/storage.js';
-import { isSort, type ListQuery, type Sort } from './query';
+import { DEFAULT_SORT, isSort, type ListQuery, type Sort } from './query';
 
 /**
  * The overview's order is remembered per device, like the theme and the
@@ -29,10 +29,10 @@ export function applyRememberedSort(
 /** The remembered order, or `null` for the default or nothing usable. */
 export function readSort(): Sort | null {
 	const raw = load(SORT_STORAGE_KEY);
-	return raw !== null && raw !== 'updated' && isSort(raw) ? raw : null;
+	return raw !== null && raw !== DEFAULT_SORT && isSort(raw) ? raw : null;
 }
 
 /** Remembers a chosen order; the default is stored as no entry at all. */
 export function writeSort(sort: Sort): void {
-	save(SORT_STORAGE_KEY, sort === 'updated' ? null : sort);
+	save(SORT_STORAGE_KEY, sort === DEFAULT_SORT ? null : sort);
 }

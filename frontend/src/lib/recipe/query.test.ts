@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { buildListQuery, MAX_CHIPS, parseListQuery, type ListQuery } from './query';
+import {
+	buildListQuery,
+	DEFAULT_SORT,
+	MAX_CHIPS,
+	parseListQuery,
+	serverSort,
+	shownSort,
+	type ListQuery
+} from './query';
 
 function urlWith(qs: string): URL {
 	return new URL(`https://rezepte.local/${qs ? `?${qs}` : ''}`);
@@ -15,7 +23,7 @@ describe('parseListQuery', () => {
 			maxMinutes: 0,
 			favorites: false,
 			author: '',
-			sort: 'updated',
+			sort: DEFAULT_SORT,
 			page: 1
 		});
 	});
@@ -29,7 +37,7 @@ describe('parseListQuery', () => {
 			maxMinutes: 0,
 			favorites: false,
 			author: '',
-			sort: 'updated',
+			sort: DEFAULT_SORT,
 			page: 1
 		});
 	});
@@ -43,7 +51,7 @@ describe('parseListQuery', () => {
 			maxMinutes: 0,
 			favorites: false,
 			author: '',
-			sort: 'updated',
+			sort: DEFAULT_SORT,
 			page: 1
 		});
 	});
@@ -57,7 +65,7 @@ describe('parseListQuery', () => {
 			maxMinutes: 0,
 			favorites: false,
 			author: '',
-			sort: 'updated',
+			sort: DEFAULT_SORT,
 			page: 1
 		});
 	});
@@ -71,7 +79,7 @@ describe('parseListQuery', () => {
 			maxMinutes: 0,
 			favorites: false,
 			author: '',
-			sort: 'updated',
+			sort: DEFAULT_SORT,
 			page: 1
 		});
 	});
@@ -85,7 +93,7 @@ describe('parseListQuery', () => {
 			maxMinutes: 0,
 			favorites: false,
 			author: '',
-			sort: 'updated',
+			sort: DEFAULT_SORT,
 			page: 3
 		});
 	});
@@ -99,7 +107,7 @@ describe('parseListQuery', () => {
 			maxMinutes: 0,
 			favorites: false,
 			author: '',
-			sort: 'updated',
+			sort: DEFAULT_SORT,
 			page: 1
 		});
 		expect(parseListQuery(urlWith('page=-1'))).toEqual({
@@ -110,7 +118,7 @@ describe('parseListQuery', () => {
 			maxMinutes: 0,
 			favorites: false,
 			author: '',
-			sort: 'updated',
+			sort: DEFAULT_SORT,
 			page: 1
 		});
 		expect(parseListQuery(urlWith('page=abc'))).toEqual({
@@ -121,7 +129,7 @@ describe('parseListQuery', () => {
 			maxMinutes: 0,
 			favorites: false,
 			author: '',
-			sort: 'updated',
+			sort: DEFAULT_SORT,
 			page: 1
 		});
 		expect(parseListQuery(urlWith('page=2.5'))).toEqual({
@@ -132,7 +140,7 @@ describe('parseListQuery', () => {
 			maxMinutes: 0,
 			favorites: false,
 			author: '',
-			sort: 'updated',
+			sort: DEFAULT_SORT,
 			page: 1
 		});
 	});
@@ -146,7 +154,7 @@ describe('parseListQuery', () => {
 			maxMinutes: 30,
 			favorites: false,
 			author: '',
-			sort: 'updated',
+			sort: DEFAULT_SORT,
 			page: 1
 		});
 	});
@@ -182,11 +190,15 @@ describe('parseListQuery', () => {
 		expect(parseListQuery(urlWith('sort=tasty')).sort).toBe('tasty');
 	});
 
-	it('falls back to updated for an unknown sort', () => {
-		expect(parseListQuery(urlWith('sort=bogus')).sort).toBe('updated');
+	it('keeps an explicit updated, which is not the default', () => {
+		expect(parseListQuery(urlWith('sort=updated')).sort).toBe('updated');
+	});
+
+	it('falls back to the default for an unknown sort', () => {
+		expect(parseListQuery(urlWith('sort=bogus')).sort).toBe(DEFAULT_SORT);
 		// Shaped like an injection attempt, the same as the server-side test:
 		// it must degrade to the default order, not throw.
-		expect(parseListQuery(urlWith('sort=%3B%20DROP%20TABLE%20recipes')).sort).toBe('updated');
+		expect(parseListQuery(urlWith('sort=%3B%20DROP%20TABLE%20recipes')).sort).toBe(DEFAULT_SORT);
 	});
 });
 
@@ -201,7 +213,7 @@ describe('buildListQuery', () => {
 				maxMinutes: 0,
 				favorites: false,
 				author: '',
-				sort: 'updated',
+				sort: DEFAULT_SORT,
 				page: 1
 			})
 		).toBe('');
@@ -217,7 +229,7 @@ describe('buildListQuery', () => {
 				maxMinutes: 0,
 				favorites: false,
 				author: '',
-				sort: 'updated',
+				sort: DEFAULT_SORT,
 				page: 1
 			})
 		).toBe('q=pasta');
@@ -233,7 +245,7 @@ describe('buildListQuery', () => {
 				maxMinutes: 0,
 				favorites: false,
 				author: '',
-				sort: 'updated',
+				sort: DEFAULT_SORT,
 				page: 1
 			})
 		).toBe('tags=a%2Cb');
@@ -249,7 +261,7 @@ describe('buildListQuery', () => {
 				maxMinutes: 30,
 				favorites: false,
 				author: '',
-				sort: 'updated',
+				sort: DEFAULT_SORT,
 				page: 1
 			})
 		).toBe('maxMinutes=30');
@@ -265,7 +277,7 @@ describe('buildListQuery', () => {
 				maxMinutes: 0,
 				favorites: false,
 				author: '',
-				sort: 'updated',
+				sort: DEFAULT_SORT,
 				page: 1
 			})
 		).toBe('');
@@ -281,7 +293,7 @@ describe('buildListQuery', () => {
 				maxMinutes: 0,
 				favorites: true,
 				author: '',
-				sort: 'updated',
+				sort: DEFAULT_SORT,
 				page: 1
 			})
 		).toBe('favorites=true');
@@ -297,7 +309,7 @@ describe('buildListQuery', () => {
 				maxMinutes: 0,
 				favorites: false,
 				author: '',
-				sort: 'updated',
+				sort: DEFAULT_SORT,
 				page: 1
 			})
 		).toBe('');
@@ -329,7 +341,7 @@ describe('buildListQuery', () => {
 				maxMinutes: 0,
 				favorites: false,
 				author: '',
-				sort: 'updated',
+				sort: DEFAULT_SORT,
 				page: 1
 			})
 		).toBe('');
@@ -345,7 +357,7 @@ describe('buildListQuery', () => {
 				maxMinutes: 0,
 				favorites: false,
 				author: '',
-				sort: 'updated',
+				sort: DEFAULT_SORT,
 				page: 2
 			})
 		).toBe('page=2');
@@ -377,7 +389,7 @@ describe('buildListQuery', () => {
 				maxMinutes: -5,
 				favorites: false,
 				author: '',
-				sort: 'updated',
+				sort: DEFAULT_SORT,
 				page: 0
 			})
 		).toBe('q=pasta&tags=dessert%2Cb');
@@ -395,7 +407,7 @@ describe('round trip', () => {
 				maxMinutes: 0,
 				favorites: false,
 				author: '',
-				sort: 'updated',
+				sort: DEFAULT_SORT,
 				page: 1
 			},
 			{
@@ -406,7 +418,7 @@ describe('round trip', () => {
 				maxMinutes: 0,
 				favorites: false,
 				author: '',
-				sort: 'updated',
+				sort: DEFAULT_SORT,
 				page: 1
 			},
 			{
@@ -417,7 +429,7 @@ describe('round trip', () => {
 				maxMinutes: 0,
 				favorites: false,
 				author: '',
-				sort: 'updated',
+				sort: DEFAULT_SORT,
 				page: 1
 			},
 			{
@@ -428,7 +440,7 @@ describe('round trip', () => {
 				maxMinutes: 30,
 				favorites: false,
 				author: '',
-				sort: 'updated',
+				sort: DEFAULT_SORT,
 				page: 4
 			},
 			{
@@ -450,7 +462,7 @@ describe('round trip', () => {
 				maxMinutes: 0,
 				favorites: true,
 				author: '',
-				sort: 'updated',
+				sort: DEFAULT_SORT,
 				page: 1
 			}
 		];
@@ -472,7 +484,7 @@ describe('round trip', () => {
 				maxMinutes: 0,
 				favorites: false,
 				author: '',
-				sort: 'updated',
+				sort: DEFAULT_SORT,
 				page: 1
 			},
 			{
@@ -483,7 +495,7 @@ describe('round trip', () => {
 				maxMinutes: 0,
 				favorites: false,
 				author: '',
-				sort: 'updated',
+				sort: DEFAULT_SORT,
 				page: 1
 			},
 			{
@@ -505,7 +517,7 @@ describe('round trip', () => {
 				maxMinutes: 0,
 				favorites: true,
 				author: '',
-				sort: 'updated',
+				sort: DEFAULT_SORT,
 				page: 1
 			}
 		];
@@ -525,7 +537,7 @@ describe('the author filter', () => {
 		maxMinutes: 0,
 		favorites: false,
 		author: '',
-		sort: 'updated',
+		sort: DEFAULT_SORT,
 		page: 1
 	};
 
@@ -594,5 +606,33 @@ describe('ingredients and have', () => {
 		const q = parseListQuery(urlWith('ingredients=Gurke&have=gurke&have=Salz'));
 		expect(q.ingredients).toEqual(['Gurke']);
 		expect(q.have).toEqual(['Salz']);
+	});
+});
+
+describe('serverSort', () => {
+	it('asks for the newest created first by default', () => {
+		expect(serverSort(DEFAULT_SORT, false)).toBe('created');
+	});
+
+	it("asks for the API's best-match ranking by default while searching", () => {
+		expect(serverSort(DEFAULT_SORT, true)).toBe('updated');
+	});
+
+	it('passes an explicit order through', () => {
+		expect(serverSort('updated', false)).toBe('updated');
+		expect(serverSort('created', true)).toBe('created');
+	});
+});
+
+describe('shownSort', () => {
+	it('shows an explicit order that matches the default as the default', () => {
+		expect(shownSort('created', false)).toBe(DEFAULT_SORT);
+		expect(shownSort('updated', true)).toBe(DEFAULT_SORT);
+	});
+
+	it('shows any other order as itself', () => {
+		expect(shownSort('updated', false)).toBe('updated');
+		expect(shownSort('created', true)).toBe('created');
+		expect(shownSort(DEFAULT_SORT, true)).toBe(DEFAULT_SORT);
 	});
 });

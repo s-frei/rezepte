@@ -1,5 +1,5 @@
 import type { UserColor } from '#lib/user/color.js';
-import { buildListQuery, type ListQuery } from '#lib/recipe/query.js';
+import { buildListQuery, DEFAULT_SORT, type ListQuery } from '#lib/recipe/query.js';
 import type { ImageFocus } from '#lib/images/focus.js';
 import { api } from './client';
 import { uploadWithProgress } from './upload';
@@ -252,7 +252,7 @@ export function listRecipes(
 			maxMinutes: params.maxMinutes ?? 0,
 			favorites: params.favorites ?? false,
 			author: params.author ?? '',
-			sort: params.sort ?? 'updated',
+			sort: params.sort ?? DEFAULT_SORT,
 			page: params.page ?? 1
 		})
 	);
@@ -385,7 +385,7 @@ export async function listTags(
 		favorites: false,
 		author: '',
 		...params,
-		sort: 'updated',
+		sort: DEFAULT_SORT,
 		page: 1
 	});
 	const page = await api<{ items: Tag[] }>(`/tags${qs ? `?${qs}` : ''}`, init);

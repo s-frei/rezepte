@@ -2831,10 +2831,10 @@ test('remembers the chosen order', async ({ page, isMobile }) => {
 	await expect(page).toHaveURL(/sort=title/);
 
 	if (isMobile) {
-		await page.getByRole('button', { name: 'Back to “Recently changed”' }).click();
+		await page.getByRole('button', { name: 'Back to “Newest first”' }).click();
 	} else {
 		await page.getByRole('button', { name: 'Sort by' }).click();
-		await page.getByRole('option', { name: 'Recently changed' }).click();
+		await page.getByRole('option', { name: 'Newest first' }).click();
 	}
 	await expect(page).not.toHaveURL(/sort=/);
 	await page.goto('/');
@@ -2849,14 +2849,39 @@ test('does not remember an order a link brought', async ({ page }) => {
 	await expect(page).not.toHaveURL(/sort=/);
 });
 
-// A link naming the default order keeps it over a remembered one: the page
-// writes the default back as a bare `/`, which must not read as a new visit.
+// A link naming the order the default comes out as keeps it over a
+// remembered one: it reads as the default, not as a bare `/`.
 test('keeps the default order a link names over a remembered one', async ({ page }) => {
 	await page.goto('/');
 	await page.evaluate(() => localStorage.setItem('rezepte-sort', 'title'));
-	await page.goto('/?sort=updated');
+	await page.goto('/?sort=created');
 	await page.waitForLoadState('networkidle');
 	await expect(page).not.toHaveURL(/sort=title/);
+});
+
+// The default order is by creation: editing an older recipe does not bump it
+// above a newer one; "Recently changed" stays a choice of its own.
+test('lists the newest created recipe first, not the last edited', async ({ page }) => {
+	const token = uniqueToken();
+	// Timestamps have second resolution: each step waits for the next one,
+	// or a tie would fall to the id and prove nothing.
+	const older = await createRecipe(page, {
+		...loadFixture(1),
+		title: `Older ${token}`,
+		tags: [token]
+	});
+	await page.waitForTimeout(1100);
+	await createRecipe(page, { ...loadFixture(2), title: `Newer ${token}`, tags: [token] });
+	await page.waitForTimeout(1100);
+	const put = await page.request.put(`/api/v1/recipes/${older.id}`, {
+		data: { ...loadFixture(1), title: `Older ${token}`, tags: [token], description: 'Edited' }
+	});
+	expect(put.ok(), `PUT recipe failed: ${put.status()} ${await put.text()}`).toBeTruthy();
+
+	await page.goto(`/?tags=${token}`);
+	await expect(cards(page)).toHaveText([`Newer ${token}`, `Older ${token}`]);
+	await page.goto(`/?tags=${token}&sort=updated`);
+	await expect(cards(page)).toHaveText([`Older ${token}`, `Newer ${token}`]);
 });
 
 // Letting go of a link's order on a phone drops it for this view only; the
@@ -2866,7 +2891,7 @@ test("keeps the remembered order when a link's chip is cleared", async ({ page, 
 	await page.goto('/');
 	await page.evaluate(() => localStorage.setItem('rezepte-sort', 'title'));
 	await page.goto('/?sort=tasty');
-	await page.getByRole('button', { name: 'Back to “Recently changed”' }).click();
+	await page.getByRole('button', { name: 'Back to “Newest first”' }).click();
 	await expect(page).not.toHaveURL(/sort=/);
 	await page.goto('/');
 	await expect(page).toHaveURL(/sort=title/);
@@ -2886,7 +2911,7 @@ test('shows a changed order as a chip on phones', async ({ page, isMobile }) => 
 	await chip.click();
 	await expect(page.getByRole('dialog')).toBeVisible();
 	await page.keyboard.press('Escape');
-	await page.getByRole('button', { name: 'Back to “Recently changed”' }).click();
+	await page.getByRole('button', { name: 'Back to “Newest first”' }).click();
 	await expect(page).not.toHaveURL(/sort=/);
 	await expect(chip).toHaveCount(0);
 });

@@ -3,10 +3,20 @@ import { normalizeTag } from './form';
 import { ingredientKey } from './key';
 import { snapMaxMinutes } from './time-filter';
 
-/** The orders the overview grid can be sorted by. */
-export type Sort = 'updated' | 'created' | 'title' | 'tasty';
+/**
+ * The orders the overview grid can be sorted by. `''` is the default order,
+ * which the URL leaves out: the newest created first, or the best matches
+ * first while a search text or ingredient chips narrow the list (see
+ * `serverSort`). It has a value of its own because it is neither: with a
+ * search, "newest first" is a choice of its own, and so is "recently
+ * changed" without one.
+ */
+export type Sort = '' | 'updated' | 'created' | 'title' | 'tasty';
 
-const SORTS: readonly Sort[] = ['updated', 'created', 'title', 'tasty'];
+/** The default order, see `Sort`. */
+export const DEFAULT_SORT = '';
+
+const SORTS: readonly Sort[] = [DEFAULT_SORT, 'updated', 'created', 'title', 'tasty'];
 
 /**
  * Narrows a raw string to `Sort` iff it is one of the known values -
@@ -16,6 +26,28 @@ const SORTS: readonly Sort[] = ['updated', 'created', 'title', 'tasty'];
  */
 export function isSort(value: string): value is Sort {
 	return SORTS.some((sort) => sort === value);
+}
+
+/**
+ * The order the API is asked for. The default is newest created first; with
+ * a search text or chips the API's own default, `updated`, which ranks the
+ * best matches first then (most recently changed only breaks ties).
+ */
+export function serverSort(sort: Sort, searching: boolean): Exclude<Sort, ''> {
+	if (sort !== DEFAULT_SORT) {
+		return sort;
+	}
+	return searching ? 'updated' : 'created';
+}
+
+/**
+ * The option the sort control shows: an explicit order that comes out the
+ * same as the default reads as the default, so "newest first" without a
+ * search, or "recently changed" with one (the API ranks it as best matches),
+ * is never offered twice.
+ */
+export function shownSort(sort: Sort, searching: boolean): Sort {
+	return sort === serverSort(DEFAULT_SORT, searching) ? DEFAULT_SORT : sort;
 }
 
 /** Overview list state that round-trips through the page's URL query string. */
@@ -32,7 +64,7 @@ export type ListQuery = {
 	favorites: boolean;
 	/** Restrict to recipes written by this username, `''` = off. */
 	author: string;
-	/** Result order, `'updated'` (most recently changed first) is the default. */
+	/** Result order, `DEFAULT_SORT` unless one was chosen. */
 	sort: Sort;
 	page: number;
 };
@@ -70,8 +102,8 @@ function names(list: string[], skip: Set<string> = new Set()): string[] {
  * - `author` is trimmed but keeps its case: the service stores usernames as
  *   they were typed (it only trims them too), so lower-casing here the way
  *   tags are would stop "Mara" from matching anything.
- * - `sort` falls back to `'updated'` (the default) for anything outside the
- *   known values - the same rule the server applies, so a value that
+ * - `sort` falls back to `DEFAULT_SORT` for anything outside the
+ *   known values - as the server falls back to its own, so a value that
  *   can only arrive from a stale bookmark degrades to the default list
  *   rather than failing to parse.
  * - `maxMinutes` snaps to one of the filter's own stops (see `time-filter`),
@@ -103,7 +135,7 @@ function normalize(state: Omit<ListQuery, 'sort'> & { sort: string }): ListQuery
 		maxMinutes: snapMaxMinutes(state.maxMinutes),
 		favorites: Boolean(state.favorites),
 		author: state.author.trim(),
-		sort: isSort(state.sort) ? state.sort : 'updated',
+		sort: isSort(state.sort) ? state.sort : DEFAULT_SORT,
 		page: Number.isInteger(state.page) && state.page >= 1 ? state.page : 1
 	};
 }
@@ -164,7 +196,7 @@ export function buildListQuery(state: ListQuery): string {
 	if (author) {
 		params.set('author', author);
 	}
-	if (sort !== 'updated') {
+	if (sort !== DEFAULT_SORT) {
 		params.set('sort', sort);
 	}
 	if (page !== 1) {

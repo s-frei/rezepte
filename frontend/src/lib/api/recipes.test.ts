@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { DEFAULT_SORT } from '#lib/recipe/query.js';
 import { listRecipes } from './recipes';
 
 function mockFetch(body: unknown) {
@@ -48,7 +49,7 @@ describe('listRecipes', () => {
 			maxMinutes: 0,
 			favorites: false,
 			author: undefined,
-			sort: 'updated',
+			sort: DEFAULT_SORT,
 			page: 1
 		});
 		const [url] = fn.mock.calls[0] as unknown as [string];

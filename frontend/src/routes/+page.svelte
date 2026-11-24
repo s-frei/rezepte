@@ -57,9 +57,12 @@
 	import { ticksNamed } from '#lib/recipe/ticks.js';
 	import {
 		buildListQuery,
+		DEFAULT_SORT,
 		isSort,
 		MAX_CHIPS,
 		parseListQuery,
+		serverSort,
+		shownSort,
 		type Sort
 	} from '#lib/recipe/query.js';
 	import { applyRememberedSort, readSort, writeSort } from '#lib/recipe/sort-preference.js';
@@ -448,7 +451,7 @@
 						maxMinutes,
 						favorites: favoritesOnly,
 						author: author || undefined,
-						sort,
+						sort: serverSort(sort, searching),
 						page: n
 					},
 					{ signal: controller.signal }
@@ -620,9 +623,9 @@
 	function setIngredients(next: string[]) {
 		const remembered = readSort();
 		if (ingredients.length === 0 && next.length > 0 && remembered !== null && sort === remembered) {
-			sort = 'updated';
-		} else if (ingredients.length > 0 && next.length === 0 && sort === 'updated') {
-			sort = remembered ?? 'updated';
+			sort = DEFAULT_SORT;
+		} else if (ingredients.length > 0 && next.length === 0 && sort === DEFAULT_SORT) {
+			sort = remembered ?? DEFAULT_SORT;
 		}
 		ingredients = next;
 		refilter();
@@ -932,15 +935,22 @@
 
 	// With a search text or chips the default order puts the best hits first (most
 	// recently changed only breaks ties), so it is named for that then.
+	const searching = $derived(q.trim() !== '' || ingredients.length > 0);
 	const defaultSortLabel = $derived(
-		q.trim() || ingredients.length > 0 ? m.overview_sort_relevance() : m.overview_sort_updated()
+		searching ? m.overview_sort_relevance() : m.overview_sort_created()
 	);
-	const sortOptions: { value: Sort; label: string }[] = $derived([
-		{ value: 'updated', label: defaultSortLabel },
-		{ value: 'created', label: m.overview_sort_created() },
-		{ value: 'title', label: m.overview_sort_title() },
-		{ value: 'tasty', label: m.overview_sort_tasty() }
-	]);
+	// The explicit order the default comes out as is left out (see `shownSort`).
+	const sortOptions = $derived.by(() => {
+		const all: { value: Sort; label: string }[] = [
+			{ value: DEFAULT_SORT, label: defaultSortLabel },
+			{ value: 'created', label: m.overview_sort_created() },
+			{ value: 'updated', label: m.overview_sort_updated() },
+			{ value: 'title', label: m.overview_sort_title() },
+			{ value: 'tasty', label: m.overview_sort_tasty() }
+		];
+		return all.filter((option) => option.value !== serverSort(DEFAULT_SORT, searching));
+	});
+	const shownOrder = $derived(shownSort(sort, searching));
 
 	const sectionLabels: Record<SearchSection, () => string> = {
 		title: m.overview_section_title,
@@ -1234,7 +1244,7 @@
 	function followUrl() {
 		const parsed = parseListQuery(page.url);
 		// The page's own write first: `syncUrl` leaves the default order out,
-		// so a view in it, even one a `?sort=updated` link asked for, writes a
+		// so a view in it, even one an unknown `?sort=` asked for, writes a
 		// bare `/` that would otherwise take the remembered order below.
 		if (buildListQuery(parsed) === lastQuery) {
 			return;
@@ -1365,7 +1375,7 @@
 				{favoritesOnly}
 				{author}
 				{authors}
-				{sort}
+				sort={shownOrder}
 				{sortOptions}
 				{filterCount}
 				onmaxminutes={setMaxMinutes}
@@ -1396,7 +1406,7 @@
 			</div>
 			<div class="hidden shrink-0 md:block">
 				<Select
-					value={sort}
+					value={shownOrder}
 					options={sortOptions}
 					label={m.overview_sort_label()}
 					onchange={handleSort}
@@ -1434,18 +1444,18 @@
 			/>
 		</div>
 		<!-- On a phone the author band says who, and drops them with its ×. -->
-		{#if filterCount > (bandPerson ? 1 : 0) || sort !== 'updated'}
+		{#if filterCount > (bandPerson ? 1 : 0) || shownOrder !== DEFAULT_SORT}
 			<ActiveFilters
 				{...filterProps}
 				author={bandPerson ? '' : author}
-				sortLabel={sort === 'updated'
+				sortLabel={shownOrder === DEFAULT_SORT
 					? ''
-					: (sortOptions.find((option) => option.value === sort)?.label ?? '')}
+					: (sortOptions.find((option) => option.value === shownOrder)?.label ?? '')}
 				{defaultSortLabel}
 				onsortreset={() => {
 					// An order a link brought along is dropped for this view only;
 					// the reader's own remembered one is let go of.
-					setSort('updated', sort === readSort());
+					setSort(DEFAULT_SORT, sort === readSort());
 				}}
 				{tags}
 				ontagremove={toggleTag}
