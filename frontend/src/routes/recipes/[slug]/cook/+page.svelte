@@ -16,6 +16,7 @@
 	import TypeSpecimen from '#lib/components/cook/TypeSpecimen.svelte';
 	import StepPhotoPreview from '#lib/components/recipe/StepPhotoPreview.svelte';
 	import StepPhotoRow from '#lib/components/recipe/StepPhotoRow.svelte';
+	import { objectFocus } from '#lib/images/focus.js';
 	import StepText from '#lib/components/recipe/StepText.svelte';
 	import TimerBanner from '#lib/components/timer/TimerBanner.svelte';
 	import TimerDock from '#lib/components/timer/TimerDock.svelte';
@@ -535,6 +536,7 @@
 									<img
 										src={imageUrl(recipe.id, side.photo.imageId, 'detail')}
 										alt={side.photo.phrase}
+										{@attach objectFocus(() => recipe.images[sideIndex] ?? {})}
 										class="aspect-[4/3] w-full rounded-3xl object-cover shadow-cover"
 									/>
 									<div class="mt-3 flex items-center justify-between gap-3 text-body-sm">

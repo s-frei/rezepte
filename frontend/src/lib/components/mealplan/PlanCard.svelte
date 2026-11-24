@@ -4,6 +4,7 @@
 	import ShoppingBasket from '@lucide/svelte/icons/shopping-basket';
 	import type { WeekEntry, WeekPlan } from '#lib/api/mealplan.js';
 	import { imageUrl } from '#lib/api/recipes.js';
+	import { objectFocus } from '#lib/images/focus.js';
 	import { session } from '#lib/auth.svelte.js';
 	import PeopleStack from '#lib/components/shopping/PeopleStack.svelte';
 	import StampRow from '#lib/components/shopping/StampRow.svelte';
@@ -97,6 +98,11 @@
 		<img
 			src={imageUrl(entry.recipeId ?? '', entry.photo ?? '', 'thumb')}
 			alt=""
+			{@attach objectFocus(() => ({
+				focus: entry.photoFocus,
+				width: entry.photoWidth,
+				height: entry.photoHeight
+			}))}
 			loading="lazy"
 			class="size-full object-cover"
 		/>

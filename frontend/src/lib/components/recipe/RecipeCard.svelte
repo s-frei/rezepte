@@ -8,7 +8,7 @@
 	import { session } from '#lib/auth.svelte.js';
 	import { dedupeTextFinds, missingAfterTicks } from '#lib/recipe/finds.js';
 	import { formatMinutes } from '#lib/recipe/format.js';
-	import { cardRatio } from '#lib/images/focus.js';
+	import { cardRatio, objectFocus } from '#lib/images/focus.js';
 	import { initialFor, tintFor } from '#lib/recipe/placeholder.js';
 	import AuthorInitials from './AuthorInitials.svelte';
 	import SearchFinds from './SearchFinds.svelte';
@@ -222,6 +222,11 @@
 					loading="lazy"
 					decoding="async"
 					{@attach seeCached}
+					{@attach objectFocus(() => ({
+						focus: recipe.coverFocus,
+						width: recipe.coverWidth,
+						height: recipe.coverHeight
+					}))}
 					onload={() => (loaded = recipe.coverImageId)}
 					onerror={() => (failed = recipe.coverImageId)}
 					style:aspect-ratio={ratio}

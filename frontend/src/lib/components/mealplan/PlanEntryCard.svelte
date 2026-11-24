@@ -5,6 +5,7 @@
 	import { listEntryHref } from '#lib/shopping/href.js';
 	import { byListName } from '#lib/shopping/plan-ref.js';
 	import { imageUrl } from '#lib/api/recipes.js';
+	import { objectFocus } from '#lib/images/focus.js';
 	import type { PlanEntry } from '#lib/api/mealplan.js';
 	import CardLink from '#lib/components/ui/CardLink.svelte';
 	import PersonMark from '#lib/components/ui/PersonMark.svelte';
@@ -81,6 +82,11 @@
 		<img
 			src={imageUrl(entry.recipeId, entry.photo, 'thumb')}
 			alt=""
+			{@attach objectFocus(() => ({
+				focus: entry.photoFocus,
+				width: entry.photoWidth,
+				height: entry.photoHeight
+			}))}
 			loading="lazy"
 			draggable="false"
 			class="block object-cover [-webkit-user-drag:none] {cls}"

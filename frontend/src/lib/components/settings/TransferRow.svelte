@@ -3,6 +3,7 @@
 	import type { ResolvedPathname } from '$app/types';
 	import ArrowUpRight from '@lucide/svelte/icons/arrow-up-right';
 	import Checkbox from '#lib/components/ui/Checkbox.svelte';
+	import { objectFocus, type ImageFocus } from '#lib/images/focus.js';
 
 	let {
 		checked = $bindable(false),
@@ -10,6 +11,7 @@
 		title,
 		tags,
 		thumb,
+		crop = {},
 		href,
 		hrefLabel,
 		note = null,
@@ -20,6 +22,8 @@
 		title: string;
 		tags: string[];
 		thumb: string | null;
+		/** The thumb's focus and pixel size; centered without them. */
+		crop?: { focus?: ImageFocus | null; width?: number | null; height?: number | null };
 		/** Opens a recipe in a new tab; null leaves the row without the button. */
 		href: ResolvedPathname | null;
 		hrefLabel: string;
@@ -46,6 +50,7 @@
 			<img
 				src={thumb}
 				alt=""
+				{@attach objectFocus(() => crop)}
 				class="size-9 shrink-0 rounded-sm object-cover md:size-11"
 				loading="lazy"
 				onerror={() => (brokenThumb = thumb)}

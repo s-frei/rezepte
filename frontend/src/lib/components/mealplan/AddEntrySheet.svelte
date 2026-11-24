@@ -4,6 +4,7 @@
 	import { Dialog } from 'bits-ui';
 	import { tick } from 'svelte';
 	import { imageUrl, listRecipes, type RecipeCard } from '#lib/api/recipes.js';
+	import { objectFocus } from '#lib/images/focus.js';
 	import Input from '#lib/components/ui/Input.svelte';
 	import ResponsiveDialog from '#lib/components/ui/ResponsiveDialog.svelte';
 	import TypingFold from '#lib/components/ui/TypingFold.svelte';
@@ -301,6 +302,11 @@
 								<img
 									src={imageUrl(recipe.id, recipe.coverImageId, 'thumb')}
 									alt=""
+									{@attach objectFocus(() => ({
+										focus: recipe.coverFocus,
+										width: recipe.coverWidth,
+										height: recipe.coverHeight
+									}))}
 									class="size-10 shrink-0 rounded-md object-cover"
 								/>
 							{:else}

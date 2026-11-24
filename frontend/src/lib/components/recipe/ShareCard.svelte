@@ -7,6 +7,7 @@
 	import { formatMinutes, formatServings } from '#lib/recipe/format.js';
 	import { formatQuantityFor } from '#lib/recipe/scale.js';
 	import { m } from '#lib/paraglide/messages.js';
+	import { objectFocus } from '#lib/images/focus.js';
 	import PlaceholderTile from './PlaceholderTile.svelte';
 	import StepList from './StepList.svelte';
 
@@ -27,6 +28,7 @@
 	} = $props();
 
 	const coverId = $derived(recipe.coverImageId ?? recipe.images[0]?.id ?? null);
+	const cover = $derived(recipe.images.find((image) => image.id === coverId));
 	let coverFailed = $state(false);
 	const source = SOURCE_URL.replace(/^https?:\/\//, '');
 	const pill =
@@ -38,6 +40,7 @@
 		<img
 			src={imageUrl(recipe.id, coverId, 'detail')}
 			alt=""
+			{@attach objectFocus(() => cover ?? {})}
 			class="block h-[290px] w-full object-cover"
 			onerror={() => (coverFailed = true)}
 		/>

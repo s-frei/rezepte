@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { imageUrl } from '#lib/api/recipes.js';
+	import { objectFocus } from '#lib/images/focus.js';
 	import type { ShoppingEntry } from '#lib/api/shopping.js';
 	import { initialFor, tintFor } from '#lib/recipe/placeholder.js';
 
@@ -11,6 +12,11 @@
 	<img
 		src={imageUrl(entry.recipeId, entry.coverImageId, 'thumb')}
 		alt=""
+		{@attach objectFocus(() => ({
+			focus: entry.coverFocus,
+			width: entry.coverWidth,
+			height: entry.coverHeight
+		}))}
 		class="shrink-0 rounded-lg object-cover {className}"
 	/>
 {:else}

@@ -4,6 +4,7 @@
 	import BottomSheet, { revealAbove, scrollBox } from '#lib/components/ui/BottomSheet.svelte';
 	import { m } from '#lib/paraglide/messages.js';
 	import { phone } from '#lib/ui/phone.svelte.js';
+	import { objectFocus } from '#lib/images/focus.js';
 	import StepPhotoRow from './StepPhotoRow.svelte';
 
 	// The photo a step's phrase opens: a card at the phrase on a desktop, a
@@ -33,6 +34,7 @@
 	} = $props();
 
 	const index = $derived(photo ? images.findIndex((image) => image.id === photo.imageId) : -1);
+	const image = $derived(images[index]);
 	// Focus goes back to the phrase, which is no popover trigger Bits UI knows;
 	// the cook page re-renders its step, so a phrase that is gone gets nothing.
 	function restoreFocus(event: Event) {
@@ -100,6 +102,7 @@
 			<img
 				src={src(photo.imageId, 'detail')}
 				alt={photo.phrase}
+				{@attach objectFocus(() => image ?? {})}
 				class="aspect-[4/3] w-full max-w-[calc(35dvh*4/3)] rounded-lg object-cover"
 			/>
 			<div class="mt-2 flex items-center justify-between gap-3 text-caption">
@@ -124,6 +127,7 @@
 				<img
 					src={src(photo.imageId, 'detail')}
 					alt={photo.phrase}
+					{@attach objectFocus(() => image ?? {})}
 					class="aspect-[4/3] w-full object-cover"
 				/>
 				<div class="flex items-center justify-between gap-3 px-4 py-3 text-caption">

@@ -6,6 +6,7 @@
 	import { m } from '#lib/paraglide/messages.js';
 	import ScrollFade from '#lib/components/ui/ScrollFade.svelte';
 	import { decoded } from '#lib/images/decoded.js';
+	import { objectFocus } from '#lib/images/focus.js';
 	import { swipeDirection } from '#lib/recipe/swipe.js';
 
 	let {
@@ -156,6 +157,7 @@
 						alt={i === coverIndex ? m.images_cover_alt({ title }) : ''}
 						loading={i === coverIndex ? 'eager' : 'lazy'}
 						decoding="async"
+						{@attach objectFocus(() => image)}
 						class="size-full object-cover"
 					/>
 				</button>
@@ -191,6 +193,7 @@
 					src={src(shown.id, 'detail')}
 					alt={m.images_cover_alt({ title })}
 					decoding="async"
+					{@attach objectFocus(() => shown)}
 					class="col-start-1 row-start-1 size-full object-cover"
 					in:fade={{ duration: swap }}
 					out:fade={{ duration: swap, easing: opaque }}
@@ -222,6 +225,7 @@
 							alt=""
 							loading="lazy"
 							decoding="async"
+							{@attach objectFocus(() => image)}
 							class="size-full object-cover"
 						/>
 					</button>

@@ -7,6 +7,7 @@
 	import { getLocale } from '#lib/paraglide/runtime.js';
 	import { shareStatusLabel } from '#lib/recipe/share-status.js';
 	import type { StubFace } from '#lib/recipe/share-stub.js';
+	import { objectFocus } from '#lib/images/focus.js';
 	import PlaceholderTile from './PlaceholderTile.svelte';
 
 	// The link drawn as a ticket, the way the image is a card: the recipe on
@@ -27,6 +28,7 @@
 	} = $props();
 
 	const coverId = $derived(recipe.coverImageId ?? recipe.images[0]?.id ?? null);
+	const cover = $derived(recipe.images.find((image) => image.id === coverId));
 	let coverFailed = $state(false);
 	const off = $derived(face.kind === 'paused' || face.kind === 'limited');
 	const everyone = $derived(!off && face.kind !== 'us');
@@ -48,6 +50,7 @@
 					<img
 						src={imageUrl(recipe.id, coverId, 'detail')}
 						alt=""
+						{@attach objectFocus(() => cover ?? {})}
 						class="block w-full rounded-sm object-cover {box} {off ? 'opacity-55 grayscale' : ''}"
 						onerror={() => (coverFailed = true)}
 					/>

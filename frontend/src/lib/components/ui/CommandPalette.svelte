@@ -12,6 +12,7 @@
 	import Overlay from './Overlay.svelte';
 	import FindParts from '#lib/components/recipe/FindParts.svelte';
 	import { listRecipes, type RecipeCard } from '#lib/api/recipes.js';
+	import { objectFocus } from '#lib/images/focus.js';
 	import { importDialog } from '#lib/import.svelte.js';
 	import { m } from '#lib/paraglide/messages.js';
 	import { palette } from '#lib/palette.svelte.js';
@@ -257,6 +258,11 @@
 														<img
 															src="/images/{recipe.id}/{recipe.coverImageId}/thumb.jpg"
 															alt=""
+															{@attach objectFocus(() => ({
+																focus: recipe.coverFocus,
+																width: recipe.coverWidth,
+																height: recipe.coverHeight
+															}))}
 															class="size-8 shrink-0 rounded-sm object-cover"
 														/>
 													{:else}

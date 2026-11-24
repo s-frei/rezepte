@@ -158,6 +158,7 @@
 					title={r.title}
 					tags={r.tags}
 					thumb={r.coverImageId ? imageUrl(r.id, r.coverImageId, 'thumb') : null}
+					crop={{ focus: r.coverFocus, width: r.coverWidth, height: r.coverHeight }}
 					href={resolve('/recipes/[slug]', { slug: r.slug })}
 					hrefLabel={m.settings_transfer_open({ title: r.title })}
 				>

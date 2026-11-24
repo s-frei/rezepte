@@ -12,6 +12,7 @@
 	import ShoppingBasket from '@lucide/svelte/icons/shopping-basket';
 	import { resolve } from '$app/paths';
 	import { imageUrl } from '#lib/api/recipes.js';
+	import { objectFocus } from '#lib/images/focus.js';
 	import type { PersonEntry, UserRole } from '#lib/api/users.js';
 	import PersonCard from '#lib/components/ui/PersonCard.svelte';
 	import PersonMark from '#lib/components/ui/PersonMark.svelte';
@@ -236,6 +237,11 @@
 								data-thumb
 								src={imageUrl(recipe.id, recipe.coverImageId, 'thumb')}
 								alt=""
+								{@attach objectFocus(() => ({
+									focus: recipe.coverFocus,
+									width: recipe.coverWidth,
+									height: recipe.coverHeight
+								}))}
 								loading="lazy"
 								decoding="async"
 								class="block shrink-0 rounded-md bg-skeleton object-cover {size}"
