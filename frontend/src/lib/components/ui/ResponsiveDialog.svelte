@@ -21,6 +21,7 @@
 		footerClass = 'flex flex-wrap gap-3 px-5 pt-3.5',
 		fill = false,
 		top = false,
+		wide = false,
 		body,
 		footer,
 		children
@@ -41,6 +42,8 @@
 		fill?: boolean;
 		/** The computer's dialog anchored near the top (`BaseDialog`'s `top`). */
 		top?: boolean;
+		/** The computer's dialog 720px wide (`BaseDialog`'s `wide`). */
+		wide?: boolean;
 		body?: Snippet;
 		footer?: Snippet;
 		children?: Snippet;
@@ -78,7 +81,7 @@
 		{@render laidOut(sheet, 'flex min-h-0 flex-1 flex-col')}
 	</BottomSheet>
 {:else}
-	<BaseDialog bind:open {onOpenAutoFocus} {onCloseAutoFocus} {top}>
+	<BaseDialog bind:open {onOpenAutoFocus} {onCloseAutoFocus} {top} {wide}>
 		{@render laidOut(dialog)}
 	</BaseDialog>
 {/if}

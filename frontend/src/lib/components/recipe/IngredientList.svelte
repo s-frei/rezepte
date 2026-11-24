@@ -27,7 +27,8 @@
 		copyable = false,
 		addable = false,
 		columns: split = false,
-		title
+		title,
+		cover = null
 	}: {
 		recipeId: string;
 		groups: IngredientGroup[];
@@ -43,6 +44,8 @@
 		columns?: boolean;
 		/** The recipe's title, for the add-to-list dialog; the plan button needs it. */
 		title?: string;
+		/** The recipe's cover image id, for the plan dialog's picture. */
+		cover?: string | null;
 	} = $props();
 
 	const uid = $props.id();
@@ -310,7 +313,7 @@
 {#if addable}
 	<AddToListDialog bind:open={adding} {recipeId} {groups} {baseServings} {servings} {title} />
 	{#if title}
-		<AddToPlanDialog bind:open={planning} {recipeId} {title} {servings} />
+		<AddToPlanDialog bind:open={planning} {recipeId} {title} {servings} {cover} />
 	{/if}
 {/if}
 

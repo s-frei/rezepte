@@ -107,8 +107,8 @@
 		class="inline-flex items-center gap-1.5 {shape} {size} {weight} transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:opacity-50 {className}"
 	>
 		{#if icon}{@render icon()}{/if}
-		{#if selectedLabel}{selectedLabel}{:else}<span class="font-normal text-text-muted"
-				>{placeholder}</span
+		{#if selectedLabel}<span class="min-w-0 truncate">{selectedLabel}</span>{:else}<span
+				class="font-normal text-text-muted">{placeholder}</span
 			>{/if}
 		<ChevronDown class="size-3.5 shrink-0" aria-hidden="true" />
 	</BitsSelect.Trigger>

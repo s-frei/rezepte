@@ -1732,6 +1732,7 @@ test('plans a recipe from its page for Wednesday at 6 servings', async ({ page, 
 	await loginFresh(page);
 	const title = `Frühstück ${uniqueToken()}`;
 	const recipe = await createRecipe(page, { ...loadFixture(1), title });
+	await plan(page, { day: '2026-11-17', title: 'Reste' });
 	await page.goto(`/recipes/${recipe.slug}`);
 	const stepper = page.getByRole('group', { name: 'Servings' }).first();
 	for (let i = 0; i < 4; i++) await stepper.getByRole('button', { name: 'More servings' }).click();
@@ -1744,6 +1745,10 @@ test('plans a recipe from its page for Wednesday at 6 servings', async ({ page, 
 	);
 	await expect(dialog.getByRole('radio', { name: 'Monday, November 16, Today' })).toBeChecked();
 	await expect(dialog.getByRole('radio', { name: 'Sunday, November 29' })).toBeVisible();
+	// Every day names what the plan already holds, on a phone's chip as on the calendar.
+	await expect(
+		dialog.getByRole('radio', { name: 'Tuesday, November 17, already planned: Reste' })
+	).toBeVisible();
 	await expect(
 		dialog.getByRole('group', { name: 'Servings' }).getByText('6', { exact: true })
 	).toBeVisible();

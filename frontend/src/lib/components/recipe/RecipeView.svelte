@@ -259,6 +259,7 @@
 			{addable}
 			columns
 			title={recipe.title}
+			cover={recipe.coverImageId}
 		/>
 	</section>
 	<section>
