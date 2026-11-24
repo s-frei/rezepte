@@ -2,8 +2,10 @@ package recipe_test
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"slices"
+	"strings"
 	"testing"
 	"time"
 
@@ -839,19 +841,32 @@ func TestListCardsCarryCoverSize(t *testing.T) {
 	}); err != nil {
 		t.Fatal(err)
 	}
+	if _, err := q.UpdateImageFocus(ctx, sqlc.UpdateImageFocusParams{FocusX: 0.5, FocusY: 0.66, RecipeID: withCover.ID, ID: cover}); err != nil {
+		t.Fatal(err)
+	}
 	page, err := svc.List(ctx, recipe.ListParams{Page: 1, Limit: 10})
 	if err != nil {
 		t.Fatal(err)
 	}
 	for _, c := range page.Items {
+		raw, err := json.Marshal(c)
+		if err != nil {
+			t.Fatal(err)
+		}
 		switch c.ID {
 		case withCover.ID:
 			if c.CoverWidth == nil || c.CoverHeight == nil || *c.CoverWidth != 1200 || *c.CoverHeight != 1600 {
 				t.Fatalf("cover size = %v x %v, want 1200 x 1600", c.CoverWidth, c.CoverHeight)
 			}
+			if !strings.Contains(string(raw), `"coverFocus":{"x":0.5,"y":0.66}`) {
+				t.Fatalf("card with cover: %s", raw)
+			}
 		case without.ID:
 			if c.CoverWidth != nil || c.CoverHeight != nil {
 				t.Fatalf("card without cover has size %v x %v", c.CoverWidth, c.CoverHeight)
+			}
+			if !strings.Contains(string(raw), `"coverFocus":null`) {
+				t.Fatalf("card without cover: %s", raw)
 			}
 		}
 	}

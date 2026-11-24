@@ -458,10 +458,12 @@ func (q *Queries) ListDepartmentOverrides(ctx context.Context) ([]ListDepartment
 const listShoppingEntries = `-- name: ListShoppingEntries :many
 SELECT e.id, e.recipe_id, e.title, e.base_servings, e.servings,
        r.slug AS recipe_slug, r.cover_image_id, p.day AS plan_day, p.plan_id, e.plan_entry_id,
+       ci.width AS cover_width, ci.height AS cover_height, ci.focus_x AS cover_focus_x, ci.focus_y AS cover_focus_y,
        mp.id AS reader_plan_id, mp.name AS plan_name, mp.personal AS plan_personal,
        e.added_by, au.display_name AS added_by_name, au.color AS added_by_color, au.avatar_id AS added_by_avatar_id
 FROM shopping_list_entries e
 LEFT JOIN recipes r ON r.id = e.recipe_id
+LEFT JOIN images ci ON ci.id = r.cover_image_id
 LEFT JOIN meal_plan_entries p ON p.id = e.plan_entry_id
 LEFT JOIN meal_plans mp ON mp.id = p.plan_id AND (mp.created_by = ?1 OR EXISTS (SELECT 1 FROM meal_plan_members pm WHERE pm.plan_id = mp.id AND pm.user_id = ?1 AND pm.accepted_at IS NOT NULL))
 LEFT JOIN users au ON au.id = e.added_by
@@ -485,6 +487,10 @@ type ListShoppingEntriesRow struct {
 	PlanDay         *string
 	PlanID          *string
 	PlanEntryID     *string
+	CoverWidth      *int64
+	CoverHeight     *int64
+	CoverFocusX     *float64
+	CoverFocusY     *float64
 	ReaderPlanID    *string
 	PlanName        *string
 	PlanPersonal    *int64
@@ -518,6 +524,10 @@ func (q *Queries) ListShoppingEntries(ctx context.Context, arg ListShoppingEntri
 			&i.PlanDay,
 			&i.PlanID,
 			&i.PlanEntryID,
+			&i.CoverWidth,
+			&i.CoverHeight,
+			&i.CoverFocusX,
+			&i.CoverFocusY,
 			&i.ReaderPlanID,
 			&i.PlanName,
 			&i.PlanPersonal,

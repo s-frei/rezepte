@@ -409,10 +409,13 @@ func (s *Service) LastTitlesByCreator(ctx context.Context) (map[string]string, e
 
 // LatestRecipe is one of a person's newest recipes as the people list shows it.
 type LatestRecipe struct {
-	ID           string  `json:"id" doc:"Recipe id"`
-	Slug         string  `json:"slug" doc:"The recipe's URL slug"`
-	Title        string  `json:"title" doc:"Recipe title"`
-	CoverImageID *string `json:"coverImageId" nullable:"true" doc:"The cover photo, served at /images/{id}/{coverImageId}/thumb.jpg; null when it has none"`
+	ID           string             `json:"id" doc:"Recipe id"`
+	Slug         string             `json:"slug" doc:"The recipe's URL slug"`
+	Title        string             `json:"title" doc:"Recipe title"`
+	CoverImageID *string            `json:"coverImageId" nullable:"true" doc:"The cover photo, served at /images/{id}/{coverImageId}/thumb.jpg; null when it has none"`
+	CoverWidth   *int               `json:"coverWidth" nullable:"true" doc:"The cover's width in pixels; null without a cover"`
+	CoverHeight  *int               `json:"coverHeight" nullable:"true" doc:"The cover's height in pixels; null without a cover"`
+	CoverFocus   OrNull[ImageFocus] `json:"coverFocus" doc:"The cover's focus point; null without a cover"`
 }
 
 // LatestByCreator returns each person's four newest created recipes, newest
@@ -424,7 +427,10 @@ func (s *Service) LatestByCreator(ctx context.Context) (map[string][]LatestRecip
 	}
 	out := map[string][]LatestRecipe{}
 	for _, r := range rows {
-		out[r.CreatedBy] = append(out[r.CreatedBy], LatestRecipe{ID: r.ID, Slug: r.Slug, Title: r.Title, CoverImageID: r.CoverImageID})
+		out[r.CreatedBy] = append(out[r.CreatedBy], LatestRecipe{
+			ID: r.ID, Slug: r.Slug, Title: r.Title, CoverImageID: r.CoverImageID,
+			CoverWidth: db.Conv[int](r.CoverWidth), CoverHeight: db.Conv[int](r.CoverHeight), CoverFocus: FocusOf(r.CoverFocusX, r.CoverFocusY),
+		})
 	}
 	return out, nil
 }
@@ -626,7 +632,7 @@ func (s *Service) load(ctx context.Context, row sqlc.Recipe) (Recipe, error) {
 
 	images := make([]Image, len(imgRows))
 	for i, im := range imgRows {
-		images[i] = Image{ID: im.ID, Width: int(im.Width), Height: int(im.Height), Position: int(im.Position)}
+		images[i] = ToImage(im)
 	}
 
 	return Recipe{
@@ -826,4 +832,9 @@ func nonEmpty(p *string) *string {
 		return nil
 	}
 	return p
+}
+
+// ToImage maps a stored photo to its API shape.
+func ToImage(im sqlc.Image) Image {
+	return Image{ID: im.ID, Width: int(im.Width), Height: int(im.Height), Position: int(im.Position), Focus: ImageFocus{X: im.FocusX, Y: im.FocusY}}
 }

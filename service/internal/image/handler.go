@@ -37,6 +37,17 @@ type deleteImageInput struct {
 
 type deleteImageOutput struct{}
 
+// FocusInput is the body of the set-image-focus operation.
+type FocusInput struct {
+	Focus recipe.ImageFocus `json:"focus"`
+}
+
+type focusInput struct {
+	ID      string `path:"id"`
+	ImageID string `path:"imageId"`
+	Body    FocusInput
+}
+
 // OrderInput is the body of the reorder operation.
 type OrderInput struct {
 	ImageIDs []string `json:"imageIds" maxItems:"20" doc:"Every image id of the recipe, in the new order; the first becomes the cover"`
@@ -72,8 +83,9 @@ type coverInput struct {
 type coverOutput struct{}
 
 // Register installs the image operations onto api: upload (multipart),
-// delete, reorder, set-cover and the file route. Every operation requires a
-// session or a scoped API token (Security: auth.Protected(...)).
+// delete, set-image-focus, reorder, set-cover and the file route. Every
+// operation requires a session or a scoped API token
+// (Security: auth.Protected(...)).
 func Register(api huma.API, svc *Service) {
 	huma.Register(api, huma.Operation{
 		OperationID:   "upload-image",
@@ -118,6 +130,27 @@ func Register(api huma.API, svc *Service) {
 			return nil, imageErr(err)
 		}
 		return &deleteImageOutput{}, nil
+	})
+
+	huma.Register(api, huma.Operation{
+		OperationID: "set-image-focus",
+		Method:      http.MethodPatch,
+		Path:        "/api/v1/recipes/{id}/images/{imageId}",
+		Summary:     "Set a photo's focus point",
+		Description: "The point that stays in view wherever the photo is cropped, as fractions of the upright photo: 0 is the left or top edge, 1 the right or bottom one.",
+		Tags:        []string{"images"},
+		Security:    auth.Protected(auth.ScopeRecipesWrite),
+		Errors:      []int{403, 404, 422},
+	}, func(ctx context.Context, in *focusInput) (*imageOutput, error) {
+		u, ok := auth.UserFrom(ctx)
+		if !ok {
+			return nil, huma.Error401Unauthorized("authentication required")
+		}
+		img, err := svc.SetFocus(ctx, in.ID, in.ImageID, u, in.Body.Focus)
+		if err != nil {
+			return nil, imageErr(err)
+		}
+		return &imageOutput{Body: img}, nil
 	})
 
 	huma.Register(api, huma.Operation{

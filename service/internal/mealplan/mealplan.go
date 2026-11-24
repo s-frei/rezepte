@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/s-frei/rezepte/service/internal/recipe"
 	"github.com/s-frei/rezepte/service/internal/shopping"
 )
 
@@ -71,8 +72,12 @@ type PlanEntry struct {
 	RecipeSlug *string `json:"recipeSlug" nullable:"true"`
 	Title      string  `json:"title"`
 	Servings   *int    `json:"servings" nullable:"true"`
-	// Photo is the recipe's cover image id.
-	Photo *string `json:"photo" nullable:"true"`
+	// Photo is the recipe's cover image id; its pixel size and focus point
+	// come with it, all null without a photo.
+	Photo       *string                          `json:"photo" nullable:"true"`
+	PhotoWidth  *int                             `json:"photoWidth" nullable:"true"`
+	PhotoHeight *int                             `json:"photoHeight" nullable:"true"`
+	PhotoFocus  recipe.OrNull[recipe.ImageFocus] `json:"photoFocus"`
 	// CreatedBy is nil once the account of whoever added it is gone.
 	CreatedBy *Person `json:"createdBy"`
 	// Lists are the lists the caller can access that the entry is on.
@@ -127,8 +132,12 @@ type WeekEntry struct {
 	Kind     string  `json:"kind" enum:"recipe,text"`
 	RecipeID *string `json:"recipeId" nullable:"true"`
 	Title    string  `json:"title"`
-	// Photo is the recipe's cover image id.
-	Photo *string `json:"photo" nullable:"true"`
+	// Photo is the recipe's cover image id; its pixel size and focus point
+	// come with it, all null without a photo.
+	Photo       *string                          `json:"photo" nullable:"true"`
+	PhotoWidth  *int                             `json:"photoWidth" nullable:"true"`
+	PhotoHeight *int                             `json:"photoHeight" nullable:"true"`
+	PhotoFocus  recipe.OrNull[recipe.ImageFocus] `json:"photoFocus"`
 }
 
 // PlanInvitation is a plan the caller was invited to and has not accepted yet.

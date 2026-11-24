@@ -7,7 +7,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/s-frei/rezepte/service/internal/db"
 	"github.com/s-frei/rezepte/service/internal/db/dbtest"
+	"github.com/s-frei/rezepte/service/internal/db/sqlc"
 	"github.com/s-frei/rezepte/service/internal/mealplan"
 	"github.com/s-frei/rezepte/service/internal/recipe"
 	"github.com/s-frei/rezepte/service/internal/shopping"
@@ -757,5 +759,69 @@ func TestAccountDeletionDropsOwnPlans(t *testing.T) {
 	p, err := e.svc.Get(ctx, e.a.ID, annas, mon, sun)
 	if err != nil || len(p.Entries) != 1 || p.Entries[0].CreatedBy != nil || len(p.Members) != 0 {
 		t.Fatalf("anna's plan = %+v, %v; want ben's entry kept with no author and no members", p, err)
+	}
+}
+
+// cover gives r a 1200x1600 cover focused at 0.5,0.66.
+func (e *env) cover(t *testing.T, r recipe.Recipe) {
+	t.Helper()
+	ctx := context.Background()
+	q := sqlc.New(e.conn)
+	id := "img-" + r.ID
+	if _, err := q.InsertImage(ctx, sqlc.InsertImageParams{ID: id, RecipeID: r.ID, Filename: id + ".jpg", Width: 1200, Height: 1600, SizeBytes: 1000, CreatedAt: db.FormatTime(e.now)}); err != nil {
+		t.Fatal(err)
+	}
+	if err := q.SetRecipeCover(ctx, sqlc.SetRecipeCoverParams{CoverImageID: &id, UpdatedBy: e.a.ID, UpdatedAt: db.FormatTime(e.now), ID: r.ID}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := q.UpdateImageFocus(ctx, sqlc.UpdateImageFocusParams{FocusX: 0.5, FocusY: 0.66, RecipeID: r.ID, ID: id}); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestEntriesCarryThePhotoShapeAndFocus(t *testing.T) {
+	ctx := context.Background()
+	e := setup(t)
+	r := e.curry(t)
+	e.cover(t, r)
+	p := e.plan(t)
+	if _, err := e.svc.Add(ctx, e.a.ID, p.ID, mon, sun, mealplan.AddEntry{Day: ptr(mon), RecipeID: &r.ID}); err != nil {
+		t.Fatal(err)
+	}
+	e.add(t, p.ID, ptr(mon), "Pizza")
+	want := recipe.ImageFocus{X: 0.5, Y: 0.66}
+	check := func(what string, w, h *int, f recipe.OrNull[recipe.ImageFocus], photo bool) {
+		t.Helper()
+		if !photo {
+			if w != nil || h != nil || f.V != nil {
+				t.Errorf("%s without photo: %v x %v at %+v", what, w, h, f.V)
+			}
+			return
+		}
+		if w == nil || *w != 1200 || h == nil || *h != 1600 || f.V == nil || *f.V != want {
+			t.Errorf("%s: %v x %v at %+v, want 1200 x 1600 at %+v", what, w, h, f.V, want)
+		}
+	}
+
+	got, err := e.svc.Get(ctx, e.a.ID, p.ID, mon, sun)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, en := range got.Entries {
+		check("plan entry "+en.Title, en.PhotoWidth, en.PhotoHeight, en.PhotoFocus, en.Photo != nil)
+	}
+	weeks, _, err := e.svc.PlansWeek(ctx, e.a.ID, mon, sun)
+	if err != nil {
+		t.Fatal(err)
+	}
+	n := 0
+	for _, w := range weeks {
+		for _, en := range w.Entries {
+			n++
+			check("week entry "+en.Title, en.PhotoWidth, en.PhotoHeight, en.PhotoFocus, en.Photo != nil)
+		}
+	}
+	if n != 2 {
+		t.Fatalf("week entries = %d, want 2", n)
 	}
 }

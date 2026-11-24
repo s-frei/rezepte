@@ -512,9 +512,11 @@ func (q *Queries) ListMealPlanDayEntryIDs(ctx context.Context, arg ListMealPlanD
 const listMealPlanEntries = `-- name: ListMealPlanEntries :many
 SELECT e.id, e.day, e.position, e.recipe_id, e.title, e.servings, e.created_by,
        r.slug AS recipe_slug, r.cover_image_id,
+       ci.width AS photo_width, ci.height AS photo_height, ci.focus_x AS photo_focus_x, ci.focus_y AS photo_focus_y,
        u.display_name AS creator_name, u.color AS creator_color, u.avatar_id AS creator_avatar_id
 FROM meal_plan_entries e
 LEFT JOIN recipes r ON r.id = e.recipe_id
+LEFT JOIN images ci ON ci.id = r.cover_image_id
 LEFT JOIN users u ON u.id = e.created_by
 WHERE e.plan_id = ?1 AND e.removed_at IS NULL
   AND (e.day IS NULL OR (e.day >= ?2 AND e.day <= ?3))
@@ -537,6 +539,10 @@ type ListMealPlanEntriesRow struct {
 	CreatedBy       *string
 	RecipeSlug      *string
 	CoverImageID    *string
+	PhotoWidth      *int64
+	PhotoHeight     *int64
+	PhotoFocusX     *float64
+	PhotoFocusY     *float64
 	CreatorName     *string
 	CreatorColor    *string
 	CreatorAvatarID *string
@@ -563,6 +569,10 @@ func (q *Queries) ListMealPlanEntries(ctx context.Context, arg ListMealPlanEntri
 			&i.CreatedBy,
 			&i.RecipeSlug,
 			&i.CoverImageID,
+			&i.PhotoWidth,
+			&i.PhotoHeight,
+			&i.PhotoFocusX,
+			&i.PhotoFocusY,
 			&i.CreatorName,
 			&i.CreatorColor,
 			&i.CreatorAvatarID,
@@ -808,10 +818,12 @@ func (q *Queries) ListMealPlanStaples(ctx context.Context, planID string) ([]Lis
 }
 
 const listMealPlanWeekEntries = `-- name: ListMealPlanWeekEntries :many
-SELECT e.plan_id, e.id, e.day, e.recipe_id, e.title, e.servings, r.cover_image_id
+SELECT e.plan_id, e.id, e.day, e.recipe_id, e.title, e.servings, r.cover_image_id,
+       ci.width AS photo_width, ci.height AS photo_height, ci.focus_x AS photo_focus_x, ci.focus_y AS photo_focus_y
 FROM meal_plan_entries e
 JOIN meal_plans p ON p.id = e.plan_id
 LEFT JOIN recipes r ON r.id = e.recipe_id
+LEFT JOIN images ci ON ci.id = r.cover_image_id
 WHERE e.removed_at IS NULL
   AND (e.day IS NULL OR (e.day >= ?1 AND e.day <= ?2))
   AND (p.created_by = ?3 OR EXISTS (SELECT 1 FROM meal_plan_members m WHERE m.plan_id = p.id AND m.user_id = ?3 AND m.accepted_at IS NOT NULL))
@@ -832,6 +844,10 @@ type ListMealPlanWeekEntriesRow struct {
 	Title        string
 	Servings     *int64
 	CoverImageID *string
+	PhotoWidth   *int64
+	PhotoHeight  *int64
+	PhotoFocusX  *float64
+	PhotoFocusY  *float64
 }
 
 // The live entries between two days (inclusive) and on the tray of every
@@ -854,6 +870,10 @@ func (q *Queries) ListMealPlanWeekEntries(ctx context.Context, arg ListMealPlanW
 			&i.Title,
 			&i.Servings,
 			&i.CoverImageID,
+			&i.PhotoWidth,
+			&i.PhotoHeight,
+			&i.PhotoFocusX,
+			&i.PhotoFocusY,
 		); err != nil {
 			return nil, err
 		}

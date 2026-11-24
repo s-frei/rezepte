@@ -58,6 +58,8 @@ type Image struct {
 	SizeBytes int64
 	Position  int64
 	CreatedAt string
+	FocusX    float64
+	FocusY    float64
 }
 
 type Ingredient struct {

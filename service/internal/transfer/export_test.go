@@ -32,6 +32,9 @@ func TestExportWritesOneFolderPerRecipe(t *testing.T) {
 	if err := e.images.SetCover(ctx, r.ID, second.ID, e.admin); err != nil {
 		t.Fatal(err)
 	}
+	if _, err := e.images.SetFocus(ctx, r.ID, second.ID, e.admin, recipe.ImageFocus{X: 0.5, Y: 0.66}); err != nil {
+		t.Fatal(err)
+	}
 
 	f, err := e.svc.Export(ctx, []string{r.ID})
 	if err != nil {
@@ -82,6 +85,9 @@ func TestExportWritesOneFolderPerRecipe(t *testing.T) {
 	}
 	if !slices.Equal(got.Images, []string{"1.jpg", "2.jpg"}) || got.Cover == nil || *got.Cover != "1.jpg" {
 		t.Fatalf("images = %v cover = %v", got.Images, got.Cover)
+	}
+	if want := []recipe.ImageFocus{{X: 0.5, Y: 0.66}, {X: 0.5, Y: 0.5}}; !slices.Equal(got.ImageFocus, want) {
+		t.Fatalf("imageFocus = %v, want %v", got.ImageFocus, want)
 	}
 	if bytes.Contains(raw, []byte("editPolicy")) || bytes.Contains(raw, []byte(r.ID)) {
 		t.Fatalf("recipe.json leaks instance data: %s", raw)

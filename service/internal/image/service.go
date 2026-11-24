@@ -136,7 +136,7 @@ func (s *Service) insertRecipeImage(ctx context.Context, q *sqlc.Queries, row sq
 	} else if err := q.TouchRecipe(ctx, sqlc.TouchRecipeParams{UpdatedBy: actorID, UpdatedAt: now, ID: row.ID}); err != nil {
 		return recipe.Image{}, fmt.Errorf("touch recipe: %w", err)
 	}
-	return toImage(inserted), nil
+	return recipe.ToImage(inserted), nil
 }
 
 // guard runs recipe.GuardEdit and translates its not-found into this
@@ -312,7 +312,43 @@ func (s *Service) order(ctx context.Context, q *sqlc.Queries, actor user.User, r
 	out := make([]recipe.Image, len(ordered))
 	for i, im := range ordered {
 		im.Position = int64(i)
-		out[i] = toImage(im)
+		out[i] = recipe.ToImage(im)
+	}
+	return out, nil
+}
+
+// SetFocus stores f as the focus point of imageID, which must be one of
+// recipeID's photos (ErrNotFound otherwise), and returns the photo. actor
+// is recorded as the recipe's editor. Errors: ErrNotFound,
+// recipe.ErrEditForbidden.
+func (s *Service) SetFocus(ctx context.Context, recipeID, imageID string, actor user.User, f recipe.ImageFocus) (recipe.Image, error) {
+	if !IsID(recipeID) || !IsID(imageID) {
+		return recipe.Image{}, ErrNotFound
+	}
+	var out recipe.Image
+	err := db.Tx(ctx, s.conn, func(q *sqlc.Queries) error {
+		if _, err := guard(ctx, q, actor, recipeID); err != nil {
+			return err
+		}
+		n, err := q.UpdateImageFocus(ctx, sqlc.UpdateImageFocusParams{FocusX: f.X, FocusY: f.Y, RecipeID: recipeID, ID: imageID})
+		if err != nil {
+			return fmt.Errorf("update focus: %w", err)
+		}
+		if n == 0 {
+			return ErrNotFound
+		}
+		if err := q.TouchRecipe(ctx, sqlc.TouchRecipeParams{UpdatedBy: actor.ID, UpdatedAt: db.FormatTime(s.now()), ID: recipeID}); err != nil {
+			return fmt.Errorf("touch recipe: %w", err)
+		}
+		im, err := q.GetImage(ctx, sqlc.GetImageParams{RecipeID: recipeID, ID: imageID})
+		if err != nil {
+			return fmt.Errorf("get image: %w", err)
+		}
+		out = recipe.ToImage(im)
+		return nil
+	})
+	if err != nil {
+		return recipe.Image{}, err
 	}
 	return out, nil
 }
@@ -354,10 +390,6 @@ func removeFiles(recipeDir, imageID string) {
 	for _, v := range variants {
 		_ = os.Remove(filepath.Join(recipeDir, imageID+v.suffix+".jpg"))
 	}
-}
-
-func toImage(im sqlc.Image) recipe.Image {
-	return recipe.Image{ID: im.ID, Width: int(im.Width), Height: int(im.Height), Position: int(im.Position)}
 }
 
 // IsID accepts the canonical 36-character UUID spelling and nothing else.

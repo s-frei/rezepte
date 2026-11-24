@@ -13,6 +13,7 @@ import (
 
 	"github.com/s-frei/rezepte/service/internal/db"
 	"github.com/s-frei/rezepte/service/internal/db/sqlc"
+	"github.com/s-frei/rezepte/service/internal/recipe"
 	"github.com/s-frei/rezepte/service/internal/shopping"
 )
 
@@ -244,6 +245,7 @@ func get(ctx context.Context, q *sqlc.Queries, userID, id, from, to, today strin
 		e := PlanEntry{
 			ID: r.ID, Day: r.Day, Position: int(r.Position), RecipeID: r.RecipeID, RecipeSlug: r.RecipeSlug,
 			Title: r.Title, Photo: r.CoverImageID, Lists: byEntry[r.ID],
+			PhotoWidth: db.Conv[int](r.PhotoWidth), PhotoHeight: db.Conv[int](r.PhotoHeight), PhotoFocus: recipe.FocusOf(r.PhotoFocusX, r.PhotoFocusY),
 		}
 		if e.Lists == nil {
 			e.Lists = []LinkedList{}
@@ -353,7 +355,10 @@ func (s *Service) PlansWeek(ctx context.Context, userID, from, to string) ([]Wee
 		if r.Servings != nil {
 			kind = "recipe"
 		}
-		w.Entries = append(w.Entries, WeekEntry{ID: r.ID, Day: *r.Day, Kind: kind, RecipeID: r.RecipeID, Title: r.Title, Photo: r.CoverImageID})
+		w.Entries = append(w.Entries, WeekEntry{
+			ID: r.ID, Day: *r.Day, Kind: kind, RecipeID: r.RecipeID, Title: r.Title, Photo: r.CoverImageID,
+			PhotoWidth: db.Conv[int](r.PhotoWidth), PhotoHeight: db.Conv[int](r.PhotoHeight), PhotoFocus: recipe.FocusOf(r.PhotoFocusX, r.PhotoFocusY),
+		})
 	}
 	for i := range out {
 		out[i].Lists = rankLists(perEntry[out[i].ID])

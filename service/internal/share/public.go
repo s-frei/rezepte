@@ -34,9 +34,10 @@ func errNotAvailable() error { return httpserver.PublicNotFound(notAvailable) }
 // PublicImage is a photo of a publicly shared recipe. Its files are served at
 // /public-images/{token}/{id}/{thumb|detail|original}.jpg.
 type PublicImage struct {
-	ID     string `json:"id"`
-	Width  int    `json:"width" doc:"Width of the original variant in pixels"`
-	Height int    `json:"height" doc:"Height of the original variant in pixels"`
+	ID     string            `json:"id"`
+	Width  int               `json:"width" doc:"Width of the original variant in pixels"`
+	Height int               `json:"height" doc:"Height of the original variant in pixels"`
+	Focus  recipe.ImageFocus `json:"focus"`
 }
 
 // PublicRecipe is what a public link shows: the recipe's content and nothing
@@ -75,7 +76,7 @@ type Sharer struct {
 func toPublic(r recipe.Recipe) PublicRecipe {
 	images := make([]PublicImage, 0, len(r.Images))
 	for _, im := range r.Images {
-		images = append(images, PublicImage{ID: im.ID, Width: im.Width, Height: im.Height})
+		images = append(images, PublicImage{ID: im.ID, Width: im.Width, Height: im.Height, Focus: im.Focus})
 	}
 	tags := r.Tags
 	if tags == nil {

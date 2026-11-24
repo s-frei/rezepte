@@ -332,7 +332,8 @@ func TestAddCommentImageToRecipe(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if img.ID == photo.ID || img.Position != 0 || img.Width != 64 || img.Height != 64 {
+	// Comment photos carry no focus point: the copy starts centered.
+	if img.ID == photo.ID || img.Position != 0 || img.Width != 64 || img.Height != 64 || img.Focus != (recipe.ImageFocus{X: 0.5, Y: 0.5}) {
 		t.Fatalf("image = %+v", img)
 	}
 	r, err := e.recipes.ByID(ctx, e.recipe.ID)

@@ -105,7 +105,7 @@ func (s *Service) readFile(dir string, zf *zip.File) (File, error) {
 	if err := json.Unmarshal(raw, &m); err != nil {
 		return File{}, &Error{Location: loc, Msg: "not valid JSON"}
 	}
-	for _, k := range []string{"format", "version", "images", "cover", "editPolicy"} {
+	for _, k := range []string{"format", "version", "images", "cover", "imageFocus", "editPolicy"} {
 		delete(m, k)
 	}
 	if errs := s.validate(m); len(errs) > 0 {

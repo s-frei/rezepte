@@ -14,6 +14,7 @@ import (
 	"slices"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/s-frei/rezepte/service/internal/db/dbtest"
 	"github.com/s-frei/rezepte/service/internal/image"
@@ -503,5 +504,89 @@ func TestStepWithoutPhotosDropsItsLinks(t *testing.T) {
 	}
 	if len(r.Steps[0].Photos) != 0 {
 		t.Fatalf("photos = %+v, want none", r.Steps[0].Photos)
+	}
+}
+
+func TestSetFocus(t *testing.T) {
+	ctx := context.Background()
+	e := setup(t)
+	img := upload(t, e, 300, 400)
+	if img.Focus != (recipe.ImageFocus{X: 0.5, Y: 0.5}) {
+		t.Fatalf("new photo focus = %+v, want centered", img.Focus)
+	}
+	editor := user.User{ID: createUser(t, e, "mara"), Role: user.RoleAdmin}
+	later := time.Date(2030, 1, 2, 3, 4, 5, 0, time.UTC)
+	e.images.SetClock(func() time.Time { return later })
+
+	want := recipe.ImageFocus{X: 0.5, Y: 0.66}
+	got, err := e.images.SetFocus(ctx, e.recipe.ID, img.ID, editor, want)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.ID != img.ID || got.Focus != want || got.Width != img.Width {
+		t.Fatalf("SetFocus = %+v, want %s with %+v", got, img.ID, want)
+	}
+	r, err := e.recipes.ByID(ctx, e.recipe.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if r.Images[0].Focus != want {
+		t.Fatalf("stored focus = %+v, want %+v", r.Images[0].Focus, want)
+	}
+	if !r.UpdatedAt.Equal(later) || r.UpdatedBy.ID != editor.ID {
+		t.Fatalf("updated %v by %s, want %v by %s", r.UpdatedAt, r.UpdatedBy.ID, later, editor.ID)
+	}
+}
+
+func TestSetFocusForeignImage(t *testing.T) {
+	ctx := context.Background()
+	e := setup(t)
+	f := recipe.ImageFocus{X: 0.2, Y: 0.2}
+	if _, err := e.images.SetFocus(ctx, e.recipe.ID, "00000000-0000-7000-8000-000000000000", adminOf(e), f); !errors.Is(err, image.ErrNotFound) {
+		t.Errorf("unknown image: err = %v, want ErrNotFound", err)
+	}
+	if _, err := e.images.SetFocus(ctx, e.recipe.ID, "nope", adminOf(e), f); !errors.Is(err, image.ErrNotFound) {
+		t.Errorf("malformed id: err = %v, want ErrNotFound", err)
+	}
+	foreign := upload(t, e, 64, 64)
+	r2, err := e.recipes.Create(ctx, e.owner, e.recipe.Input)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := e.images.SetFocus(ctx, r2.ID, foreign.ID, adminOf(e), f); !errors.Is(err, image.ErrNotFound) {
+		t.Errorf("other recipe's photo: err = %v, want ErrNotFound", err)
+	}
+}
+
+func TestSetFocusLocked(t *testing.T) {
+	e := setup(t)
+	img := upload(t, e, 64, 64)
+	ben := lockedForMember(t, e)
+	if _, err := e.images.SetFocus(context.Background(), e.recipe.ID, img.ID, ben, recipe.ImageFocus{X: 0.5, Y: 0.1}); !errors.Is(err, recipe.ErrEditForbidden) {
+		t.Fatalf("err = %v, want ErrEditForbidden", err)
+	}
+}
+
+func TestFocusSurvivesReorderAndDelete(t *testing.T) {
+	ctx := context.Background()
+	e := setup(t)
+	a, b := upload(t, e, 64, 64), upload(t, e, 64, 64)
+	want := recipe.ImageFocus{X: 0.5, Y: 0.66}
+	if _, err := e.images.SetFocus(ctx, e.recipe.ID, b.ID, adminOf(e), want); err != nil {
+		t.Fatal(err)
+	}
+	order, err := e.images.Reorder(ctx, e.recipe.ID, adminOf(e), []string{b.ID, a.ID})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if order[0].Focus != want {
+		t.Fatalf("reorder answer focus = %+v, want %+v", order[0].Focus, want)
+	}
+	if err := e.images.Delete(ctx, e.recipe.ID, a.ID, adminOf(e)); err != nil {
+		t.Fatal(err)
+	}
+	r, _ := e.recipes.ByID(ctx, e.recipe.ID)
+	if len(r.Images) != 1 || r.Images[0].ID != b.ID || r.Images[0].Focus != want {
+		t.Fatalf("images = %+v, want only %s with %+v", r.Images, b.ID, want)
 	}
 }

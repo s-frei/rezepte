@@ -22,7 +22,7 @@ func (q *Queries) CountImagesByRecipe(ctx context.Context, recipeID string) (int
 }
 
 const coverSizesForRecipes = `-- name: CoverSizesForRecipes :many
-SELECT r.id AS recipe_id, i.width, i.height
+SELECT r.id AS recipe_id, i.width, i.height, i.focus_x, i.focus_y
 FROM recipes r
 JOIN images i ON i.id = r.cover_image_id
 WHERE r.id IN (/*SLICE:recipe_ids*/?)
@@ -32,10 +32,13 @@ type CoverSizesForRecipesRow struct {
 	RecipeID string
 	Width    int64
 	Height   int64
+	FocusX   float64
+	FocusY   float64
 }
 
-// The pixel size of each page recipe's cover photo, so a card can hold the
-// photo's shape before it loads; recipes without a cover get no row.
+// The pixel size and focus point of each page recipe's cover photo, so a
+// card can hold the photo's shape before it loads and crop it around the
+// point; recipes without a cover get no row.
 func (q *Queries) CoverSizesForRecipes(ctx context.Context, recipeIds []string) ([]CoverSizesForRecipesRow, error) {
 	query := coverSizesForRecipes
 	var queryParams []interface{}
@@ -55,7 +58,13 @@ func (q *Queries) CoverSizesForRecipes(ctx context.Context, recipeIds []string) 
 	items := []CoverSizesForRecipesRow{}
 	for rows.Next() {
 		var i CoverSizesForRecipesRow
-		if err := rows.Scan(&i.RecipeID, &i.Width, &i.Height); err != nil {
+		if err := rows.Scan(
+			&i.RecipeID,
+			&i.Width,
+			&i.Height,
+			&i.FocusX,
+			&i.FocusY,
+		); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
@@ -87,7 +96,7 @@ func (q *Queries) DeleteImage(ctx context.Context, arg DeleteImageParams) (int64
 }
 
 const getImage = `-- name: GetImage :one
-SELECT id, recipe_id, filename, width, height, size_bytes, position, created_at FROM images WHERE recipe_id = ? AND id = ?
+SELECT id, recipe_id, filename, width, height, size_bytes, position, created_at, focus_x, focus_y FROM images WHERE recipe_id = ? AND id = ?
 `
 
 type GetImageParams struct {
@@ -107,6 +116,8 @@ func (q *Queries) GetImage(ctx context.Context, arg GetImageParams) (Image, erro
 		&i.SizeBytes,
 		&i.Position,
 		&i.CreatedAt,
+		&i.FocusX,
+		&i.FocusY,
 	)
 	return i, err
 }
@@ -178,7 +189,7 @@ func (q *Queries) ImageStatsForRecipes(ctx context.Context, recipeIds []string) 
 const insertImage = `-- name: InsertImage :one
 INSERT INTO images (id, recipe_id, filename, width, height, size_bytes, position, created_at)
 VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-RETURNING id, recipe_id, filename, width, height, size_bytes, position, created_at
+RETURNING id, recipe_id, filename, width, height, size_bytes, position, created_at, focus_x, focus_y
 `
 
 type InsertImageParams struct {
@@ -213,12 +224,14 @@ func (q *Queries) InsertImage(ctx context.Context, arg InsertImageParams) (Image
 		&i.SizeBytes,
 		&i.Position,
 		&i.CreatedAt,
+		&i.FocusX,
+		&i.FocusY,
 	)
 	return i, err
 }
 
 const listImagesByRecipe = `-- name: ListImagesByRecipe :many
-SELECT id, recipe_id, filename, width, height, size_bytes, position, created_at FROM images WHERE recipe_id = ? ORDER BY position, id
+SELECT id, recipe_id, filename, width, height, size_bytes, position, created_at, focus_x, focus_y FROM images WHERE recipe_id = ? ORDER BY position, id
 `
 
 func (q *Queries) ListImagesByRecipe(ctx context.Context, recipeID string) ([]Image, error) {
@@ -239,6 +252,8 @@ func (q *Queries) ListImagesByRecipe(ctx context.Context, recipeID string) ([]Im
 			&i.SizeBytes,
 			&i.Position,
 			&i.CreatedAt,
+			&i.FocusX,
+			&i.FocusY,
 		); err != nil {
 			return nil, err
 		}
@@ -300,6 +315,30 @@ type TouchRecipeParams struct {
 func (q *Queries) TouchRecipe(ctx context.Context, arg TouchRecipeParams) error {
 	_, err := q.db.ExecContext(ctx, touchRecipe, arg.UpdatedBy, arg.UpdatedAt, arg.ID)
 	return err
+}
+
+const updateImageFocus = `-- name: UpdateImageFocus :execrows
+UPDATE images SET focus_x = ?, focus_y = ? WHERE recipe_id = ? AND id = ?
+`
+
+type UpdateImageFocusParams struct {
+	FocusX   float64
+	FocusY   float64
+	RecipeID string
+	ID       string
+}
+
+func (q *Queries) UpdateImageFocus(ctx context.Context, arg UpdateImageFocusParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, updateImageFocus,
+		arg.FocusX,
+		arg.FocusY,
+		arg.RecipeID,
+		arg.ID,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
 }
 
 const updateImagePosition = `-- name: UpdateImagePosition :exec

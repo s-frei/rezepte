@@ -142,12 +142,16 @@ ORDER BY r.rowid;
 -- list's cover strip: one statement for every person, not one per card.
 -- No visibility filter: every signed-in account reads every recipe.
 -- name: LatestRecipesByCreator :many
-SELECT created_by, id, slug, title, cover_image_id FROM (
+SELECT l.created_by, l.id, l.slug, l.title, l.cover_image_id,
+       ci.width AS cover_width, ci.height AS cover_height, ci.focus_x AS cover_focus_x, ci.focus_y AS cover_focus_y
+FROM (
     SELECT created_by, id, slug, title, cover_image_id,
         ROW_NUMBER() OVER (PARTITION BY created_by ORDER BY created_at DESC, rowid DESC) AS pos
     FROM recipes
-) WHERE pos <= 4
-ORDER BY created_by, pos;
+) l
+LEFT JOIN images ci ON ci.id = l.cover_image_id
+WHERE l.pos <= 4
+ORDER BY l.created_by, l.pos;
 
 -- name: SetFavorite :exec
 INSERT OR IGNORE INTO favorites (user_id, recipe_id, created_at) VALUES (?, ?, ?);

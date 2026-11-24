@@ -834,6 +834,21 @@ func TestLatestByCreator(t *testing.T) {
 	if _, err := svc.Update(ctx, older.ID, adminActor(uid), in); err != nil {
 		t.Fatal(err)
 	}
+	// "Two edited" gets a cover with a focus point; the others have none.
+	q := sqlc.New(testConns[t])
+	if _, err := q.InsertImage(ctx, sqlc.InsertImageParams{
+		ID: "img-a", RecipeID: older.ID, Filename: "img-a.jpg",
+		Width: 1200, Height: 1600, SizeBytes: 1000, CreatedAt: db.FormatTime(time.Now()),
+	}); err != nil {
+		t.Fatal(err)
+	}
+	cover := "img-a"
+	if err := q.SetRecipeCover(ctx, sqlc.SetRecipeCoverParams{CoverImageID: &cover, UpdatedBy: uid, UpdatedAt: db.FormatTime(time.Now()), ID: older.ID}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := q.UpdateImageFocus(ctx, sqlc.UpdateImageFocusParams{FocusX: 0.25, FocusY: 0.75, RecipeID: older.ID, ID: cover}); err != nil {
+		t.Fatal(err)
+	}
 	got, err := svc.LatestByCreator(ctx)
 	if err != nil {
 		t.Fatal(err)
@@ -843,6 +858,13 @@ func TestLatestByCreator(t *testing.T) {
 		titles = append(titles, r.Title)
 		if r.ID == "" || r.Slug == "" {
 			t.Fatalf("recipe without id or slug: %+v", r)
+		}
+		if r.ID == older.ID {
+			if r.CoverWidth == nil || *r.CoverWidth != 1200 || r.CoverHeight == nil || *r.CoverHeight != 1600 || r.CoverFocus.V == nil || *r.CoverFocus.V != (recipe.ImageFocus{X: 0.25, Y: 0.75}) {
+				t.Fatalf("cover of %s: %v x %v at %+v", r.Title, r.CoverWidth, r.CoverHeight, r.CoverFocus.V)
+			}
+		} else if r.CoverWidth != nil || r.CoverHeight != nil || r.CoverFocus.V != nil {
+			t.Fatalf("%s without cover: %v x %v at %+v", r.Title, r.CoverWidth, r.CoverHeight, r.CoverFocus.V)
 		}
 	}
 	if want := "Five Four Three Two edited"; strings.Join(titles, " ") != want {

@@ -100,9 +100,11 @@ ORDER BY m.invited_at DESC, p.id DESC;
 -- name: ListMealPlanEntries :many
 SELECT e.id, e.day, e.position, e.recipe_id, e.title, e.servings, e.created_by,
        r.slug AS recipe_slug, r.cover_image_id,
+       ci.width AS photo_width, ci.height AS photo_height, ci.focus_x AS photo_focus_x, ci.focus_y AS photo_focus_y,
        u.display_name AS creator_name, u.color AS creator_color, u.avatar_id AS creator_avatar_id
 FROM meal_plan_entries e
 LEFT JOIN recipes r ON r.id = e.recipe_id
+LEFT JOIN images ci ON ci.id = r.cover_image_id
 LEFT JOIN users u ON u.id = e.created_by
 WHERE e.plan_id = sqlc.arg(plan_id) AND e.removed_at IS NULL
   AND (e.day IS NULL OR (e.day >= sqlc.arg(from_day) AND e.day <= sqlc.arg(to_day)))
@@ -221,10 +223,12 @@ SELECT name FROM meal_plans WHERE id = ?;
 -- plan one person created or accepted, for the plans overview; ordered as
 -- ListMealPlanEntries within each plan.
 -- name: ListMealPlanWeekEntries :many
-SELECT e.plan_id, e.id, e.day, e.recipe_id, e.title, e.servings, r.cover_image_id
+SELECT e.plan_id, e.id, e.day, e.recipe_id, e.title, e.servings, r.cover_image_id,
+       ci.width AS photo_width, ci.height AS photo_height, ci.focus_x AS photo_focus_x, ci.focus_y AS photo_focus_y
 FROM meal_plan_entries e
 JOIN meal_plans p ON p.id = e.plan_id
 LEFT JOIN recipes r ON r.id = e.recipe_id
+LEFT JOIN images ci ON ci.id = r.cover_image_id
 WHERE e.removed_at IS NULL
   AND (e.day IS NULL OR (e.day >= sqlc.arg(from_day) AND e.day <= sqlc.arg(to_day)))
   AND (p.created_by = sqlc.arg(user_id) OR EXISTS (SELECT 1 FROM meal_plan_members m WHERE m.plan_id = p.id AND m.user_id = sqlc.arg(user_id) AND m.accepted_at IS NOT NULL))

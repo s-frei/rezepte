@@ -8,6 +8,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"testing"
 
@@ -49,6 +50,10 @@ func TestImportRoundTrip(t *testing.T) {
 	if err := src.images.SetCover(ctx, r.ID, stored.Images[1].ID, src.admin); err != nil {
 		t.Fatal(err)
 	}
+	focus := recipe.ImageFocus{X: 0.25, Y: 0.66}
+	if _, err := src.images.SetFocus(ctx, r.ID, stored.Images[1].ID, src.admin, focus); err != nil {
+		t.Fatal(err)
+	}
 	archive := exportOf(t, src, r.ID)
 
 	dst := newEnv(t)
@@ -71,6 +76,9 @@ func TestImportRoundTrip(t *testing.T) {
 	}
 	if got.CoverImageID == nil || *got.CoverImageID != got.Images[0].ID {
 		t.Fatalf("cover = %v", got.CoverImageID)
+	}
+	if got.Images[0].Focus != focus || got.Images[1].Focus != (recipe.ImageFocus{X: 0.5, Y: 0.5}) {
+		t.Fatalf("focus = %+v, %+v; want %+v, centered", got.Images[0].Focus, got.Images[1].Focus, focus)
 	}
 	if len(got.Steps) != 1 || len(got.Steps[0].References) != 1 {
 		t.Fatalf("steps = %+v", got.Steps)
@@ -196,12 +204,16 @@ func TestImportMovesAnOldExportsCoverFirst(t *testing.T) {
 	}
 }
 
-// A step without photo links writes no photos key, so the archive stays
-// readable by a Rezepte from before step photos, whose schema refuses it.
-func TestExportLeavesPhotosOutOfAStepWithoutLinks(t *testing.T) {
+// A step without photo links writes no photos key, and a recipe whose
+// photos are all centered no imageFocus key, so the archive stays readable
+// by a Rezepte from before either, whose schema refuses the key.
+func TestExportLeavesOutKeysWithNothingToCarry(t *testing.T) {
 	src := newEnv(t)
 	r, err := src.recipes.Create(context.Background(), src.admin.ID, sampleInput("Apfelstrudel"))
 	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := src.images.Upload(context.Background(), r.ID, src.admin, bytes.NewReader(jpegBytes(t, 120, 80))); err != nil {
 		t.Fatal(err)
 	}
 	archive := exportOf(t, src, r.ID)
@@ -212,7 +224,7 @@ func TestExportLeavesPhotosOutOfAStepWithoutLinks(t *testing.T) {
 	rc, _ := zr.File[0].Open()
 	raw, _ := io.ReadAll(rc)
 	rc.Close()
-	if !bytes.Contains(raw, []byte(`"times"`)) || bytes.Contains(raw, []byte(`"photos"`)) {
+	if !bytes.Contains(raw, []byte(`"times"`)) || bytes.Contains(raw, []byte(`"photos"`)) || bytes.Contains(raw, []byte(`"imageFocus"`)) {
 		t.Fatalf("recipe.json: %s", raw)
 	}
 }
@@ -261,5 +273,89 @@ func TestImportKeepsAStepPhotoLinkOnItsPhoto(t *testing.T) {
 	}
 	if p := got.Steps[0].Photos; len(p) != 1 || p[0].Phrase != "Äpfel schälen" || p[0].ImageID != got.Images[1].ID || got.Images[1].Width != 80 {
 		t.Fatalf("photos = %+v, images = %+v", p, got.Images)
+	}
+}
+
+// importFocaccia imports a two-photo folder whose recipe.json ends in extra
+// (`,"imageFocus":[...]` or nothing) and returns the photos' focus points.
+func importFocaccia(t *testing.T, extra string) []recipe.ImageFocus {
+	t.Helper()
+	ctx := context.Background()
+	e := newEnv(t)
+	var buf bytes.Buffer
+	zw := zip.NewWriter(&buf)
+	for name, body := range map[string][]byte{
+		"focaccia/recipe.json": []byte(`{"format":"` + transfer.Format + `","version":` + strconv.Itoa(transfer.Version) + `,"title":"Focaccia","description":"","servings":2,"tags":[],"steps":[],` +
+			`"ingredientGroups":[{"name":null,"ingredients":[{"name":"Mehl"}]}],"images":["1.jpg","2.jpg"],"cover":"1.jpg"` + extra + `}`),
+		"focaccia/1.jpg": jpegBytes(t, 120, 80),
+		"focaccia/2.jpg": jpegBytes(t, 80, 120),
+	} {
+		w, err := zw.Create(name)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err := w.Write(body); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := zw.Close(); err != nil {
+		t.Fatal(err)
+	}
+	created, err := e.svc.Import(ctx, e.admin, bytes.NewReader(buf.Bytes()), int64(buf.Len()))
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, err := e.recipes.ByID(ctx, created[0].ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	out := make([]recipe.ImageFocus, len(got.Images))
+	for i, im := range got.Images {
+		out[i] = im.Focus
+	}
+	return out
+}
+
+var centered = recipe.ImageFocus{X: 0.5, Y: 0.5}
+
+func TestImportWithoutImageFocus(t *testing.T) {
+	if got := importFocaccia(t, ""); !slices.Equal(got, []recipe.ImageFocus{centered, centered}) {
+		t.Fatalf("focus = %v, want both centered", got)
+	}
+}
+
+func TestImportShortImageFocus(t *testing.T) {
+	got := importFocaccia(t, `,"imageFocus":[{"x":0.3,"y":0.7}]`)
+	if want := []recipe.ImageFocus{{X: 0.3, Y: 0.7}, centered}; !slices.Equal(got, want) {
+		t.Fatalf("focus = %v, want %v", got, want)
+	}
+}
+
+// An out-of-range point is clamped, never a reason to refuse the import.
+func TestImportClampsImageFocus(t *testing.T) {
+	got := importFocaccia(t, `,"imageFocus":[{"x":1.5,"y":-0.2},{"x":0.5,"y":0.5},{"x":0.1,"y":0.1}]`)
+	if want := []recipe.ImageFocus{{X: 1, Y: 0}, centered}; !slices.Equal(got, want) {
+		t.Fatalf("focus = %v, want %v", got, want)
+	}
+}
+
+// A malformed imageFocus reads as centered and never refuses the archive.
+func TestImportMalformedImageFocus(t *testing.T) {
+	for _, extra := range []string{
+		`,"imageFocus":{"x":0.3,"y":0.7}`,
+		`,"imageFocus":"left"`,
+		`,"imageFocus":null`,
+	} {
+		if got := importFocaccia(t, extra); !slices.Equal(got, []recipe.ImageFocus{centered, centered}) {
+			t.Errorf("%s: focus = %v, want both centered", extra, got)
+		}
+	}
+	got := importFocaccia(t, `,"imageFocus":[{"x":"a","y":0.7},{"x":0.3,"y":0.7}]`)
+	if want := []recipe.ImageFocus{centered, {X: 0.3, Y: 0.7}}; !slices.Equal(got, want) {
+		t.Errorf("bad first entry: focus = %v, want %v", got, want)
+	}
+	got = importFocaccia(t, `,"imageFocus":[{"x":0.3},5]`)
+	if !slices.Equal(got, []recipe.ImageFocus{centered, centered}) {
+		t.Errorf("incomplete entries: focus = %v, want both centered", got)
 	}
 }

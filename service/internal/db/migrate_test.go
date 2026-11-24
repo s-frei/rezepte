@@ -455,3 +455,42 @@ func TestMealPlansMigrationDownAndUp(t *testing.T) {
 		t.Fatalf("up again: %v", err)
 	}
 }
+
+// TestImageFocusMigration applies 0033 over a stored photo, which reads as
+// centered, checks that the columns refuse a point outside 0..1, and rolls
+// it back and forth.
+func TestImageFocusMigration(t *testing.T) {
+	ctx := t.Context()
+	conn, provider := openAt(t, 32)
+	for _, q := range []string{
+		`INSERT INTO users (id, username, display_name, password_hash, role, color, locale, created_at, updated_at)
+			VALUES ('u1', 'u', 'U', 'x', 'user', '#000', 'en', 't', 't')`,
+		`INSERT INTO recipes (id, slug, title, created_by, created_at, updated_by, updated_at)
+			VALUES ('r1', 'r', 'R', 'u1', 't', 'u1', 't')`,
+		`INSERT INTO images (id, recipe_id, filename, width, height, size_bytes, position, created_at)
+			VALUES ('i1', 'r1', 'i1.jpg', 10, 10, 100, 0, 't')`,
+	} {
+		if _, err := conn.ExecContext(ctx, q); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if _, err := provider.UpTo(ctx, 33); err != nil {
+		t.Fatalf("up to 33: %v", err)
+	}
+	var x, y float64
+	if err := conn.QueryRowContext(ctx, `SELECT focus_x, focus_y FROM images WHERE id = 'i1'`).Scan(&x, &y); err != nil {
+		t.Fatal(err)
+	}
+	if x != 0.5 || y != 0.5 {
+		t.Fatalf("focus of a stored photo = %v,%v, want 0.5,0.5", x, y)
+	}
+	if _, err := conn.ExecContext(ctx, `UPDATE images SET focus_y = 1.2 WHERE id = 'i1'`); err == nil {
+		t.Fatal("focus_y = 1.2 was stored")
+	}
+	if _, err := provider.DownTo(ctx, 32); err != nil {
+		t.Fatalf("down to 32: %v", err)
+	}
+	if _, err := provider.Up(ctx); err != nil {
+		t.Fatalf("up again: %v", err)
+	}
+}

@@ -296,6 +296,16 @@
       "Card": {
         "additionalProperties": false,
         "properties": {
+          "coverFocus": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/ImageFocus"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "coverHeight": {
             "format": "int64",
             "type": [
@@ -395,6 +405,7 @@
           "imageBytes",
           "coverWidth",
           "coverHeight",
+          "coverFocus",
           "createdBy",
           "updatedBy"
         ],
@@ -1371,9 +1382,33 @@
             "format": "int64",
             "type": "integer"
           },
+          "coverFocus": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/ImageFocus"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "coverHeight": {
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
           "coverImageId": {
             "type": [
               "string",
+              "null"
+            ]
+          },
+          "coverWidth": {
+            "format": "int64",
+            "type": [
+              "integer",
               "null"
             ]
           },
@@ -1438,6 +1473,9 @@
           "recipeId",
           "recipeSlug",
           "coverImageId",
+          "coverWidth",
+          "coverHeight",
+          "coverFocus",
           "title",
           "baseServings",
           "servings",
@@ -1743,6 +1781,27 @@
         ],
         "type": "object"
       },
+      "FocusInput": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/api/v1/schemas/FocusInput.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "focus": {
+            "$ref": "#/components/schemas/ImageFocus"
+          }
+        },
+        "required": [
+          "focus"
+        ],
+        "type": "object"
+      },
       "ForgotInputBody": {
         "additionalProperties": false,
         "properties": {
@@ -1850,6 +1909,9 @@
             "readOnly": true,
             "type": "string"
           },
+          "focus": {
+            "$ref": "#/components/schemas/ImageFocus"
+          },
           "height": {
             "format": "int64",
             "type": "integer"
@@ -1870,7 +1932,30 @@
           "id",
           "width",
           "height",
-          "position"
+          "position",
+          "focus"
+        ],
+        "type": "object"
+      },
+      "ImageFocus": {
+        "additionalProperties": false,
+        "properties": {
+          "x": {
+            "format": "double",
+            "maximum": 1,
+            "minimum": 0,
+            "type": "number"
+          },
+          "y": {
+            "format": "double",
+            "maximum": 1,
+            "minimum": 0,
+            "type": "number"
+          }
+        },
+        "required": [
+          "x",
+          "y"
         ],
         "type": "object"
       },
@@ -2530,10 +2615,37 @@
       "LatestRecipe": {
         "additionalProperties": false,
         "properties": {
+          "coverFocus": {
+            "description": "The cover's focus point; null without a cover",
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/ImageFocus"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "coverHeight": {
+            "description": "The cover's height in pixels; null without a cover",
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
           "coverImageId": {
             "description": "The cover photo, served at /images/{id}/{coverImageId}/thumb.jpg; null when it has none",
             "type": [
               "string",
+              "null"
+            ]
+          },
+          "coverWidth": {
+            "description": "The cover's width in pixels; null without a cover",
+            "format": "int64",
+            "type": [
+              "integer",
               "null"
             ]
           },
@@ -2554,7 +2666,10 @@
           "id",
           "slug",
           "title",
-          "coverImageId"
+          "coverImageId",
+          "coverWidth",
+          "coverHeight",
+          "coverFocus"
         ],
         "type": "object"
       },
@@ -3651,6 +3766,30 @@
               "null"
             ]
           },
+          "photoFocus": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/ImageFocus"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "photoHeight": {
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "photoWidth": {
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
           "position": {
             "format": "int64",
             "type": "integer"
@@ -3687,6 +3826,9 @@
           "title",
           "servings",
           "photo",
+          "photoWidth",
+          "photoHeight",
+          "photoFocus",
           "createdBy",
           "lists"
         ],
@@ -4164,6 +4306,9 @@
       "PublicImage": {
         "additionalProperties": false,
         "properties": {
+          "focus": {
+            "$ref": "#/components/schemas/ImageFocus"
+          },
           "height": {
             "description": "Height of the original variant in pixels",
             "format": "int64",
@@ -4181,7 +4326,8 @@
         "required": [
           "id",
           "width",
-          "height"
+          "height",
+          "focus"
         ],
         "type": "object"
       },
@@ -6084,6 +6230,30 @@
               "null"
             ]
           },
+          "photoFocus": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/ImageFocus"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "photoHeight": {
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "photoWidth": {
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
           "recipeId": {
             "type": [
               "string",
@@ -6100,7 +6270,10 @@
           "kind",
           "recipeId",
           "title",
-          "photo"
+          "photo",
+          "photoWidth",
+          "photoHeight",
+          "photoFocus"
         ],
         "type": "object"
       },
@@ -12333,6 +12506,104 @@
           }
         ],
         "summary": "Delete an image",
+        "tags": [
+          "images"
+        ]
+      },
+      "patch": {
+        "description": "The point that stays in view wherever the photo is cropped, as fractions of the upright photo: 0 is the left or top edge, 1 the right or bottom one.",
+        "operationId": "set-image-focus",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "imageId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FocusInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Image"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "token": [
+              "recipes:write"
+            ]
+          }
+        ],
+        "summary": "Set a photo's focus point",
         "tags": [
           "images"
         ]

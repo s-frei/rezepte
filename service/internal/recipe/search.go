@@ -324,6 +324,7 @@ func (s *Service) toCards(ctx context.Context, rows []sqlc.Recipe, userID string
 		if c, ok := covers[r.ID]; ok {
 			w, h := int(c.Width), int(c.Height)
 			card.CoverWidth, card.CoverHeight = &w, &h
+			card.CoverFocus = OrNull[ImageFocus]{V: &ImageFocus{X: c.FocusX, Y: c.FocusY}}
 		}
 		items = append(items, card)
 	}

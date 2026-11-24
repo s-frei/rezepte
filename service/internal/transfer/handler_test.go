@@ -287,6 +287,8 @@ func TestImportReadsStepPhotoLinksAgainstTheInputSchema(t *testing.T) {
 	m := map[string]any{
 		"format": transfer.Format, "version": transfer.Version, "title": in.Title, "description": "", "servings": in.Servings, "prepMinutes": nil, "cookMinutes": nil, "sourceUrl": nil, "sourceName": nil,
 		"tags": in.Tags, "ingredientGroups": in.IngredientGroups, "steps": steps, "images": []string{"1.jpg"}, "cover": "1.jpg",
+		// Not part of the Input schema: check strips it before validating.
+		"imageFocus": []any{map[string]any{"x": 0.5, "y": 0.66}},
 	}
 	var buf bytes.Buffer
 	zw := zip.NewWriter(&buf)

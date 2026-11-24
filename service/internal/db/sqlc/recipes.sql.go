@@ -456,12 +456,16 @@ func (q *Queries) LastRecipeTitleByCreator(ctx context.Context) ([]LastRecipeTit
 }
 
 const latestRecipesByCreator = `-- name: LatestRecipesByCreator :many
-SELECT created_by, id, slug, title, cover_image_id FROM (
+SELECT l.created_by, l.id, l.slug, l.title, l.cover_image_id,
+       ci.width AS cover_width, ci.height AS cover_height, ci.focus_x AS cover_focus_x, ci.focus_y AS cover_focus_y
+FROM (
     SELECT created_by, id, slug, title, cover_image_id,
         ROW_NUMBER() OVER (PARTITION BY created_by ORDER BY created_at DESC, rowid DESC) AS pos
     FROM recipes
-) WHERE pos <= 4
-ORDER BY created_by, pos
+) l
+LEFT JOIN images ci ON ci.id = l.cover_image_id
+WHERE l.pos <= 4
+ORDER BY l.created_by, l.pos
 `
 
 type LatestRecipesByCreatorRow struct {
@@ -470,6 +474,10 @@ type LatestRecipesByCreatorRow struct {
 	Slug         string
 	Title        string
 	CoverImageID *string
+	CoverWidth   *int64
+	CoverHeight  *int64
+	CoverFocusX  *float64
+	CoverFocusY  *float64
 }
 
 // Each person's newest four created recipes, newest first, for the people
@@ -490,6 +498,10 @@ func (q *Queries) LatestRecipesByCreator(ctx context.Context) ([]LatestRecipesBy
 			&i.Slug,
 			&i.Title,
 			&i.CoverImageID,
+			&i.CoverWidth,
+			&i.CoverHeight,
+			&i.CoverFocusX,
+			&i.CoverFocusY,
 		); err != nil {
 			return nil, err
 		}

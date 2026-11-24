@@ -7,7 +7,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/s-frei/rezepte/service/internal/db"
 	"github.com/s-frei/rezepte/service/internal/db/dbtest"
+	"github.com/s-frei/rezepte/service/internal/db/sqlc"
 	"github.com/s-frei/rezepte/service/internal/recipe"
 	"github.com/s-frei/rezepte/service/internal/shopping"
 	"github.com/s-frei/rezepte/service/internal/user"
@@ -915,5 +917,48 @@ func TestCheckedBy(t *testing.T) {
 	}
 	if l.Items[0].CheckedBy != nil {
 		t.Fatalf("unticked, checkedBy = %+v", l.Items[0].CheckedBy)
+	}
+}
+
+func TestEntriesCarryTheCoverShapeAndFocus(t *testing.T) {
+	ctx := context.Background()
+	e := setup(t)
+	withCover, without := e.hackfleisch(t), e.hackfleisch(t)
+	q := sqlc.New(e.conn)
+	id := "img-a"
+	now := db.FormatTime(time.Now())
+	if _, err := q.InsertImage(ctx, sqlc.InsertImageParams{ID: id, RecipeID: withCover.ID, Filename: id + ".jpg", Width: 1200, Height: 1600, SizeBytes: 1000, CreatedAt: now}); err != nil {
+		t.Fatal(err)
+	}
+	if err := q.SetRecipeCover(ctx, sqlc.SetRecipeCoverParams{CoverImageID: &id, UpdatedBy: e.a.ID, UpdatedAt: now, ID: withCover.ID}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := q.UpdateImageFocus(ctx, sqlc.UpdateImageFocusParams{FocusX: 0.5, FocusY: 0.66, RecipeID: withCover.ID, ID: id}); err != nil {
+		t.Fatal(err)
+	}
+	l := e.list(t)
+	for _, r := range []recipe.Recipe{withCover, without} {
+		if _, err := e.svc.AddRecipe(ctx, e.a.ID, l.ID, r.ID, 4, []shopping.IngredientPick{{Group: 0, Index: 0}}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	l, err := e.svc.Get(ctx, e.a.ID, l.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(l.Entries) != 2 {
+		t.Fatalf("entries = %+v", l.Entries)
+	}
+	for _, en := range l.Entries {
+		if *en.RecipeID == without.ID {
+			if en.CoverWidth != nil || en.CoverHeight != nil || en.CoverFocus.V != nil {
+				t.Errorf("entry without cover: %v x %v at %+v", en.CoverWidth, en.CoverHeight, en.CoverFocus.V)
+			}
+			continue
+		}
+		if en.CoverWidth == nil || *en.CoverWidth != 1200 || en.CoverHeight == nil || *en.CoverHeight != 1600 ||
+			en.CoverFocus.V == nil || *en.CoverFocus.V != (recipe.ImageFocus{X: 0.5, Y: 0.66}) {
+			t.Errorf("entry with cover: %v x %v at %+v", en.CoverWidth, en.CoverHeight, en.CoverFocus.V)
+		}
 	}
 }

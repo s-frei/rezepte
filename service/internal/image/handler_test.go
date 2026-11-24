@@ -369,3 +369,36 @@ func TestUploadRejections(t *testing.T) {
 		t.Fatalf("21st: %d %s", rec.Code, rec.Body.String())
 	}
 }
+
+func TestSetFocusRejectsOutOfRange(t *testing.T) {
+	h := newHandler(t)
+	cookie := loginCookie(t, h)
+	r := createRecipe(t, h, cookie)
+	img := uploadPNG(t, h, cookie, r.ID, 300, 400)
+	path := "/api/v1/recipes/" + r.ID + "/images/" + img.ID
+
+	for _, body := range []string{`{"focus":{"x":1.2,"y":0.5}}`, `{"focus":{"x":0.5}}`, `{"focus":{"x":-0.1,"y":0.5}}`, `{"focus":{"x":"a","y":0.5}}`} {
+		if rec := doReq(h, http.MethodPatch, path, []byte(body), "application/json", cookie); rec.Code != http.StatusUnprocessableEntity {
+			t.Errorf("%s: %d %s", body, rec.Code, rec.Body.String())
+		}
+	}
+	rec := doReq(h, http.MethodPatch, "/api/v1/recipes/"+r.ID+"/images/00000000-0000-7000-8000-000000000000", []byte(`{"focus":{"x":0.5,"y":0.5}}`), "application/json", cookie)
+	if rec.Code != http.StatusNotFound {
+		t.Errorf("unknown image: %d %s", rec.Code, rec.Body.String())
+	}
+
+	rec = doReq(h, http.MethodPatch, path, []byte(`{"focus":{"x":0.5,"y":0.66}}`), "application/json", cookie)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("set focus: %d %s", rec.Code, rec.Body.String())
+	}
+	var got recipe.Image
+	if err := json.Unmarshal(rec.Body.Bytes(), &got); err != nil {
+		t.Fatal(err)
+	}
+	if got.ID != img.ID || got.Focus != (recipe.ImageFocus{X: 0.5, Y: 0.66}) {
+		t.Fatalf("answer = %+v", got)
+	}
+	if f := getRecipe(t, h, cookie, r.ID).Images[0].Focus; f != got.Focus {
+		t.Fatalf("recipe image focus = %+v, want %+v", f, got.Focus)
+	}
+}

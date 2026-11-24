@@ -101,6 +101,18 @@ func (s *Service) create(ctx context.Context, actor user.User, f folder) (Create
 			return c, fmt.Errorf("set cover of %s: %w", f.name, err)
 		}
 	}
+	// An archive is not the API: a point outside 0..1 is clamped, never a
+	// reason to refuse the import.
+	for i, name := range f.file.Images[:min(len(f.file.Images), len(f.file.ImageFocus))] {
+		p := f.file.ImageFocus[i]
+		p = recipe.ImageFocus{X: min(max(p.X, 0), 1), Y: min(max(p.Y, 0), 1)}
+		if p == (recipe.ImageFocus{X: 0.5, Y: 0.5}) {
+			continue // the upload is centered already
+		}
+		if _, err := s.images.SetFocus(ctx, rec.ID, ids[name], actor, p); err != nil {
+			return c, fmt.Errorf("set focus of %s/%s: %w", f.name, name, err)
+		}
+	}
 	if linked {
 		withIDs := slices.Clone(f.file.Steps)
 		for i, st := range withIDs {

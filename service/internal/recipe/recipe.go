@@ -4,8 +4,12 @@
 package recipe
 
 import (
+	"encoding/json"
 	"errors"
+	"reflect"
 	"time"
+
+	"github.com/danielgtaylor/huma/v2"
 )
 
 // ErrNotFound is returned when a recipe id or slug has no match.
@@ -66,10 +70,43 @@ type Input struct {
 // original JPEG variant on disk (longest side at most 2400 px); the
 // variants are served at /images/{recipeId}/{id}/{thumb|detail|original}.jpg.
 type Image struct {
-	ID       string `json:"id"`
-	Width    int    `json:"width"`
-	Height   int    `json:"height"`
-	Position int    `json:"position"`
+	ID       string     `json:"id"`
+	Width    int        `json:"width"`
+	Height   int        `json:"height"`
+	Position int        `json:"position"`
+	Focus    ImageFocus `json:"focus"`
+}
+
+// ImageFocus is the point of a photo that stays in view wherever it is
+// cropped, as fractions of the upright image: 0 is the left or top edge,
+// 1 the right or bottom one. A photo nobody set it on is centered.
+type ImageFocus struct {
+	X float64 `json:"x" minimum:"0" maximum:"1"`
+	Y float64 `json:"y" minimum:"0" maximum:"1"`
+}
+
+// OrNull is an object or null. huma refuses nullable on an object
+// reference (a *T field), so Schema spells the choice out as a oneOf.
+type OrNull[T any] struct{ V *T }
+
+// MarshalJSON writes null for no value, else the object.
+func (n OrNull[T]) MarshalJSON() ([]byte, error) { return json.Marshal(n.V) }
+
+// UnmarshalJSON reads null or the object.
+func (n *OrNull[T]) UnmarshalJSON(b []byte) error { return json.Unmarshal(b, &n.V) }
+
+// Schema documents the field as the object or null.
+func (OrNull[T]) Schema(r huma.Registry) *huma.Schema {
+	return &huma.Schema{OneOf: []*huma.Schema{r.Schema(reflect.TypeFor[T](), true, ""), {Type: "null"}}}
+}
+
+// FocusOf is the point x,y as an OrNull, for the queries that read a
+// photo's focus through a LEFT JOIN: null when the row has no photo.
+func FocusOf(x, y *float64) OrNull[ImageFocus] {
+	if x == nil || y == nil {
+		return OrNull[ImageFocus]{}
+	}
+	return OrNull[ImageFocus]{V: &ImageFocus{X: *x, Y: *y}}
 }
 
 // Person is somebody a recipe names - who wrote it, who last changed it -
@@ -147,6 +184,8 @@ type Card struct {
 	// hold its photo's shape before it loads.
 	CoverWidth  *int `json:"coverWidth" nullable:"true"`
 	CoverHeight *int `json:"coverHeight" nullable:"true"`
+	// CoverFocus is the cover's focus point; null without a cover.
+	CoverFocus OrNull[ImageFocus] `json:"coverFocus"`
 	// Who wrote the recipe and who last changed it, in the same shape as on
 	// Recipe. The card shows them as initials.
 	CreatedBy Person `json:"createdBy"`

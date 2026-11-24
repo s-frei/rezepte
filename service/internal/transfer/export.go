@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"slices"
 	"strconv"
 	"time"
 
@@ -62,6 +63,12 @@ func (s *Service) writeZip(ctx context.Context, w io.Writer, recipes []recipe.Re
 			name := strconv.Itoa(i+1) + ".jpg"
 			file.Images = append(file.Images, name)
 			names[im.ID] = name
+		}
+		centered := recipe.ImageFocus{X: 0.5, Y: 0.5}
+		if slices.ContainsFunc(r.Images, func(im recipe.Image) bool { return im.Focus != centered }) {
+			for _, im := range r.Images {
+				file.ImageFocus = append(file.ImageFocus, im.Focus)
+			}
 		}
 		if r.CoverImageID != nil {
 			if name, ok := names[*r.CoverImageID]; ok {

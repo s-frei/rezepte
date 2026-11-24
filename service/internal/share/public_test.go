@@ -52,7 +52,10 @@ func keysOf(t *testing.T, raw []byte) []string {
 // timestamp - must never reach a stranger by accident.
 func TestPublicRecipeCarriesOnlyTheRecipe(t *testing.T) {
 	s := newStack(t)
-	s.upload(t, s.recipe.ID)
+	im := s.upload(t, s.recipe.ID)
+	if _, err := s.images.SetFocus(context.Background(), s.recipe.ID, im.ID, s.member, recipe.ImageFocus{X: 0.5, Y: 0.66}); err != nil {
+		t.Fatal(err)
+	}
 	sh := s.create(t, s.login(t, s.member), s.recipe.ID, `{"days":null}`)
 
 	rec := s.do(http.MethodGet, "/api/v1/public/shares/"+tokenOf(sh), "", nil)
@@ -76,8 +79,11 @@ func TestPublicRecipeCarriesOnlyTheRecipe(t *testing.T) {
 	if len(body.Images) != 1 {
 		t.Fatalf("images = %d, want 1", len(body.Images))
 	}
-	if got := keysOf(t, body.Images[0]); !slices.Equal(got, []string{"height", "id", "width"}) {
+	if got := keysOf(t, body.Images[0]); !slices.Equal(got, []string{"focus", "height", "id", "width"}) {
 		t.Errorf("image keys = %v", got)
+	}
+	if !strings.Contains(string(body.Images[0]), `"focus":{"x":0.5,"y":0.66}`) {
+		t.Errorf("image = %s, want its focus", body.Images[0])
 	}
 	if body.Steps[0].Photos == nil {
 		t.Errorf("steps carry no photos list: %s", rec.Body.String())

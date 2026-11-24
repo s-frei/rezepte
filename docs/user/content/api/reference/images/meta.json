@@ -7,6 +7,7 @@
     "upload-image",
     "add-comment-image-to-recipe",
     "reorder-images",
+    "set-image-focus",
     "delete-image",
     "get-image-file"
   ]

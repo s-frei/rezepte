@@ -192,6 +192,7 @@ func get(ctx context.Context, q *sqlc.Queries, userID, id string) (List, error) 
 	for _, e := range entries {
 		l.Entries = append(l.Entries, Entry{
 			ID: e.ID, RecipeID: e.RecipeID, RecipeSlug: e.RecipeSlug, CoverImageID: e.CoverImageID,
+			CoverWidth: db.Conv[int](e.CoverWidth), CoverHeight: db.Conv[int](e.CoverHeight), CoverFocus: recipe.FocusOf(e.CoverFocusX, e.CoverFocusY),
 			Title: e.Title, BaseServings: int(e.BaseServings), Servings: int(e.Servings),
 			PlanDay: e.PlanDay, PlanRef: planRef(planRow{e.PlanID, e.PlanEntryID, e.ReaderPlanID, e.PlanName, e.PlanPersonal, e.AddedBy, e.AddedByName, e.AddedByColor, e.AddedByAvatarID}),
 		})

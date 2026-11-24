@@ -2,11 +2,9 @@ package recipeimport
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"log/slog"
 	"net/http"
-	"reflect"
 
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/danielgtaylor/huma/v2/adapters/humago"
@@ -26,26 +24,14 @@ type photoRef struct {
 	Href string `json:"href" doc:"Fetch within two minutes; answers the photo or 404"`
 }
 
-// orNull is an object or null. huma refuses nullable on an object reference,
-// so Schema spells the choice out as a oneOf.
-type orNull[T any] struct{ V *T }
-
-// MarshalJSON writes null for no value, else the object.
-func (n orNull[T]) MarshalJSON() ([]byte, error) { return json.Marshal(n.V) }
-
-// Schema documents the field as the object or null.
-func (orNull[T]) Schema(r huma.Registry) *huma.Schema {
-	return &huma.Schema{OneOf: []*huma.Schema{r.Schema(reflect.TypeFor[T](), true, ""), {Type: "null"}}}
-}
-
 type draftOutput struct {
 	Body struct {
-		Recipe        recipe.Input               `json:"recipe" doc:"Valid for POST /api/v1/recipes once a title is set"`
-		Review        []DraftReview              `json:"review" nullable:"false" doc:"Ingredients the parser was unsure about, by index into recipe.ingredientGroups"`
-		SuggestedTags []string                   `json:"suggestedTags" nullable:"false" doc:"Keywords that are not tags in this collection yet"`
-		Photo         orNull[photoRef]           `json:"photo" doc:"Null when the page has no photo"`
-		Duplicate     orNull[recipe.SourceMatch] `json:"duplicate" doc:"A recipe already imported from this page; null when there is none"`
-		Truncated     bool                       `json:"truncated" doc:"Something was cut to the recipe limits"`
+		Recipe        recipe.Input                      `json:"recipe" doc:"Valid for POST /api/v1/recipes once a title is set"`
+		Review        []DraftReview                     `json:"review" nullable:"false" doc:"Ingredients the parser was unsure about, by index into recipe.ingredientGroups"`
+		SuggestedTags []string                          `json:"suggestedTags" nullable:"false" doc:"Keywords that are not tags in this collection yet"`
+		Photo         recipe.OrNull[photoRef]           `json:"photo" doc:"Null when the page has no photo"`
+		Duplicate     recipe.OrNull[recipe.SourceMatch] `json:"duplicate" doc:"A recipe already imported from this page; null when there is none"`
+		Truncated     bool                              `json:"truncated" doc:"Something was cut to the recipe limits"`
 	}
 }
 
@@ -92,10 +78,10 @@ func Register(api huma.API, svc *Service) {
 		out.Body.Recipe = res.Draft.Recipe
 		out.Body.Review = append([]DraftReview{}, res.Draft.Review...)
 		out.Body.SuggestedTags = append([]string{}, res.Draft.SuggestedTags...)
-		out.Body.Duplicate = orNull[recipe.SourceMatch]{res.Duplicate}
+		out.Body.Duplicate = recipe.OrNull[recipe.SourceMatch]{V: res.Duplicate}
 		out.Body.Truncated = res.Draft.Truncated
 		if res.Draft.PhotoURL != "" {
-			out.Body.Photo = orNull[photoRef]{&photoRef{Href: svc.PhotoHref(res.Draft.PhotoURL)}}
+			out.Body.Photo = recipe.OrNull[photoRef]{V: &photoRef{Href: svc.PhotoHref(res.Draft.PhotoURL)}}
 		}
 		return out, nil
 	})

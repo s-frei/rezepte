@@ -5,6 +5,8 @@ package shopping
 import (
 	"errors"
 	"time"
+
+	"github.com/s-frei/rezepte/service/internal/recipe"
 )
 
 // ErrNotFound is returned for a list that does not exist or is not
@@ -40,16 +42,20 @@ type List struct {
 	Pending []ListPerson `json:"pending"`
 }
 
-// Entry is a recipe copied onto a list. RecipeID, RecipeSlug and CoverImageID
-// are nil once the recipe is deleted; Title stays.
+// Entry is a recipe copied onto a list. RecipeID, RecipeSlug and the cover
+// fields are nil once the recipe is deleted; Title stays. CoverWidth,
+// CoverHeight and CoverFocus are the cover's pixel size and focus point.
 type Entry struct {
-	ID           string  `json:"id"`
-	RecipeID     *string `json:"recipeId" nullable:"true"`
-	RecipeSlug   *string `json:"recipeSlug" nullable:"true"`
-	CoverImageID *string `json:"coverImageId" nullable:"true"`
-	Title        string  `json:"title"`
-	BaseServings int     `json:"baseServings"`
-	Servings     int     `json:"servings"`
+	ID           string                           `json:"id"`
+	RecipeID     *string                          `json:"recipeId" nullable:"true"`
+	RecipeSlug   *string                          `json:"recipeSlug" nullable:"true"`
+	CoverImageID *string                          `json:"coverImageId" nullable:"true"`
+	CoverWidth   *int                             `json:"coverWidth" nullable:"true"`
+	CoverHeight  *int                             `json:"coverHeight" nullable:"true"`
+	CoverFocus   recipe.OrNull[recipe.ImageFocus] `json:"coverFocus"`
+	Title        string                           `json:"title"`
+	BaseServings int                              `json:"baseServings"`
+	Servings     int                              `json:"servings"`
 	// PlanDay is set when the entry came from a meal plan's day; nil for an
 	// entry on the plan's tray or added by hand.
 	PlanDay *string `json:"planDay" nullable:"true"`
