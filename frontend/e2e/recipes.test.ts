@@ -1107,6 +1107,35 @@ test('one card per row on a phone shows the desktop card, and stays', async ({
 	await expect.poll(() => columnCount(page)).toBe(1);
 });
 
+// A size change glides document-wide, and a running view transition took
+// every click on the page for its length: the next size, clicked during
+// the glide, did nothing. Clicked by the mouse at the spot, since
+// Playwright's own click waits until the radio would receive it.
+test('the card size takes clicks in quick succession', async ({ page, isMobile }) => {
+	test.skip(isMobile, 'the same control on a phone has two options');
+	const token = uniqueToken();
+	for (const i of [1, 2, 3, 4, 5, 6]) {
+		await createRecipe(page, { ...loadFixture(i), title: `Quick ${i} ${token}` });
+	}
+	await page.setViewportSize({ width: 1440, height: 900 });
+	await page.goto(`/?q=${token}`);
+	await expect(cards(page)).toHaveCount(6);
+	await columnCount(page);
+
+	for (const size of ['Small cards', 'Large cards', 'Medium cards', 'Large cards']) {
+		const radio = page.getByRole('radio', { name: size });
+		const box = (await radio.boundingBox())!;
+		await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
+		// Taken at once, while the one before still glides.
+		await expect(radio, size).toBeChecked({ timeout: 150 });
+	}
+	// The last one cut the one before short and glides on its own.
+	expect(await page.evaluate(() => 'cardTransition' in document.documentElement.dataset)).toBe(
+		true
+	);
+	await expect.poll(() => columnCount(page)).toBe(3);
+});
+
 test('the card size answers to the arrow keys', async ({ page, isMobile }) => {
 	test.skip(isMobile, 'the same control on a phone has two options');
 	const token = uniqueToken();

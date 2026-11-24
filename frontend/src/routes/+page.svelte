@@ -1021,8 +1021,9 @@
 	// Whether a list has been shown yet: the first one arrives without a
 	// glide, as nothing moves on page load.
 	let listed = false;
-	// Set while a glide runs: a second one started in it would cut it off.
-	let gliding = false;
+	// The glide under way: a second one started in it would cut it off, so
+	// it switches at once, unless a click ends this one first (`takeClick`).
+	let running: { transition: ViewTransition; scope: HTMLElement; end: () => void } | undefined;
 	let results: HTMLElement | undefined;
 
 	/**
@@ -1081,7 +1082,7 @@
 		const animate =
 			'startViewTransition' in document &&
 			!prefersReducedMotion.current &&
-			!gliding &&
+			!running &&
 			!('pageTransition' in root.dataset) &&
 			!('themeTransition' in root.dataset);
 		const named = animate ? before.filter(onScreen) : [];
@@ -1119,7 +1120,6 @@
 			await update();
 			return;
 		}
-		gliding = true;
 		// Scoped to the results where the browser can: a transition takes
 		// every click inside its scope for its length (the hit lands on the
 		// scope, and `pointer-events: none` on the pseudo-elements does not
@@ -1167,18 +1167,48 @@
 		const transition = scoped
 			? (scoped as unknown as Pick<Document, 'startViewTransition'>).startViewTransition(update)
 			: document.startViewTransition(update);
+		const end = () => {
+			if (running?.transition !== transition) {
+				return;
+			}
+			running = undefined;
+			delete marked.dataset.cardTransition;
+			named.forEach(unname);
+			layers.forEach((el) => {
+				el.style.removeProperty('view-transition-name');
+				el.style.removeProperty('view-transition-class');
+			});
+		};
+		running = { transition, scope: marked, end };
 		// A transition the browser aborts (its layout check failed while the
 		// list changed) rejects `ready` as well as `finished`; the list still
 		// updates, only without the glide, so neither is an error.
 		transition.ready.catch(() => {});
 		await transition.finished.catch(() => {});
-		gliding = false;
-		delete marked.dataset.cardTransition;
-		named.forEach(unname);
-		layers.forEach((el) => {
-			el.style.removeProperty('view-transition-name');
-			el.style.removeProperty('view-transition-class');
-		});
+		end();
+	}
+
+	/**
+	 * A running view transition takes every click inside its scope: the hit
+	 * lands on the scope itself (`pointer-events: none` on the pseudo-elements
+	 * does not pass it on), so a size clicked during a size's glide, or a
+	 * pill of the tick row tapped right after "Done", did nothing until the
+	 * glide had ended. Such a click ends the glide where it is and goes on
+	 * to what lies under it, once the glide's update has run, so the newer
+	 * change comes after the older one and glides on its own.
+	 */
+	async function takeClick(event: MouseEvent) {
+		const glide = running;
+		if (!glide || event.target !== glide.scope) {
+			return;
+		}
+		glide.transition.skipTransition();
+		glide.end();
+		await glide.transition.updateCallbackDone.catch(() => {});
+		const hit = document.elementFromPoint(event.clientX, event.clientY);
+		if (hit && hit !== glide.scope) {
+			hit.dispatchEvent(new MouseEvent('click', event));
+		}
 	}
 
 	function handleSort(value: string) {
@@ -1252,7 +1282,7 @@
 </script>
 
 <svelte:head><title>{m.app_name()}</title></svelte:head>
-<svelte:window onkeydown={handleKeydown} />
+<svelte:window onkeydown={handleKeydown} onclick={takeClick} />
 
 <section class="pt-5 md:pt-8">
 	<InstallBanner />
