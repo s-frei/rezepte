@@ -35,6 +35,13 @@ description: "Maintainer-only: release:start, write the notes, release:finish, p
   </Step>
   <Step>
 
+    ### Refresh the docs pictures
+
+    In the release worktree, where Chromium starts: `mise run //docs/user:screenshots`, then `mise run //docs/user:film`. They render every screenshot, the README images, the hero scenes and the product film from this release's code, which the docs publish with. Review and commit them as [Refresh the pictures](/howtos/update-user-docs#refresh-the-pictures) says, as `docs(user): refresh the screenshots and the film`, before the notes. Between releases nothing renders them, so this step is what keeps the published pictures true.
+
+  </Step>
+  <Step>
+
     ### Write the release notes
 
     In the release worktree, turn the draft into the page - usually an agent does, following [Write release notes](/howtos/write-release-notes), and the maintainer reads the result. Update [Roadmap](/roadmap) and any `docs/user/` page the release changes. Commit it together with the stamped `openapi.json`: `docs(changelog): write the vX.Y.Z release notes`.

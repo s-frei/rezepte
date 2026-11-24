@@ -1,31 +1,23 @@
 ---
 title: Keep the user docs in step with the UI
-description: What to edit and regenerate when a UI or API change lands
+description: What to edit when a UI or API change lands, and the docs refresh that renders the pictures before a release
 ---
 
 <Callout type="warn" title="Hard rule">
 
-  **A UI change regenerates the user-docs screenshots that show it in the same commit**, and a UI or API change is not done until the affected page under `docs/user/content/` reflects it. Your own verification screenshots do not count, and a green `screenshots:check` does not prove the PNGs current (see below).
+  **The pictures are refreshed all at once, the prose with every change.** A UI or API change is not done until the affected page under `docs/user/content/` reflects it, in the same commit. The screenshots, the product film and the README images are refreshed together in a [docs refresh](#refresh-the-pictures): in the release worktree before a release, or when the owner asks for one. A feature commit renders only the screenshots it adds ([Add a screenshot](/howtos/add-screenshot)), never the ones it changes. Your own verification screenshots do not count, and a green `screenshots:check` does not prove the PNGs current (see below).
 
 </Callout>
+
+**Why the pictures wait.** The docs go live only with a release (`main` publishes them, see [Release](/howtos/release)), so a screenshot rendered per change shows nobody anything sooner. Every run rewrites PNGs that moved by a pixel and re-records the film, which is never byte-identical twice: about 8 MB of new history per recording. One refresh per release keeps the history and the diffs small.
+
+## Every change
 
 <Steps>
   <Step>
 
     ### Edit the affected page
     Find the page under `docs/user/content/` (its sections are in [Documentation sites](/architecture/docs#sections)) and update its prose the way [Writing the user docs](/conventions/user-docs) says: one owner per fact, nothing the screen already shows. Never edit anything in `content/api/reference/` by hand - see [Regenerate the API reference](/howtos/regenerate-api-reference).
-
-  </Step>
-  <Step>
-
-    ### Regenerate screenshots, where Chromium runs
-    ```bash
-    mise run //docs/user:screenshots -- --grep <names>   # the tests that show the changed page
-    mise run //docs/user:screenshots                     # all of them
-    ```
-    To find the names, grep the specs for the route: `grep -n "/settings/users" docs/user/screenshots/*.spec.ts` gives the tests that open it. `--grep` is a Playwright pattern and matches part of a name, so `login` also catches `first-login`.
-
-    The task rewrites the matching PNGs under `docs/user/public/screenshots/` against a `rezepte --demo` of its own, on the port [Add a screenshot](/howtos/add-screenshot#screenshot_base_url) names, which runs beside `mise run demo`. If Chromium does not start on your machine, leave the existing PNGs untouched and say so in the commit message - see [Documentation sites](/architecture/docs). `mise run //docs/user:screenshots:check` reports drift (compares without updating) when you want to know whether the committed PNGs are stale without regenerating them. A green check does not prove them current: it passes anything under `maxDiffPixelRatio` (1%), and a word added beside a heading on a 1440x900 page stays below that. After a UI change, regenerate every screenshot that shows the changed page rather than trusting the check. The task then repaints the README images (`assets/readme/`) and the hero scenes (`docs/user/public/heroes/`) from the new PNGs, so those can change in the same run.
 
   </Step>
   <Step>
@@ -39,16 +31,47 @@ description: What to edit and regenerate when a UI or API change lands
   </Step>
   <Step>
 
-    ### Review changed PNGs
-    A spec that types into a dialog waits for the dialog's focus before the first `fill`, or a field gets another's text in a picture that looks right at a glance ([Testing](/conventions/testing)).
-
-    Read the changed files under `docs/user/public/screenshots/`, `docs/user/public/heroes/` and `assets/readme/` with the Read tool (agents: this is how you check a screenshot - never a browser extension, see [Verify UI with Playwright](/howtos/verify-ui)) and compare against the design system before committing. The screenshot suite retries a test once (the reason is in `docs/user/playwright.config.ts`) and loses one more often while another worktree's e2e runs, so a PNG can change for no reason of yours - read each diff rather than committing the batch.
+    ### Keep the specs running when you change a screen they click through
+    The screenshot specs and the film (`docs/user/film/demo.spec.ts`: recipe page, editor, cook mode, comments, Pass on, meal plan, a shopping list) find controls by role and name. A change that renames or moves one fixes the spec in the same commit, so the refresh before a release does not stop on it. To see them pass, run the specs that open the screen (`grep -n "/settings/users" docs/user/screenshots/*.spec.ts` names them) with `mise run //docs/user:screenshots -- --grep <names>`, or `mise run //docs/user:film`, then throw the rendered files away: `git restore docs/user/public/screenshots docs/user/public/heroes docs/user/public/film assets/readme` (not all of `public/`, which holds `openapi.json`).
 
   </Step>
   <Step>
 
     ### Commit docs with the feature
-    Stage the changed content page, any regenerated PNGs and everything the reference regenerated under `content/api/reference/` in the same commit as the code change, not a separate docs commit.
+    Stage the changed content page, any new screenshot's PNGs and everything the reference regenerated under `content/api/reference/` in the same commit as the code change, not a separate docs commit.
+
+  </Step>
+</Steps>
+
+## Refresh the pictures
+
+Before every release, in the release worktree ([Release](/howtos/release)), and whenever the owner asks for a docs refresh, where Chromium starts:
+
+<Steps>
+  <Step>
+
+    ### Render everything
+    ```bash
+    mise run //docs/user:screenshots   # every PNG, then the README images and the hero scenes
+    mise run //docs/user:film          # the product film: public/film/demo-light.{mp4,jpg}
+    ```
+    `screenshots` rewrites every PNG under `docs/user/public/screenshots/` against a `rezepte --demo` of its own, on the port [Add a screenshot](/howtos/add-screenshot#screenshot_base_url) names, which runs beside `mise run demo`, then repaints the README images (`assets/readme/`) and the hero scenes (`docs/user/public/heroes/`). `--grep <names>` renders only some, for a new screenshot or a retry; it is a Playwright pattern and matches part of a name, so `login` also catches `first-login`. `film` records the scene in about a minute and encodes the MP4 for the landing page and its poster ([Documentation sites](/architecture/docs#the-product-film)). If Chromium does not start, leave the files untouched and say so.
+
+    `mise run //docs/user:screenshots:check` reports drift without updating. A green check does not prove the PNGs current: it passes anything under `maxDiffPixelRatio` (1%), and a word added beside a heading on a 1440x900 page stays below that.
+
+  </Step>
+  <Step>
+
+    ### Review changed PNGs and the film
+    A spec that types into a dialog waits for the dialog's focus before the first `fill`, or a field gets another's text in a picture that looks right at a glance ([Testing](/conventions/testing)).
+
+    Read the changed files under `docs/user/public/screenshots/`, `docs/user/public/heroes/` and `assets/readme/` with the Read tool (agents: this is how you check a screenshot - never a browser extension, see [Verify UI with Playwright](/howtos/verify-ui)) and compare against the design system before committing. The screenshot suite retries a test once (the reason is in `docs/user/playwright.config.ts`) and loses one more often while another worktree's e2e runs, so a PNG can change for no reason of yours - read each diff rather than committing the batch. Watch the film once: a scene that still runs can still show a toast over a beat or a list scrolled to the wrong place. Check the landing page's tiles too, whose `focus` and `zoom` are tuned to the picture as it was.
+
+  </Step>
+  <Step>
+
+    ### Commit the refresh on its own
+    `docs(user): refresh the screenshots and the film`, holding only the rendered files. Before a release it goes in before the release notes.
 
   </Step>
 </Steps>
