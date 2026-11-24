@@ -29,6 +29,10 @@ Everyone's recipes in one place, on your own server, without a cloud account.
 
 It runs as **one binary** with the web app built in, an SQLite database and your photos in a single data directory: no Node runtime, no database server, no external services.
 
+<p align="center">
+  <img alt="A 30-second film of Rezepte: Shepherd's Pie scaled to eight servings, a step edited with its time picked up as you type, cook mode with a timer, comments with a photo, the recipe passed on as an image, then the week's plan and its shopping list" src="docs/user/public/film/demo-light.gif" width="800">
+</p>
+
 ## Try it
 
 Demo mode fills an empty instance with twelve sample recipes, most of them with AI-generated photos, and a small household with comments, shared shopping lists and meal plans, so you can click through the real app without setting anything up:

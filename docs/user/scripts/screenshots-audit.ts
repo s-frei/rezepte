@@ -1,6 +1,6 @@
 // Cross-checks the places a screenshot name lives:
 //   <Screenshot name="…"/> in content/**/*.mdx, `shot: '…'` in the landing
-//   page's tiles (app/page.tsx), test('…') in screenshots/*.spec.ts, and PNGs
+//   page (app/page.tsx, components/landing-*.tsx), test('…') in screenshots/*.spec.ts, and PNGs
 //   in public/screenshots. A name used in a page without a test fails the
 //   check; missing or unused PNGs are only reported, because PNGs can only be
 //   produced on a machine where Chromium starts.
@@ -21,8 +21,11 @@ for (const f of walk('content', '.mdx')) {
 }
 // The landing page builds its image paths from these names itself, so a
 // renamed test would otherwise leave a broken picture on the front page.
-for (const m of readFileSync('app/page.tsx', 'utf8').matchAll(/\bshot: '([^']+)'/g)) {
-	referenced.set(m[1], [...(referenced.get(m[1]) ?? []), 'app/page.tsx']);
+const landing = ['app/page.tsx', ...readdirSync('components').filter((f) => /^landing-.+\.tsx$/.test(f)).map((f) => path.join('components', f))];
+for (const f of landing) {
+	for (const m of readFileSync(f, 'utf8').matchAll(/\bshot: '([^']+)'/g)) {
+		referenced.set(m[1], [...(referenced.get(m[1]) ?? []), f]);
+	}
 }
 // A test that skips one project (`test.skip(!isMobile(testInfo), …)` for a
 // phone-only screen, `test.skip(isMobile(testInfo), …)` for a desktop-only

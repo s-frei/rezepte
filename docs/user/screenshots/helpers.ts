@@ -13,7 +13,7 @@ export function isMobile(testInfo: TestInfo): boolean {
 }
 
 /**
- * Fixes the clock, keeps the comments unseen, stores the theme
+ * Fixes the clock (or starts it at FIXED_TIME, `runningClock`), keeps the comments unseen, stores the theme
  * matching the project's color scheme (the app reads `rezepte-theme` before
  * first paint and sets `data-theme` on <html>, see frontend/src/app.html)
  * and optionally logs in as the demo admin.
@@ -21,10 +21,13 @@ export function isMobile(testInfo: TestInfo): boolean {
 export async function prepare(
   page: Page,
   testInfo: TestInfo,
-  opts: { login?: boolean } = {},
+  opts: { login?: boolean; runningClock?: boolean } = {},
 ): Promise<void> {
   const theme = testInfo.project.name.endsWith("-dark") ? "dark" : "light";
-  await page.clock.setFixedTime(FIXED_TIME);
+  // A film needs time to pass, so its timers count down on screen: the clock
+  // starts at FIXED_TIME and then runs at real speed.
+  if (opts.runningClock) await page.clock.install({ time: FIXED_TIME });
+  else await page.clock.setFixedTime(FIXED_TIME);
   // Opening a recipe marks its comments seen, which takes the dot off
   // its card. The specs share one demo instance and run in a fixed order, so
   // a detail shot would decide whether a later overview shot has its dots;
@@ -145,4 +148,33 @@ export async function offerInstall(page: Page): Promise<void> {
       );
     });
   });
+}
+
+/**
+ * Lets reads through, answers the visit's own writes (comments seen, timer
+ * alarms) and the editor's Save without the instance, and records any other
+ * write; `done` fails the test if there was one.
+ */
+export async function guard(page: Page) {
+	const writes: string[] = [];
+	const state = { saved: false };
+	await page.route('**/api/v1/**', async (route) => {
+		const req = route.request();
+		const url = new URL(req.url()).pathname;
+		if (req.method() === 'GET') return route.fallback();
+		if (url.endsWith('/comments/seen') || url.includes('/push/alarms')) return route.fulfill({ status: 204 });
+		// Pass on asks for the recipe's link for the picture; the answer is the same every time.
+		if (req.method() === 'POST' && url.endsWith('/share-link')) return route.fallback();
+		if (req.method() === 'PUT' && /^\/api\/v1\/recipes\/[^/]+$/.test(url)) {
+			// Saved without a change, and answered from what is stored, so the recipe's updated time does not move.
+			state.saved = true;
+			return route.fulfill({ response: await route.fetch({ method: 'GET', postData: undefined }) });
+		}
+		writes.push(`${req.method()} ${url}`);
+		return route.fulfill({ status: 500, body: 'this write would change the demo' });
+	});
+	return {
+		state,
+		done: () => expect(writes, 'writes that would change the demo').toEqual([])
+	};
 }

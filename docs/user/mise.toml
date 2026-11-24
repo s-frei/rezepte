@@ -48,6 +48,17 @@ run = [
 # is frozen at.
 env = { RZP_DEMO_MAIL = "off", RZP_DEMO_LOCALE = "en", RZP_DEMO_NOW = "2026-09-17T10:30:00+02:00", RZP_DEMO_INSTANCE_PORT = "{{ env.RZP_SCREENSHOTS_PORT }}", REZEPTE_PUBLIC_URL = "http://localhost:{{ env.RZP_SCREENSHOTS_PORT }}", RZP_DEMO_OIDC = "stub" }
 
+[tasks.film]
+# ffmpeg encodes the film (scripts/film-encode.ts); conda's build carries libx264.
+# A task tool, so check, CI and Pages never download it.
+tools = { "conda:ffmpeg" = "9.1.0" }
+description = "Record the product film against rezepte --demo and encode it into public/film (needs a Chromium that starts; not run in CI)"
+run = [
+	"mise run //:demo -- bunx playwright test -c film/playwright.config.ts",
+	"bun scripts/film-encode.ts",
+]
+env = { RZP_DEMO_MAIL = "off", RZP_DEMO_LOCALE = "en", RZP_DEMO_NOW = "2026-09-17T10:30:00+02:00", RZP_DEMO_INSTANCE_PORT = "{{ env.RZP_SCREENSHOTS_PORT }}", REZEPTE_PUBLIC_URL = "http://localhost:{{ env.RZP_SCREENSHOTS_PORT }}", RZP_DEMO_OIDC = "stub" } # see tasks.screenshots
+
 [tasks."brand-assets"]
 description = "Copy the logo, favicon and social preview into the docs site (public/brand, app/)"
 run = "bun run brand-assets"

@@ -40,6 +40,8 @@ Docker is the one tool in this list not in `[tools]`: nothing else here needs it
 
 `[tools]` pins Go, Bun, golangci-lint, sqlc, watchexec, git-lfs, syft and yq, and `[settings] lockfile = true` keeps a lockfile beside it, so adding a tool is one line and a lockfile update rather than a README instruction. `mise tasks --all` is the only authority on what tasks exist; nothing repeats that list.
 
+`//docs/user:film` pins ffmpeg from conda (the registry's backend whose build carries libx264) as a task-level `tools`, locked in `docs/user/mise.lock`: it encodes only the product film, and a tool in a `[tools]` table would be installed for every task of the config, `check` and the Pages build included.
+
 Git LFS holds the generated originals: the demo photos under `assets/demo-photos/`, the demo avatars and the logo mascot under `assets/brand/mascot/`. `.lfsconfig` keeps every clone, CI included, from downloading the demo photos, and `mise run demo-photos:pull` fetches them when a photo is regenerated. CI checks out no LFS file at all, so `//frontend:brand:check` reads only what `brand:export` generated.
 
 **Node is deliberately not pinned.** Every JavaScript tool here - Next, Vite, svelte-check, ESLint, Prettier, Playwright - ships a `#!/usr/bin/env node` shebang, but Bun puts its own `node` shim in front of them, so the whole build, lint, test and docs-export chain runs on Bun alone and a pinned Node would only be a download CI repeats per job. The Svelte MCP server in `.mcp.json` runs through `bunx` for the same reason. Re-add Node only for a tool that actually breaks under the shim, and say in this paragraph which one.
