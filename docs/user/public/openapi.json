@@ -6302,6 +6302,10 @@
           "id": {
             "type": "string"
           },
+          "later": {
+            "format": "int64",
+            "type": "integer"
+          },
           "lists": {
             "items": {
               "$ref": "#/components/schemas/LinkedList"
@@ -6325,6 +6329,9 @@
               "string",
               "null"
             ]
+          },
+          "next": {
+            "$ref": "#/components/schemas/WeekEntry"
           },
           "owner": {
             "$ref": "#/components/schemas/ListPerson"
@@ -6358,6 +6365,7 @@
           "unlisted",
           "lists",
           "tray",
+          "later",
           "pending",
           "id",
           "name",
@@ -8640,7 +8648,7 @@
     },
     "/api/v1/meal-plans/week": {
       "get": {
-        "description": "The plans as list-meal-plans orders them, each with the entries on the days of the range, the lists the caller can access that they and the tray are on, and how many recipe entries are on none; and the pending invitations. One request for the plans page, however many plans. Left out, the range is the current week in the server's time zone, so a client passes its own; it passes its today too, since unlisted leaves out the days before it.",
+        "description": "The plans as list-meal-plans orders them, each with the entries on the days of the range, the lists the caller can access that they and the tray are on, and how many recipe entries are on none; and the pending invitations. One request for the plans page, however many plans. Left out, the range is the current week in the server's time zone, so a client passes its own; it passes its today too, since unlisted leaves out the days before it. Each plan also says how many entries lie on a day after the range (later) and which comes first (next), so an empty week can say what comes later.",
         "operationId": "meal-plans-week",
         "parameters": [
           {

@@ -12,11 +12,10 @@
 	import PlanCard from '#lib/components/mealplan/PlanCard.svelte';
 	import PlaceSwitch from '#lib/components/shell/PlaceSwitch.svelte';
 	import InvitationCard from '#lib/components/shopping/InvitationCard.svelte';
-	import PeopleStack from '#lib/components/shopping/PeopleStack.svelte';
 	import Button from '#lib/components/ui/Button.svelte';
 	import { holdKeyboard } from '#lib/keyboard.js';
 	import { planHref } from '#lib/mealplan/href.js';
-	import { arrival, byUse, isIdle } from '#lib/mealplan/overview.svelte.js';
+	import { arrival, byUse } from '#lib/mealplan/overview.svelte.js';
 	import { mondayOf, weekDays } from '#lib/mealplan/week.js';
 	import { m } from '#lib/paraglide/messages.js';
 	import { rememberPlan, shell } from '#lib/shell.svelte.js';
@@ -30,14 +29,11 @@
 		if (data.signedOut) void redirectSignedOut();
 	});
 
-	// Each section: cards for the plans with something this week, chips for
-	// the idle ones.
-	const split = (plans: WeekPlan[]) => {
-		const sorted = [...plans].sort(byUse);
-		return { full: sorted.filter((p) => !isIdle(p)), idle: sorted.filter(isIdle) };
-	};
-	const mine = $derived(split(data.plans.filter((p) => p.owner.id === session.user?.id)));
-	const shared = $derived(split(data.plans.filter((p) => p.owner.id !== session.user?.id)));
+	// Each section: a card per plan, the ones in use first. A plan empty
+	// this week stays a card, so it is found where the others are.
+	const sorted = (plans: WeekPlan[]) => [...plans].sort(byUse);
+	const mine = $derived(sorted(data.plans.filter((p) => p.owner.id === session.user?.id)));
+	const shared = $derived(sorted(data.plans.filter((p) => p.owner.id !== session.user?.id)));
 	// Only "My plan": a light nudge to plan together.
 	const alone = $derived(data.plans.length === 1 && data.invitations.length === 0);
 
@@ -170,7 +166,7 @@
 	{/if}
 
 	{#each [{ title: m.plans_mine(), plans: mine }, { title: m.plan_group_shared(), plans: shared }] as section, s (section.title)}
-		{@const count = section.plans.full.length + section.plans.idle.length}
+		{@const count = section.plans.length}
 		{#if count > 0}
 			<div
 				class="{s === 0 && invited.length === 0 ? 'mt-2' : 'mt-8'} mb-3.5 flex items-center gap-3"
@@ -186,12 +182,12 @@
 				<span aria-hidden="true" class="min-w-6 flex-1 border-b-2 border-dotted border-handle"
 				></span>
 			</div>
-			{#if section.plans.full.length > 0 || (s === 0 && alone)}
+			{#if section.plans.length > 0 || (s === 0 && alone)}
 				<!-- The lists' grid; each card's five parts are rows of it (subgrid), so
 				     strips, today lines and feet line up across a row and no card
 				     stretches into an empty block. -->
 				<div class="grid grid-cols-[repeat(auto-fill,minmax(min(100%,320px),1fr))] gap-4">
-					{#each section.plans.full as plan (plan.id)}
+					{#each section.plans as plan (plan.id)}
 						<PlanCard {plan} today={data.today} />
 					{/each}
 					{#if s === 0 && alone}
@@ -216,36 +212,6 @@
 						</div>
 					{/if}
 				</div>
-			{/if}
-			{#if section.plans.idle.length > 0}
-				<!-- Plans with nothing this week: a band of chips, one name each. -->
-				{@const labelId = `plans-idle-${s}`}
-				<p
-					id={labelId}
-					class="mb-2.5 text-caption font-semibold text-text-muted {section.plans.full.length > 0 ||
-					(s === 0 && alone)
-						? 'mt-5'
-						: ''}"
-				>
-					{m.plans_idle()}
-				</p>
-				<ul aria-labelledby={labelId} class="flex flex-wrap gap-2">
-					{#each section.plans.idle as plan (plan.id)}
-						{@const people = [plan.owner, ...plan.members]}
-						<li class="flex max-w-full min-w-0">
-							<a
-								href={planHref(plan.id)}
-								class="inline-flex min-h-11 max-w-full min-w-0 items-center gap-2.5 rounded-pill bg-surface py-1.5 pl-4 font-display text-body font-medium shadow-card transition-[translate,box-shadow,color] duration-160 ease-out hover:text-primary hover:shadow-lift focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary motion-safe:hover:-translate-y-0.5 {people.length >
-								1
-									? 'pr-1.5'
-									: 'pr-4'}"
-							>
-								<span class="min-w-0 wrap-break-word hyphens-auto">{plan.name}</span>
-								{#if people.length > 1}<PeopleStack {people} />{/if}
-							</a>
-						</li>
-					{/each}
-				</ul>
 			{/if}
 		{/if}
 	{/each}

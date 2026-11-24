@@ -96,6 +96,10 @@ export type WeekPlan = PlanSummary & {
 	lists: LinkedList[];
 	/** Entries on the tray. */
 	tray: number;
+	/** Entries on a day after the range. */
+	later: number;
+	/** The first of them, by day and position; absent when none. */
+	next?: WeekEntry;
 	/** Invitees still waiting; empty unless the reader made the plan. */
 	pending: ListPerson[];
 };

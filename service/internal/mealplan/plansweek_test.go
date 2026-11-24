@@ -141,6 +141,62 @@ func TestPlansWeekSummarizesEachPlansWeek(t *testing.T) {
 
 func sameDay(a, b *string) bool { return a == nil && b == nil || a != nil && b != nil && *a == *b }
 
+// A plan's days after the span still reach the plans page: how many there
+// are and the first, so a week left empty can say what comes later. The
+// tray, removed entries and days before the span do not count.
+func TestPlansWeekCountsWhatComesLater(t *testing.T) {
+	ctx := context.Background()
+	e := setup(t)
+	house := e.shared(t)
+	dal := e.dal(t)
+	e.add(t, house, ptr("2026-11-09"), "Letzte Woche")
+	e.add(t, house, nil, "Ohne Tag")
+	e.add(t, house, ptr("2026-11-26"), "Pizza")
+	next, err := e.svc.Add(ctx, e.a.ID, house, "2026-11-23", "2026-11-29", mealplan.AddEntry{Day: ptr("2026-11-23"), Title: ptr("Weg")})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var gone string
+	for _, en := range next.Entries {
+		if en.Title == "Weg" {
+			gone = en.ID
+		}
+	}
+	if _, err := e.svc.Add(ctx, e.a.ID, house, mon, sun, mealplan.AddEntry{Day: ptr("2026-11-24"), RecipeID: &dal.ID}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := e.svc.Remove(ctx, e.a.ID, house, gone, "2026-11-23", "2026-11-29"); err != nil {
+		t.Fatal(err)
+	}
+
+	plans, _, err := e.svc.PlansWeek(ctx, e.a.ID, mon, sun)
+	if err != nil {
+		t.Fatal(err)
+	}
+	found := false
+	for _, p := range plans {
+		if p.ID != house {
+			if p.Next != nil || p.Later != 0 {
+				t.Errorf("empty plan: next = %+v, later = %d, want none", p.Next, p.Later)
+			}
+			continue
+		}
+		found = true
+		if p.Later != 2 {
+			t.Errorf("later = %d, want 2", p.Later)
+		}
+		if p.Next == nil || p.Next.Day != "2026-11-24" || p.Next.Kind != "recipe" || p.Next.RecipeID == nil || *p.Next.RecipeID != dal.ID {
+			t.Errorf("next = %+v, want the dal on 2026-11-24", p.Next)
+		}
+		if len(p.Entries) != 0 {
+			t.Errorf("entries = %+v, want none this week", p.Entries)
+		}
+	}
+	if !found {
+		t.Fatal("the household is missing from the week")
+	}
+}
+
 // One entry's preview ignores the range: a day entry and a tray entry each
 // come back alone, a free text is refused.
 func TestPreviewOne(t *testing.T) {

@@ -119,6 +119,11 @@ type WeekPlan struct {
 	Lists []LinkedList `json:"lists"`
 	// Tray counts the entries on the tray.
 	Tray int `json:"tray"`
+	// Later counts the entries on a day after the span.
+	Later int `json:"later"`
+	// Next is the first entry on a day after the span, by day and position;
+	// absent when none.
+	Next *WeekEntry `json:"next,omitempty"`
 	// Pending are invitees still waiting and is empty unless the caller is
 	// the creator, as Plan.Pending.
 	Pending []Person `json:"pending"`

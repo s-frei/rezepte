@@ -14,13 +14,6 @@ export function byUse(a: WeekPlan, b: WeekPlan): number {
 	);
 }
 
-/**
- * A named plan with nothing this week, on a day or on the tray: a chip in
- * the "empty this week" band, not a card. "My plan" is always a card.
- */
-export const isIdle = (plan: WeekPlan): boolean =>
-	!plan.personal && plan.entries.length === 0 && plan.tray === 0;
-
 /** What a strip cell shows: a photo, a recipe's letter (also a deleted recipe's), a note's pencil. */
 export type CellKind = 'photo' | 'letter' | 'note';
 

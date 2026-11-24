@@ -263,7 +263,7 @@ func Register(api huma.API, svc *Service) {
 		})
 
 	plansWeek := reader(op("meal-plans-week", http.MethodGet, "/api/v1/meal-plans/week", "Every plan of the caller's with a week of it", http.StatusOK, 422))
-	plansWeek.Description = "The plans as list-meal-plans orders them, each with the entries on the days of the range, the lists the caller can access that they and the tray are on, and how many recipe entries are on none; and the pending invitations. One request for the plans page, however many plans. Left out, the range is the current week in the server's time zone, so a client passes its own; it passes its today too, since unlisted leaves out the days before it."
+	plansWeek.Description = "The plans as list-meal-plans orders them, each with the entries on the days of the range, the lists the caller can access that they and the tray are on, and how many recipe entries are on none; and the pending invitations. One request for the plans page, however many plans. Left out, the range is the current week in the server's time zone, so a client passes its own; it passes its today too, since unlisted leaves out the days before it. Each plan also says how many entries lie on a day after the range (later) and which comes first (next), so an empty week can say what comes later."
 	huma.Register(api, plansWeek, func(ctx context.Context, in *Range) (*weekOut, error) {
 		uid, err := auth.CurrentUserID(ctx)
 		if err != nil {

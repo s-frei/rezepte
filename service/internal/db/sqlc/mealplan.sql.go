@@ -727,6 +727,74 @@ func (q *Queries) ListMealPlanInvitations(ctx context.Context, userID string) ([
 	return items, nil
 }
 
+const listMealPlanLaterEntries = `-- name: ListMealPlanLaterEntries :many
+SELECT e.plan_id, e.id, e.day, e.recipe_id, e.title, e.servings, r.cover_image_id,
+       ci.width AS photo_width, ci.height AS photo_height, ci.focus_x AS photo_focus_x, ci.focus_y AS photo_focus_y
+FROM meal_plan_entries e
+JOIN meal_plans p ON p.id = e.plan_id
+LEFT JOIN recipes r ON r.id = e.recipe_id
+LEFT JOIN images ci ON ci.id = r.cover_image_id
+WHERE e.removed_at IS NULL
+  AND e.day > ?1
+  AND (p.created_by = ?2 OR EXISTS (SELECT 1 FROM meal_plan_members m WHERE m.plan_id = p.id AND m.user_id = ?2 AND m.accepted_at IS NOT NULL))
+ORDER BY e.plan_id, e.day, e.position, e.created_at, e.id
+`
+
+type ListMealPlanLaterEntriesParams struct {
+	ToDay  *string
+	UserID string
+}
+
+type ListMealPlanLaterEntriesRow struct {
+	PlanID       string
+	ID           string
+	Day          *string
+	RecipeID     *string
+	Title        string
+	Servings     *int64
+	CoverImageID *string
+	PhotoWidth   *int64
+	PhotoHeight  *int64
+	PhotoFocusX  *float64
+	PhotoFocusY  *float64
+}
+
+// The dated entries after the span, for each plan's count and first one.
+func (q *Queries) ListMealPlanLaterEntries(ctx context.Context, arg ListMealPlanLaterEntriesParams) ([]ListMealPlanLaterEntriesRow, error) {
+	rows, err := q.db.QueryContext(ctx, listMealPlanLaterEntries, arg.ToDay, arg.UserID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListMealPlanLaterEntriesRow{}
+	for rows.Next() {
+		var i ListMealPlanLaterEntriesRow
+		if err := rows.Scan(
+			&i.PlanID,
+			&i.ID,
+			&i.Day,
+			&i.RecipeID,
+			&i.Title,
+			&i.Servings,
+			&i.CoverImageID,
+			&i.PhotoWidth,
+			&i.PhotoHeight,
+			&i.PhotoFocusX,
+			&i.PhotoFocusY,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listMealPlanMembers = `-- name: ListMealPlanMembers :many
 SELECT m.plan_id, m.user_id, m.accepted_at, u.display_name, u.color, u.avatar_id
 FROM meal_plan_members m

@@ -598,24 +598,37 @@ test('the overview opens a plan, and the way back leads to it', async ({ page })
 	await loginFresh(page);
 	const idle = `Idle ${uniqueToken()}`;
 	const busy = `Busy ${uniqueToken()}`;
-	await namedPlan(page, idle);
+	const idleId = await namedPlan(page, idle);
 	const busyId = await namedPlan(page, busy);
 	const added = await page.request.post(`/api/v1/meal-plans/${busyId}/entries`, {
 		data: { day: today(), title: 'Pizza bestellen' }
 	});
 	expect(added.ok()).toBe(true);
+	// Two weeks on: never this week, whatever day the test runs.
+	const later = new Date(Date.now() + 14 * 864e5).toLocaleDateString('sv');
+	const planned = await page.request.post(`/api/v1/meal-plans/${idleId}/entries`, {
+		data: { day: later, title: 'Raclette' }
+	});
+	expect(planned.ok()).toBe(true);
 	await page.goto('/plans');
 
-	// My plan first, then the plan with meals this week; the idle one is a chip.
+	// Every plan a card: my plan first, then the plan with meals this week,
+	// then the one empty this week, which names what comes later.
 	await expect(page.getByRole('article').getByRole('heading', { level: 3 })).toHaveText([
 		'My plan',
-		busy
+		busy,
+		idle
 	]);
 	const card = page.getByRole('article', { name: busy });
 	await expect(card.getByText('1 meal', { exact: true })).toBeVisible();
 	await expect(card.getByRole('list', { name: 'This week' }).getByRole('listitem')).toHaveCount(7);
-	const chips = page.getByRole('list', { name: 'Empty this week' });
-	await expect(chips.getByRole('link')).toHaveText([idle]);
+	const quiet = page.getByRole('article', { name: idle });
+	await expect(quiet.getByText('Empty this week · 1 planned later')).toBeVisible();
+	await quiet.getByRole('link', { name: /^Next: Raclette, / }).click();
+	// The plan opens on that week (it drops `day` and `entry` once shown).
+	await expect(page).toHaveURL(new RegExp(`/plans/${idleId}\\?from=\\d{4}-\\d{2}-\\d{2}`));
+	await expect(page.getByRole('main').getByText('Raclette')).toBeVisible();
+	await page.goto('/plans');
 
 	await card.getByRole('link', { name: busy }).click();
 	await expect(page).toHaveURL(new RegExp(`/plans/${busyId}$`));
@@ -1744,7 +1757,7 @@ test('plans a recipe from its page for Wednesday at 6 servings', async ({ page, 
 /** The shown plan's name, the plan page's h1. */
 const planTitle = (page: Page) => page.getByRole('main').getByRole('heading', { level: 1 });
 
-/** A plan's card or chip on the overview, by the link that opens it. */
+/** A plan's card on the overview, by the link that opens it. */
 const planLink = (page: Page, name: string) =>
 	page.getByRole('main').getByRole('link', { name: new RegExp(`^${name}`) });
 

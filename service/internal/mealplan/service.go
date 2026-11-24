@@ -307,7 +307,8 @@ func rankLists(perEntry [][]LinkedList) []LinkedList {
 // PlansWeek returns the caller's plans as Plans orders them, each with its
 // entries from from to to (inclusive, at most 62 days apart) and the lists
 // those and the tray are on, and the pending invitations: the plans page in
-// two queries more than Plans, however many plans there are.
+// three queries more than Plans, however many plans there are; and how
+// many entries come after the span, and the first of them.
 func (s *Service) PlansWeek(ctx context.Context, userID, from, to string) ([]WeekPlan, []PlanInvitation, error) {
 	if err := checkRange(from, to); err != nil {
 		return nil, nil, err
@@ -323,6 +324,12 @@ func (s *Service) PlansWeek(ctx context.Context, userID, from, to string) ([]Wee
 	links, err := s.q.ListMealPlanWeekEntryLists(ctx, sqlc.ListMealPlanWeekEntryListsParams{UserID: userID, FromDay: &from, ToDay: &to})
 	if err != nil {
 		return nil, nil, fmt.Errorf("list meal plan week entry lists: %w", err)
+	}
+	// ponytail: reads every later entry to count them and take the first; a
+	// COUNT plus the first row per plan in SQL if plans grow long futures.
+	later, err := s.q.ListMealPlanLaterEntries(ctx, sqlc.ListMealPlanLaterEntriesParams{UserID: userID, ToDay: &to})
+	if err != nil {
+		return nil, nil, fmt.Errorf("list meal plan later entries: %w", err)
 	}
 	byEntry := map[string][]LinkedList{}
 	for _, l := range links {
@@ -351,19 +358,36 @@ func (s *Service) PlansWeek(ctx context.Context, userID, from, to string) ([]Wee
 			w.Tray++
 			continue
 		}
-		kind := "text"
-		if r.Servings != nil {
-			kind = "recipe"
-		}
 		w.Entries = append(w.Entries, WeekEntry{
-			ID: r.ID, Day: *r.Day, Kind: kind, RecipeID: r.RecipeID, Title: r.Title, Photo: r.CoverImageID,
+			ID: r.ID, Day: *r.Day, Kind: entryKind(r.Servings), RecipeID: r.RecipeID, Title: r.Title, Photo: r.CoverImageID,
 			PhotoWidth: db.Conv[int](r.PhotoWidth), PhotoHeight: db.Conv[int](r.PhotoHeight), PhotoFocus: recipe.FocusOf(r.PhotoFocusX, r.PhotoFocusY),
 		})
+	}
+	for _, r := range later {
+		w := byPlan[r.PlanID]
+		if w == nil || r.Day == nil {
+			continue
+		}
+		w.Later++
+		if w.Next == nil {
+			w.Next = &WeekEntry{
+				ID: r.ID, Day: *r.Day, Kind: entryKind(r.Servings), RecipeID: r.RecipeID, Title: r.Title, Photo: r.CoverImageID,
+				PhotoWidth: db.Conv[int](r.PhotoWidth), PhotoHeight: db.Conv[int](r.PhotoHeight), PhotoFocus: recipe.FocusOf(r.PhotoFocusX, r.PhotoFocusY),
+			}
+		}
 	}
 	for i := range out {
 		out[i].Lists = rankLists(perEntry[out[i].ID])
 	}
 	return out, invitations, nil
+}
+
+// entryKind is a WeekEntry's kind: a recipe has servings, a free text none.
+func entryKind(servings *int64) string {
+	if servings != nil {
+		return "recipe"
+	}
+	return "text"
 }
 
 // planMembers returns the accepted members of the plans by plan id, and the

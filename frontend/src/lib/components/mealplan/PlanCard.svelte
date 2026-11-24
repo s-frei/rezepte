@@ -51,16 +51,23 @@
 						: ''
 	);
 	const meals = $derived(plan.entries.length);
+	// Nothing this week, on a day or the tray, but a meal later: the card
+	// says so and names the next one, so the plan does not look dead.
+	const next = $derived(meals === 0 && plan.tray === 0 ? plan.next : undefined);
 	// State first, then who shares it, as a list card leads with its counts.
 	const meta = $derived(
 		[
-			meals > 1
-				? m.plans_card_meals({ count: meals })
-				: meals === 1
-					? m.plans_card_meals_one()
-					: plan.tray > 0
-						? m.plans_card_tray({ count: plan.tray })
-						: m.plans_card_week_none(),
+			next
+				? plan.later > 1
+					? m.plans_card_week_empty_later({ count: plan.later })
+					: m.plans_card_week_empty_later_one()
+				: meals > 1
+					? m.plans_card_meals({ count: meals })
+					: meals === 1
+						? m.plans_card_meals_one()
+						: plan.tray > 0
+							? m.plans_card_tray({ count: plan.tray })
+							: m.plans_card_week_none(),
 			who
 		]
 			.filter(Boolean)
@@ -148,8 +155,12 @@
 		<p class="mt-0.5 truncate text-caption text-text-muted">{meta}</p>
 	</div>
 
-	<!-- This week at a glance: one cell per day. -->
-	<ol class="mt-3.5 grid grid-cols-7 gap-2 self-start md:gap-1.5" aria-label={m.week_this()}>
+	<!-- This week at a glance: one cell per day. A picture of the week, not a
+	     target: taps pass through to the card's link (and its pointer). -->
+	<ol
+		class="pointer-events-none mt-3.5 grid grid-cols-7 gap-2 self-start md:gap-1.5"
+		aria-label={m.week_this()}
+	>
 		{#each strip as cell (cell.day)}
 			{@const dn = dayNames(cell.day, locale)}
 			{@const isToday = cell.when === 'today'}
@@ -197,8 +208,24 @@
 		{/each}
 	</ol>
 
-	<!-- Today, a tap away: the plan opens on today; an empty today offers to plan it. -->
-	{#if now.length > 0}
+	<!-- Today, a tap away: the plan opens on today; an empty today offers to plan
+	     it. An empty week with a meal later names that meal and opens its day. -->
+	{#if next}
+		{@const dn = dayNames(next.day, locale)}
+		<a
+			href={planHref(plan.id, mondayOf(next.day), { day: next.day, entry: next.id })}
+			aria-label={m.plans_card_next_label({ title: next.title, day: dn.full })}
+			class="relative z-10 mt-3 flex max-w-full min-w-0 items-center gap-2.5 self-start justify-self-start rounded-md text-body-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary max-md:after:absolute max-md:after:inset-x-0 max-md:after:-inset-y-3 [&:hover_.title]:underline"
+		>
+			<span aria-hidden="true" class="block size-7 shrink-0 overflow-hidden rounded-md"
+				>{@render thumb(next)}</span
+			>
+			<span class="shrink-0 font-semibold whitespace-nowrap text-primary"
+				>{dn.weekday} {dn.date}</span
+			>
+			<span class="title min-w-0 truncate font-semibold text-text">{next.title}</span>
+		</a>
+	{:else if now.length > 0}
 		<a
 			href="{href}#today"
 			aria-label={now.length > 1

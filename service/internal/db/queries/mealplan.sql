@@ -234,6 +234,19 @@ WHERE e.removed_at IS NULL
   AND (p.created_by = sqlc.arg(user_id) OR EXISTS (SELECT 1 FROM meal_plan_members m WHERE m.plan_id = p.id AND m.user_id = sqlc.arg(user_id) AND m.accepted_at IS NOT NULL))
 ORDER BY e.plan_id, e.day NULLS FIRST, e.position, e.created_at, e.id;
 
+-- The dated entries after the span, for each plan's count and first one.
+-- name: ListMealPlanLaterEntries :many
+SELECT e.plan_id, e.id, e.day, e.recipe_id, e.title, e.servings, r.cover_image_id,
+       ci.width AS photo_width, ci.height AS photo_height, ci.focus_x AS photo_focus_x, ci.focus_y AS photo_focus_y
+FROM meal_plan_entries e
+JOIN meal_plans p ON p.id = e.plan_id
+LEFT JOIN recipes r ON r.id = e.recipe_id
+LEFT JOIN images ci ON ci.id = r.cover_image_id
+WHERE e.removed_at IS NULL
+  AND e.day > sqlc.arg(to_day)
+  AND (p.created_by = sqlc.arg(user_id) OR EXISTS (SELECT 1 FROM meal_plan_members m WHERE m.plan_id = p.id AND m.user_id = sqlc.arg(user_id) AND m.accepted_at IS NOT NULL))
+ORDER BY e.plan_id, e.day, e.position, e.created_at, e.id;
+
 -- ListMealPlanEntryLists for the entries ListMealPlanWeekEntries returns.
 -- name: ListMealPlanWeekEntryLists :many
 SELECT se.plan_entry_id, l.id AS list_id, l.name AS list_name,

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { WeekEntry, WeekPlan } from '#lib/api/mealplan.js';
-import { byUse, cellKind, isIdle, weekStrip } from './overview.svelte';
+import { byUse, cellKind, weekStrip } from './overview.svelte';
 
 const person = { id: 'u', displayName: 'U', color: 'sage', avatarId: null };
 
@@ -16,6 +16,7 @@ function plan(id: string, meals: number, updatedAt: string, personal = false, tr
 		unlisted: 0,
 		lists: [],
 		tray,
+		later: 0,
 		pending: []
 	};
 }
@@ -51,13 +52,6 @@ describe('plans overview', () => {
 			'idle-new',
 			'idle-old'
 		]);
-	});
-
-	it('makes a named plan with nothing this week, not even on the tray, a chip; never my plan', () => {
-		expect(isIdle(plan('idle', 0, ''))).toBe(true);
-		expect(isIdle(plan('busy', 1, ''))).toBe(false);
-		expect(isIdle(plan('tray', 0, '', false, 2))).toBe(false);
-		expect(isIdle(plan('mine', 0, '', true))).toBe(false);
 	});
 
 	it('lays the week out as seven days around today', () => {
