@@ -175,12 +175,15 @@
 	</div>
 {:else}
 	<div>
+		<!-- `grid-rows-[100%]`: the implicit row is `auto`, which grows to the
+		     picture's own height, and a portrait photo then showed its top
+		     instead of being cropped around its center. -->
 		<button
 			type="button"
 			onclick={() => onopen(active)}
 			data-cover
 			aria-label={m.images_open({ number: active + 1, count: images.length })}
-			class="grid aspect-[4/3] w-full overflow-hidden rounded-3xl shadow-cover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+			class="grid aspect-[4/3] w-full grid-rows-[100%] overflow-hidden rounded-3xl shadow-cover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
 		>
 			<!-- One grid cell: the incoming picture lies over the outgoing one. -->
 			{#key shown.id}

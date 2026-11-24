@@ -14,6 +14,7 @@ Recipes carry photos: a cover on the card, a gallery on the detail page and a li
 - The phone carousel must never get the browser's horizontal pan back: Chrome's fling skips photos on a hard flick, `scroll-snap-stop: always` or not ([Gallery and lightbox](#gallery-and-lightbox)).
 - A huma schema name is global: two exported types named `List` panic at registration ([The cover](#the-cover-and-step-links)).
 - Any new multipart endpoint needs both `MaxBodyBytes` and `LimitUpload` ([Limits](#limits)).
+- The desktop cover's grid needs `grid-rows-[100%]`: its implicit `auto` row grows to the picture's height, so a portrait photo showed its top instead of being cropped around its center, and `object-position` had no effect.
 
 </Callout>
 

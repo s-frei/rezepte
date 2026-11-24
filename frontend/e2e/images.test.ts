@@ -42,6 +42,24 @@ test('shows the cover on the card and the detail page', async ({ page }) => {
 	).toHaveAttribute('src', `/images/${recipe.id}/${cover.id}/detail.jpg`);
 });
 
+test('the desktop cover holds a portrait photo in its own box', async ({ page }, testInfo) => {
+	test.skip(testInfo.project.name !== 'desktop', 'the 4:3 cover is the desktop layout');
+	const recipe = await createRecipe(page, {
+		...loadFixture(0),
+		title: `Portrait ${uniqueToken()}`
+	});
+	await uploadImage(page, recipe.id, tinyPng([40, 120, 200], 96, 128));
+
+	await page.goto(`/recipes/${recipe.slug}`);
+	const cover = page.locator('button[data-cover]');
+	const photo = cover.locator('img');
+	await expect(photo).toBeVisible();
+	// The image is as tall as its 4:3 box, so object-fit crops it around its
+	// center; grown to the photo's own height it showed only the top.
+	const [box, img] = await Promise.all([cover.boundingBox(), photo.boundingBox()]);
+	expect(Math.abs(img!.height - box!.height)).toBeLessThanOrEqual(1);
+});
+
 test('opens the lightbox and walks through the images', async ({ page }) => {
 	const token = uniqueToken();
 	const recipe = await createRecipe(page, { ...loadFixture(1), title: `Gallery ${token}` });
