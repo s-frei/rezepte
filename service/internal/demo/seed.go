@@ -329,6 +329,11 @@ func Seed(ctx context.Context, conn *sql.DB, imageDir, owner string, members []u
 			if err := linkSamplePhoto(ctx, recipes, a, r, uploaded); err != nil {
 				return sum, err
 			}
+			if f, ok := sampleFocus[r.Slug]; ok {
+				if _, err := images.SetFocus(ctx, r.ID, uploaded[0].ID, a, f); err != nil {
+					return sum, fmt.Errorf("set cover focus of %q: %w", r.Title, err)
+				}
+			}
 		} else if i < imagedRecipes {
 			data, err := Placeholder(i, r.Title)
 			if err != nil {
@@ -355,6 +360,16 @@ var samplePhotoLinks = map[string]struct {
 }{
 	"kaesespaetzle": {1, "vom Brett ins kochende Salzwasser schaben", 2},
 	"sausage-rolls": {3, "brush the tops with the remaining egg", 2},
+}
+
+// sampleFocus is the cover focus of the samples whose upright cover has its
+// dish low in the frame, by slug, so the recipe page and the plan's squares
+// show the dish rather than the table. Set under the same clock as the
+// uploads, it is part of writing the sample. The other upright covers stay
+// centered, for someone to try the focus dialog on.
+var sampleFocus = map[string]recipe.ImageFocus{
+	"kartoffelpuffer-mit-apfelmus": {X: 0.5, Y: 0.63},
+	"sticky-toffee-pudding":        {X: 0.5, Y: 0.66},
 }
 
 func linkSamplePhoto(ctx context.Context, recipes *recipe.Service, actor user.User, r recipe.Recipe, uploaded []recipe.Image) error {

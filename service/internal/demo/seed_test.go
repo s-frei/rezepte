@@ -53,8 +53,8 @@ func seedPhotos(t *testing.T, locale user.Locale, first, withSet string, withNon
 	if err != nil {
 		t.Fatalf("Seed: %v", err)
 	}
-	if sum.Skipped || sum.Recipes != 12 || sum.Images != 27 {
-		t.Fatalf("summary = %+v, want 12 recipes, 27 images, not skipped", sum)
+	if sum.Skipped || sum.Recipes != 12 || sum.Images != 29 {
+		t.Fatalf("summary = %+v, want 12 recipes, 29 images, not skipped", sum)
 	}
 
 	recipes := recipe.NewService(conn, "")
@@ -992,5 +992,52 @@ func TestSeedPlans(t *testing.T) {
 	}
 	if foreign != 1 {
 		t.Errorf("Sonntagsessen: %d blocks from a plan the admin is not in, want Mila's own", foreign)
+	}
+}
+
+func TestSeedSetsSampleFocus(t *testing.T) {
+	t.Parallel()
+	cases := []struct {
+		locale   user.Locale
+		slug     string
+		focusY   float64
+		centered string
+	}{
+		{"de", "kartoffelpuffer-mit-apfelmus", 0.63, "rote-gruetze-mit-vanillesosse"},
+		{"en", "sticky-toffee-pudding", 0.66, "lemon-drizzle-cake"},
+	}
+	for _, c := range cases {
+		t.Run(string(c.locale), func(t *testing.T) {
+			t.Parallel()
+			ctx := context.Background()
+			conn := dbtest.Open(t)
+			if _, err := user.NewService(conn, "").Create(ctx, user.CreateParams{Username: "demo", Password: "demo1234", Role: user.RoleAdmin}); err != nil {
+				t.Fatal(err)
+			}
+			if _, err := demo.Seed(ctx, conn, filepath.Join(t.TempDir(), "images"), "demo", nil, c.locale, time.Now(), quiet); err != nil {
+				t.Fatalf("Seed: %v", err)
+			}
+			recipes := recipe.NewService(conn, "")
+			r, err := recipes.BySlug(ctx, c.slug)
+			if err != nil {
+				t.Fatal(err)
+			}
+			// The cover's dish sits low in its upright photo; the seed keeps it in view.
+			if got := r.Images[0].Focus; got != (recipe.ImageFocus{X: 0.5, Y: c.focusY}) {
+				t.Errorf("%s cover focus = %+v, want {0.5 %v}", c.slug, got, c.focusY)
+			}
+			// Setting it is part of writing the sample, not an edit.
+			if r.UpdatedBy.ID != r.CreatedBy.ID || !r.UpdatedAt.Equal(r.CreatedAt) {
+				t.Errorf("%s: updated %v by %s, want its creation stamp", c.slug, r.UpdatedAt, r.UpdatedBy.ID)
+			}
+			// The other upright cover is left centered for someone to try the dialog on.
+			other, err := recipes.BySlug(ctx, c.centered)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got := other.Images[0].Focus; got != (recipe.ImageFocus{X: 0.5, Y: 0.5}) {
+				t.Errorf("%s cover focus = %+v, want centered", c.centered, got)
+			}
+		})
 	}
 }

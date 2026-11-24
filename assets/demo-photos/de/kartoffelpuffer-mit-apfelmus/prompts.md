@@ -1,6 +1,6 @@
 # Kartoffelpuffer mit Apfelmus: demo photos
 
-AI-generated originals for the sample recipe "Kartoffelpuffer mit Apfelmus", kept exactly as the generator returned them. `1.jpg` is the cover.
+AI-generated originals for the sample recipe "Kartoffelpuffer mit Apfelmus", kept exactly as the generator returned them. `1.jpg` is the cover, an upright photo; `4.jpg` is the landscape photo that was the cover before.
 
 ## Settings
 
@@ -17,21 +17,23 @@ Every photo in this folder was generated with these settings. To make an adjuste
 | Output        | JPEG                                                                                                      |
 | Generated     | 2026-09-24                                                                                                |
 
-Photos 2 and 3 also pass `inputImagePath` pointing at `1.jpg` and `maintainCharacterConsistency: true`, so they keep the cover's table, light and tableware.
+Photos 2 and 3 also pass `inputImagePath` pointing at the landscape cover (now `4.jpg`) and `maintainCharacterConsistency: true`, so they keep the cover's table, light and tableware.
 
 ## 1.jpg: cover
 
+Reference: `4.jpg`, `maintainCharacterConsistency: true`. Settings as above except `aspectRatio` `9:16`, which returns 1536 × 2752 px; the server reported the model as `gemini-nano-banana-2.1`. Generated 2026-11-23.
+
 **purpose**
 
-> Cover photo for a recipe in a home cookbook app, shown 4:3 on the detail page and center-cropped to a square on recipe cards
+> Cover photo for a recipe in a home cookbook app; a 9:16 phone photo that the app crops to 4:3, 4:5 and square, with the dish deliberately low in the frame
 
 **prompt**
 
-> Homemade German Kartoffelpuffer with Apfelmus on a cream plate: three thin, round potato pancakes with lacy, deep golden, crispy edges and visible grated potato strands, slightly overlapping, beside a generous dollop of chunky homemade apple sauce dusted with a little cinnamon, a few thin slices of fresh red apple for color. Style: realistic home cooking photography, rustic wooden table, soft natural side light from a window, warm muted tones, three-quarter overhead angle, shallow depth of field. The plate is small in the frame: it fills about 50% of the frame width, fully inside the frame with generous empty table on all sides so it survives a square center crop. No cutlery on the plate or in the air. Plain unbranded tableware. Each item appears once. No text, no labels, no hands, no people.
+> Tall upright version of the reference scene, as if taken with a phone held upright: the same golden, crisp German Kartoffelpuffer from the reference, now stacked three high on the same plate with a generous spoonful of the same apple sauce beside them, on the same table in the same light. Composition: very tall upright frame; the plate with the stack sits in the lower third of the frame, fully inside it; above it the table recedes into a softly blurred kitchen background with window light. Three-quarter angle from slightly above, shallow depth of field, realistic home cooking photography, warm muted tones. Plain unbranded tableware. Each item appears once. No text, no labels, no hands, no people.
 
 ## 2.jpg: close-up
 
-Reference: `1.jpg`, `maintainCharacterConsistency: true`
+Reference: `4.jpg`, `maintainCharacterConsistency: true`
 
 **purpose**
 
@@ -45,7 +47,7 @@ The broken inside came out with stretchy strands like melted cheese; ask for "so
 
 ## 3.jpg: preparation
 
-Reference: `1.jpg`, `maintainCharacterConsistency: true`
+Reference: `4.jpg`, `maintainCharacterConsistency: true`
 
 Made in two steps. The first prompt below left the potato peel on the board as a closed ring, which peeling never produces. The kept photo is that result edited in place: the second prompt was sent with `inputImagePath` pointing at the first result and without `maintainCharacterConsistency`.
 
@@ -60,3 +62,13 @@ Made in two steps. The first prompt below left the potato peel on the board as a
 **edit prompt** (input: the result of the prompt above)
 
 > Edit this photo. Keep the entire image exactly as it is: the same box grater, the same wooden board with potato shreds, the same frying pan with the three potato pancakes, the same bowl of batter with the spoon, the same table, window, plant, light and framing. Change only the potato peel on the board: replace the closed ring-shaped peel with a few loose, thin, irregular strips of potato peel as a vegetable peeler leaves them, each strip curled slightly, with open ends, lying flat and scattered on the board. Do not add, remove or duplicate anything else. No text, no brand names.
+
+## 4.jpg: former cover
+
+**purpose**
+
+> Cover photo for a recipe in a home cookbook app, shown 4:3 on the detail page and center-cropped to a square on recipe cards
+
+**prompt**
+
+> Homemade German Kartoffelpuffer with Apfelmus on a cream plate: three thin, round potato pancakes with lacy, deep golden, crispy edges and visible grated potato strands, slightly overlapping, beside a generous dollop of chunky homemade apple sauce dusted with a little cinnamon, a few thin slices of fresh red apple for color. Style: realistic home cooking photography, rustic wooden table, soft natural side light from a window, warm muted tones, three-quarter overhead angle, shallow depth of field. The plate is small in the frame: it fills about 50% of the frame width, fully inside the frame with generous empty table on all sides so it survives a square center crop. No cutlery on the plate or in the air. Plain unbranded tableware. Each item appears once. No text, no labels, no hands, no people.

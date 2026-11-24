@@ -1,6 +1,6 @@
 # Rote Grütze mit Vanillesoße: demo photos
 
-AI-generated originals for the sample recipe "Rote Grütze mit Vanillesoße", kept exactly as the generator returned them. `1.jpg` is the cover.
+AI-generated originals for the sample recipe "Rote Grütze mit Vanillesoße", kept exactly as the generator returned them. `1.jpg` is the cover, an upright photo; `4.jpg` is the landscape photo that was the cover before.
 
 ## Settings
 
@@ -17,21 +17,23 @@ Every photo in this folder was generated with these settings. To make an adjuste
 | Output        | JPEG                                                                                                      |
 | Generated     | 2026-09-24                                                                                                |
 
-Photos 2 and 3 also pass `inputImagePath` pointing at `1.jpg` and `maintainCharacterConsistency: true`, so they keep the cover's table, light and tableware.
+Photos 2 and 3 also pass `inputImagePath` pointing at the landscape cover (now `4.jpg`) and `maintainCharacterConsistency: true`, so they keep the cover's table, light and tableware.
 
 ## 1.jpg: cover
 
+Reference: `4.jpg`, `maintainCharacterConsistency: true`. Settings as above except `aspectRatio` `3:4`, which returns 1792 × 2400 px; the server reported the model as `gemini-nano-banana-2.1`. Generated 2026-11-23.
+
 **purpose**
 
-> Cover photo for a recipe in a home cookbook app, shown 4:3 on the detail page and center-cropped to a square on recipe cards
+> Cover photo for a recipe in a home cookbook app; an upright phone photo that the app crops to 4:3, 4:5 and square, with the dish deliberately not centered
 
 **prompt**
 
-> A homemade German Rote Grütze mit Vanillesoße in a clear glass dessert bowl: deep ruby-red, glossy berry compote with whole raspberries, redcurrants, cherries and blackberries, topped with a generous pour of pale yellow vanilla custard sauce with tiny black vanilla seeds, a few fresh berries and a small mint leaf on top. Beside the bowl a small cream jug of more vanilla sauce standing upright, not pouring. Style: realistic home cooking photography, rustic wooden table, soft natural side light from a window, warm muted tones, three-quarter overhead angle, shallow depth of field. The bowl is small in the frame: it fills about 40% of the frame width, fully inside the frame with generous empty table on all sides so it survives a square center crop. Plain unbranded tableware. Each item appears once. No text, no labels, no hands, no people.
+> Portrait version of the reference scene, as if the cook stood up and took the photo upright with a phone: the same homemade Rote Grütze mit Vanillesoße in the same clear glass dessert bowl (deep ruby-red glossy berry compote with whole raspberries, redcurrants, cherries and blackberries, a generous pour of pale yellow vanilla custard sauce with tiny black vanilla seeds, a few fresh berries and a small mint leaf on top), the same small cream jug of vanilla sauce beside it, on the same rustic wooden table in the same soft window light. Composition: tall upright frame; the bowl sits in the lower half of the frame, slightly below center, fully inside the frame; the upper part of the frame shows the wooden table receding toward the bright window with a softly blurred plant on the sill. Three-quarter overhead angle, shallow depth of field, realistic home cooking photography, warm muted tones. Plain unbranded tableware. Each item appears once. No text, no labels, no hands, no people.
 
 ## 2.jpg: close-up
 
-Reference: `1.jpg`, `maintainCharacterConsistency: true`
+Reference: `4.jpg`, `maintainCharacterConsistency: true`
 
 **purpose**
 
@@ -43,7 +45,7 @@ Reference: `1.jpg`, `maintainCharacterConsistency: true`
 
 ## 3.jpg: preparation
 
-Reference: `1.jpg`, `maintainCharacterConsistency: true`
+Reference: `4.jpg`, `maintainCharacterConsistency: true`
 
 **purpose**
 
@@ -52,3 +54,13 @@ Reference: `1.jpg`, `maintainCharacterConsistency: true`
 **prompt**
 
 > Same rustic wooden table and the same soft window light as the reference image. A preparation step for Rote Grütze, three-quarter overhead angle: a plain stainless steel saucepan of gently bubbling, glossy deep red berry compote with whole raspberries, cherries and redcurrants, a wooden spoon resting in it. Next to the saucepan a small bowl of fresh mixed berries, a small glass with a little cornstarch mixed with water, and a split vanilla pod on a small plate. Only these items, each appearing once, with a few stray berries and a drip of juice on the table. Realistic home cooking photography, warm muted tones. Plain unbranded cookware. No text, no labels, no brand names, no hands, no people.
+
+## 4.jpg: former cover
+
+**purpose**
+
+> Cover photo for a recipe in a home cookbook app, shown 4:3 on the detail page and center-cropped to a square on recipe cards
+
+**prompt**
+
+> A homemade German Rote Grütze mit Vanillesoße in a clear glass dessert bowl: deep ruby-red, glossy berry compote with whole raspberries, redcurrants, cherries and blackberries, topped with a generous pour of pale yellow vanilla custard sauce with tiny black vanilla seeds, a few fresh berries and a small mint leaf on top. Beside the bowl a small cream jug of more vanilla sauce standing upright, not pouring. Style: realistic home cooking photography, rustic wooden table, soft natural side light from a window, warm muted tones, three-quarter overhead angle, shallow depth of field. The bowl is small in the frame: it fills about 40% of the frame width, fully inside the frame with generous empty table on all sides so it survives a square center crop. Plain unbranded tableware. Each item appears once. No text, no labels, no hands, no people.

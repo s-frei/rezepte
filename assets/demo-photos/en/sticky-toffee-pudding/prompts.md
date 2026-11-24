@@ -1,6 +1,6 @@
 # Sticky Toffee Pudding: demo photos
 
-AI-generated originals for the sample recipe "Sticky Toffee Pudding", kept exactly as the generator returned them. `1.jpg` is the cover.
+AI-generated originals for the sample recipe "Sticky Toffee Pudding", kept exactly as the generator returned them. `1.jpg` is the cover, an upright photo; `4.jpg` is the landscape photo that was the cover before.
 
 ## Settings
 
@@ -17,23 +17,23 @@ Every photo in this folder was generated with these settings. To make an adjuste
 | Output        | JPEG                                                                                                      |
 | Generated     | 2026-09-24                                                                                                |
 
-Photos 2 and 3 also pass `inputImagePath` pointing at `1.jpg` and `maintainCharacterConsistency: true`, so they keep the cover's table, light and tableware.
+Photos 2 and 3 also pass `inputImagePath` pointing at the landscape cover (now `4.jpg`) and `maintainCharacterConsistency: true`, so they keep the cover's table, light and tableware.
 
 ## 1.jpg: cover
 
+Reference: `4.jpg`, `maintainCharacterConsistency: true`. Settings as above except `aspectRatio` `9:16`, which returns 1536 × 2752 px; the server reported the model as `gemini-nano-banana-2.1`. Generated 2026-11-23.
+
 **purpose**
 
-> Cover photo for a recipe in a home cookbook app, shown 4:3 on the detail page and center-cropped to a square on recipe cards
+> Cover photo for a recipe in a home cookbook app; a 9:16 phone photo that the app crops to 4:3, 4:5 and square, with the dish deliberately low in the frame
 
 **prompt**
 
-> A homemade sticky toffee pudding served warm: a square of dark, moist date sponge on a cream dessert plate, drenched in glossy, amber toffee sauce that has already been poured over and runs down the sides and pools around it, a scoop of vanilla ice cream just starting to melt beside it. Behind the plate the rest of the pudding in a cream ceramic baking dish and a small cream jug of extra toffee sauce standing upright. Style: realistic home cooking photography, rustic wooden table, soft natural side light from a window, warm muted tones, three-quarter overhead angle, shallow depth of field. The plate is small in the frame: it fills about 50% of the frame width, fully inside the frame with generous empty table on all sides so it survives a square center crop. Plain unbranded tableware. No text, no labels, no hands, no people.
-
-The plate came out smaller than asked, so the dessert fills only about a third of the square card crop.
+> Tall upright version of the reference scene, as if taken with a phone held upright: the same sticky toffee pudding from the reference served in a shallow bowl, glossy toffee sauce just poured over so it runs down the sides of the dark sponge and pools around it, a scoop of vanilla ice cream beginning to melt beside it, on the same table in the same light. Composition: very tall upright frame; the bowl sits in the lower third of the frame, fully inside it; above it the table recedes into a softly blurred warm background with the jug of toffee sauce out of focus. Three-quarter angle from slightly above, shallow depth of field, realistic home cooking photography, warm muted tones. Plain unbranded tableware. Each item appears once. No text, no labels, no hands, no people.
 
 ## 2.jpg: close-up
 
-Reference: `1.jpg`, `maintainCharacterConsistency: true`
+Reference: `4.jpg`, `maintainCharacterConsistency: true`
 
 **purpose**
 
@@ -45,7 +45,7 @@ Reference: `1.jpg`, `maintainCharacterConsistency: true`
 
 ## 3.jpg: preparation
 
-Reference: `1.jpg`, `maintainCharacterConsistency: true`
+Reference: `4.jpg`, `maintainCharacterConsistency: true`
 
 **purpose**
 
@@ -54,3 +54,15 @@ Reference: `1.jpg`, `maintainCharacterConsistency: true`
 **prompt**
 
 > Same rustic wooden table and the same soft window light as the reference image. A preparation step for sticky toffee pudding, three-quarter overhead angle: a plain stainless steel saucepan of smooth, glossy, amber toffee sauce made from butter, brown sugar and cream, a wooden spoon resting in it. Next to it the same cream ceramic baking dish with the freshly baked, risen, dark date sponge, half of its top already glossy with the toffee sauce that has been poured over. Around them a small bowl of chopped pitted dates, a small bowl of soft brown sugar, a block of butter on a saucer and a small jug of double cream. Realistic home cooking photography, warm muted tones. Plain unbranded cookware. No text, no labels, no hands, no people.
+
+## 4.jpg: former cover
+
+**purpose**
+
+> Cover photo for a recipe in a home cookbook app, shown 4:3 on the detail page and center-cropped to a square on recipe cards
+
+**prompt**
+
+> A homemade sticky toffee pudding served warm: a square of dark, moist date sponge on a cream dessert plate, drenched in glossy, amber toffee sauce that has already been poured over and runs down the sides and pools around it, a scoop of vanilla ice cream just starting to melt beside it. Behind the plate the rest of the pudding in a cream ceramic baking dish and a small cream jug of extra toffee sauce standing upright. Style: realistic home cooking photography, rustic wooden table, soft natural side light from a window, warm muted tones, three-quarter overhead angle, shallow depth of field. The plate is small in the frame: it fills about 50% of the frame width, fully inside the frame with generous empty table on all sides so it survives a square center crop. Plain unbranded tableware. No text, no labels, no hands, no people.
+
+The plate came out smaller than asked, so the dessert fills only about a third of the square card crop.
