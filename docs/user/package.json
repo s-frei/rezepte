@@ -9,6 +9,7 @@
     "openapi:fetch": "bun scripts/fetch-openapi.ts",
     "openapi:generate": "bun scripts/generate-api.ts",
     "screenshots:audit": "bun scripts/screenshots-audit.ts",
+    "screenshots:compress": "bun scripts/screenshots-compress.ts",
     "readme-images": "bun scripts/readme-images.ts",
     "hero-images": "bun scripts/hero-images.ts",
     "brand-assets": "bun scripts/brand-assets.ts",

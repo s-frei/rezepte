@@ -9,7 +9,7 @@ description: What to edit when a UI or API change lands, and the docs refresh th
 
 </Callout>
 
-**Why the pictures wait.** The docs go live only with a release (`main` publishes them, see [Release](/howtos/release)), so a screenshot rendered per change shows nobody anything sooner. Every run rewrites PNGs that moved by a pixel and re-records the film, which is never byte-identical twice: about 8 MB of new history per recording. One refresh per release keeps the history and the diffs small.
+**Why the pictures wait.** The docs go live only with a release (`main` publishes them, see [Release](/howtos/release)), so a screenshot rendered per change shows nobody anything sooner. Chromium's renders are not pixel-stable, so every run rewrites about a third of the PNGs with nothing changed (about 8 MB as palette PNGs) and re-records the film, which is never byte-identical twice either (another 2.5 MB). One refresh per release keeps the history and the diffs small.
 
 ## Every change
 
@@ -52,10 +52,10 @@ Before every release, in the release worktree ([Release](/howtos/release)), and 
 
     ### Render everything
     ```bash
-    mise run //docs/user:screenshots   # every PNG, then the README images and the hero scenes
+    mise run //docs/user:screenshots   # every PNG, the README images, the hero scenes, then the palette
     mise run //docs/user:film          # the product film: public/film/demo-light.{mp4,jpg}
     ```
-    `screenshots` rewrites every PNG under `docs/user/public/screenshots/` against a `rezepte --demo` of its own, on the port [Add a screenshot](/howtos/add-screenshot#screenshot_base_url) names, which runs beside `mise run demo`, then repaints the README images (`assets/readme/`) and the hero scenes (`docs/user/public/heroes/`). `--grep <names>` renders only some, for a new screenshot or a retry; it is a Playwright pattern and matches part of a name, so `login` also catches `first-login`. `film` records the scene in about a minute and encodes the MP4 for the landing page and its poster ([Documentation sites](/architecture/docs#the-product-film)). If Chromium does not start, leave the files untouched and say so.
+    `screenshots` rewrites every PNG under `docs/user/public/screenshots/` against a `rezepte --demo` of its own, on the port [Add a screenshot](/howtos/add-screenshot#screenshot_base_url) names, which runs beside `mise run demo`, then repaints the README images (`assets/readme/`) and the hero scenes (`docs/user/public/heroes/`), and last quantizes every new PNG to a 256-color palette (`screenshots:compress`, about a third of the bytes, invisible, and skipping files that already hold one). A full run takes about 6 minutes, nearly all of it Playwright; the palette takes seconds. `--grep <names>` renders only some, for a new screenshot or a retry; it is a Playwright pattern and matches part of a name, so `login` also catches `first-login`. `film` records the scene in about a minute and encodes the MP4 for the landing page and its poster ([Documentation sites](/architecture/docs#the-product-film)). If Chromium does not start, leave the files untouched and say so.
 
     `mise run //docs/user:screenshots:check` reports drift without updating. A green check does not prove the PNGs current: it passes anything under `maxDiffPixelRatio` (1%), and a word added beside a heading on a 1440x900 page stays below that.
 
