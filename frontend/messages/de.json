@@ -1548,6 +1548,7 @@
 	"plan_group_shared": "Mit dir geteilt",
 	"plan_tray": "Irgendwann",
 	"plan_tray_hint": "ohne Tag – auf einen Tag ziehen",
+	"plan_tray_add": "Für irgendwann eintragen",
 	"plan_tray_empty": "Rezepte ohne Tag landen hier",
 	"plan_servings": "{count} Port.",
 	"plan_servings_one": "1 Port.",

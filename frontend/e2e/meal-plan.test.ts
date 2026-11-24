@@ -839,6 +839,18 @@ test('plans a recipe and a note on a day', async ({ page }) => {
 	await again.getByRole('option', { name: 'Add “Pizza bestellen” as a note' }).click();
 	await expect(wednesday.getByText('Pizza bestellen')).toBeVisible();
 	await expect(day(page, 'Thursday, November 19').getByText('Pizza bestellen')).toHaveCount(0);
+
+	// Someday's own "+" plans straight onto it.
+	const tray = page.getByRole('region', { name: 'Someday' });
+	const someday = await openDialog(
+		page,
+		tray.getByRole('button', { name: 'Plan for someday' }),
+		'Plan a meal'
+	);
+	await expect(someday.getByRole('radio', { name: 'Someday' })).toBeChecked();
+	await someday.getByRole('combobox', { name: 'Recipe or note' }).fill('Kuchen backen');
+	await someday.getByRole('option', { name: 'Add “Kuchen backen” as a note' }).click();
+	await expect(tray.getByText('Kuchen backen')).toBeVisible();
 });
 
 test('moves an entry to another day by menu', async ({ page, isMobile }) => {

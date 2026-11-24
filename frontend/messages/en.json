@@ -1548,6 +1548,7 @@
 	"plan_group_shared": "Shared with you",
 	"plan_tray": "Someday",
 	"plan_tray_hint": "no day yet – drag onto a day",
+	"plan_tray_add": "Plan for someday",
 	"plan_tray_empty": "Recipes without a day land here",
 	"plan_servings": "{count} servings",
 	"plan_servings_one": "1 serving",

@@ -37,6 +37,51 @@
 		clearTimeout(settle);
 		settle = setTimeout(unswallow, 400);
 	}
+
+	// Where the pointer is, for keeping it on the same spot of a copy that
+	// changes its size (`asColumn`). One listener for the page, while any
+	// zone is mounted: a drag starts from a press on a card.
+	const pointer = { x: 0, y: 0 };
+	let watching = 0;
+	let unwatch: (() => void) | undefined;
+	function watchPointer() {
+		if (watching++ === 0) {
+			const track = (event: PointerEvent) => {
+				pointer.x = event.clientX;
+				pointer.y = event.clientY;
+			};
+			const stops = [
+				on(window, 'pointerdown', track, { capture: true, passive: true }),
+				on(window, 'pointermove', track, { capture: true, passive: true })
+			];
+			unwatch = () => stops.forEach((stop) => stop());
+		}
+		return () => {
+			if (--watching === 0) unwatch?.();
+		};
+	}
+
+	/**
+	 * A tray chip lifted while the week shows columns: its copy turns into
+	 * the column card it would be on a day (`PlanEntryCard`'s drag face), a
+	 * column wide, and moves so the pointer keeps its spot on it. Once per
+	 * drag: the library calls this on every zone change.
+	 */
+	function asColumn(element: HTMLElement) {
+		if (element.dataset.face || !element.querySelector('[data-drag-face]')) return;
+		const column = document.querySelector<HTMLElement>('ul[data-layout="column"]');
+		if (!column) return;
+		element.dataset.face = 'column';
+		const before = element.getBoundingClientRect();
+		const fx = before.width ? (pointer.x - before.left) / before.width : 0.5;
+		const fy = before.height ? (pointer.y - before.top) / before.height : 0.5;
+		element.style.width = `${column.clientWidth}px`;
+		element.style.height = 'auto';
+		const after = element.getBoundingClientRect();
+		const style = getComputedStyle(element);
+		element.style.left = `${parseFloat(style.left) + pointer.x - (after.left + fx * after.width)}px`;
+		element.style.top = `${parseFloat(style.top) + pointer.y - (after.top + fy * after.height)}px`;
+	}
 </script>
 
 <script lang="ts">
@@ -45,7 +90,7 @@
 	import { prefersReducedMotion } from 'svelte/motion';
 	import { dndzone } from 'svelte-dnd-action';
 	import type { PlanEntry } from '#lib/api/mealplan.js';
-	import { isShadow, zoneOptions } from '#lib/recipe/dnd.js';
+	import { isShadow, liftDragged, zoneOptions } from '#lib/recipe/dnd.js';
 	import PlanEntryCard from './PlanEntryCard.svelte';
 
 	/**
@@ -100,11 +145,32 @@
 
 	const FLIP = $derived(prefersReducedMotion.current ? 0 : 150);
 
-	/** The slot a dragged card would land in: as tall as the card, read when the drag starts. */
+	/**
+	 * The slot a dragged card would land in, as tall as what lands: on a day
+	 * the lifted copy (a column card from the tray too, `asColumn`), in the
+	 * tray its own first card, else a chip's height (a note's is lower). The
+	 * empty tray takes its full shape for it (`WeekView`), so the slot
+	 * previews the chip the drop makes.
+	 */
 	let slot = $state(0);
+	let list = $state<HTMLElement>();
 	function consider(event: CustomEvent<DndEvent<PlanEntry>>) {
+		// The library holds the zone a drag leaves at its height until the
+		// drop; the tray lets go, so a card taken out leaves no gap and the
+		// last one leaves the calm pill, not a tall empty box.
+		if (layout === 'chip' && list) list.style.minHeight = list.style.minWidth = '';
 		const dragged = document.getElementById(DRAGGED_ELEMENT_ID);
-		if (dragged) slot = dragged.getBoundingClientRect().height;
+		const own = list?.querySelector<HTMLElement>(
+			':scope > li:not([data-is-dnd-shadow-item-internal])'
+		);
+		if (layout !== 'chip') {
+			if (dragged) slot = dragged.getBoundingClientRect().height;
+		} else if (own && own.id !== DRAGGED_ELEMENT_ID) {
+			slot = own.getBoundingClientRect().height;
+		} else {
+			const shadow = event.detail.items.find(isShadow);
+			slot = shadow && shadow.recipeId === null && shadow.servings === null ? 40 : 80;
+		}
 		swallowClicks(event);
 		onconsider(event);
 	}
@@ -165,6 +231,10 @@
 		aria-label={label}
 		use:dndzone={{
 			...zoneOptions(items, 'plan-entry', FLIP),
+			transformDraggedElement: (element?: HTMLElement) => {
+				liftDragged(element);
+				if (element) asColumn(element);
+			},
 			delayTouchStart: 300,
 			zoneItemTabIndex: -1,
 			// No keyboard drag here, so none of the library's "press space"
@@ -175,6 +245,9 @@
 		onconsider={consider}
 		onfinalize={finalize}
 		{@attach guard}
+		{@attach watchPointer}
+		bind:this={list}
+		data-layout={layout}
 		class="min-h-11 {cover ? 'absolute inset-0 z-10' : reach} {layout === 'column'
 			? 'flex flex-1 flex-col gap-2'
 			: layout === 'chip'

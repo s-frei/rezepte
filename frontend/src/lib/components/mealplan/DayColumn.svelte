@@ -45,8 +45,10 @@
 		? 'outline-2 outline-primary'
 		: 'outline-none focus-visible:outline-2 focus-visible:outline-primary/60 focus-visible:outline-solid'}"
 >
+	<!-- The "+" sits 6px in from the top and the side: radius 14, concentric
+	     with today's 20 (the outline draws inside it). -->
 	<header
-		class="flex items-baseline gap-1.5 border-b-2 border-dotted py-2 pr-1 pl-2.5 {today
+		class="flex items-baseline gap-1.5 border-b-2 border-dotted pt-1.5 pr-1.5 pb-1 pl-2.5 {today
 			? 'rounded-t-2xl border-transparent bg-accent text-accent-foreground'
 			: 'border-handle'}"
 	>
@@ -65,7 +67,7 @@
 				data-day-add={day}
 				aria-haspopup="dialog"
 				onclick={onadd}
-				class="ml-auto inline-flex size-7 shrink-0 items-center justify-center self-center rounded-full text-text-muted transition hover:bg-surface hover:text-text focus-visible:outline-2 focus-visible:outline-primary"
+				class="ml-auto inline-flex size-7 shrink-0 items-center justify-center self-start rounded-full text-text-muted transition hover:bg-surface hover:text-text focus-visible:outline-2 focus-visible:outline-primary"
 			>
 				<Plus class="size-4" aria-hidden="true" />
 			</button>

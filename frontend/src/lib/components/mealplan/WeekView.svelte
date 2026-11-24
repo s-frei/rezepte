@@ -241,7 +241,10 @@
 	>
 		{#snippet empty()}
 			{#if key === TRAY}
-				<p class="flex h-full items-center text-caption text-text-muted">· {m.plan_tray_empty()}</p>
+				<p class="flex h-full min-w-0 items-center text-caption text-text-muted">
+					<!-- Whole or not at all: a phone beside the "+" has no room for it. -->
+					<span class="hidden whitespace-nowrap @[12.5rem]:inline">· {m.plan_tray_empty()}</span>
+				</p>
 			{:else}
 				<button
 					type="button"
@@ -261,7 +264,9 @@
 {/snippet}
 
 <div class="space-y-4">
-	<TrayStrip empty={zones[TRAY].length === 0}>
+	<!-- Empty as the drag shows it: a card dragged out leaves the calm pill,
+	     a card dragged in opens the tray to the shape it will have. -->
+	<TrayStrip empty={items(TRAY).length === 0} onadd={() => onadd(null)}>
 		{@render zone(TRAY, 'chip', m.plan_tray())}
 	</TrayStrip>
 
