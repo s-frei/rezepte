@@ -15,7 +15,11 @@ export default defineConfig({
 	retries: process.env.CI ? 1 : 0,
 	// The default, half the cores, leaves two of a hosted runner's four idle.
 	workers: process.env.CI ? '100%' : undefined,
-	reporter: process.env.CI ? 'github' : 'list',
+	// On CI the JSON report feeds scripts/flaky-summary.ts, which lists the
+	// tests the retry saved in the job summary.
+	reporter: process.env.CI
+		? [['github'], ['json', { outputFile: 'playwright-results.json' }]]
+		: 'list',
 	use: {
 		baseURL: process.env.E2E_BASE_URL ?? `http://localhost:${process.env.RZP_BACKEND_PORT ?? 8060}`,
 		trace: 'retain-on-failure',

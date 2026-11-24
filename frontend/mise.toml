@@ -31,9 +31,13 @@ run = "bun run brand:export"
 description = "Audit the logo masters and the committed icon exports"
 run = "bun test scripts/brand.test.ts"
 
+[tasks."flaky-summary:test"]
+description = "Test the script that lists CI's flaky e2e tests in the job summary"
+run = "bun test scripts/flaky-summary.test.ts"
+
 [tasks.check]
 description = "svelte-check, lint and unit tests"
-depends = ["lint", "test", "messages:parity", "brand:check"]
+depends = ["lint", "test", "messages:parity", "brand:check", "flaky-summary:test"]
 run = "bun run check"
 
 [tasks.lint]

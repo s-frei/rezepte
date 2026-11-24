@@ -65,6 +65,10 @@ description: What to test and how, per package
 
 `--only-changed` only sees spec files and what they import, never the app code under test, so it adds to the hand-picked specs and does not replace them. A change to `frontend/e2e/helpers.ts` selects every spec.
 
+### A test that fails once
+
+**A test that fails once is fixed or explained before the branch lands, never rerun until green.** Locally the suite retries nothing, so a full run under its own load (the machine's load average climbs past 30) shows a race as one red test. Rerun it alone with `--repeat-each` to tell a race from a broken change, then fix the test or the page as [Races on a slow runner](/howtos/verify-ui#races-on-a-slow-runner) describes, even when the branch never touched it. CI retries each test once: a test the retry saved is listed in the job summary ("flaky e2e tests", `frontend/scripts/flaky-summary.ts`), and its failed attempt's trace is in the shard's `playwright-results` artifact. A flaky entry there is the same finding, only caught later.
+
 
 ### A paused page clock
 

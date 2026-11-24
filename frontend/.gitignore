@@ -9,6 +9,7 @@ vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 # Playwright
 test-results
+playwright-results.json
 # Paraglide
 src/lib/paraglide
 # generated from service/internal/i18n/locales.json by vite.config.ts

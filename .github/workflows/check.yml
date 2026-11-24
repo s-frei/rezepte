@@ -110,9 +110,17 @@ jobs:
       - name: "Build and run the Playwright end-to-end tests"
         run: mise run e2e --shard=${{ matrix.shard }}/4
 
+      - name: "List the flaky tests in the job summary"
+        if: always()
+        working-directory: frontend
+        run: mise exec -- bun scripts/flaky-summary.ts
+
+      # Also on a green run: a test the retry saved keeps the trace of the
+      # attempt that failed. test-results is empty after a clean run.
       - name: "Upload the Playwright results"
         uses: actions/upload-artifact@v7
-        if: failure()
+        if: always()
         with:
           name: playwright-results-${{ matrix.shard }}
           path: frontend/test-results
+          if-no-files-found: ignore
