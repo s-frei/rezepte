@@ -32,7 +32,7 @@ for (const [, rest] of appLinks.matchAll(new RegExp(`'${site}([^'#]*)'`, 'g'))) 
 }
 for (const doc of ['README.md', 'CONTRIBUTING.md']) {
 	const text = readFileSync(path.join('..', '..', doc), 'utf8');
-	for (const [, rest, anchor] of text.matchAll(new RegExp(`${site}([^\\s)#\\]]*)(?:#([\\w-]+))?`, 'g'))) {
+	for (const [, rest, anchor] of text.matchAll(new RegExp(`${site}([^\\s)#\\]"<]*)(?:#([\\w-]+))?`, 'g'))) {
 		// A file such as llms.txt is linked as itself; a page by its folder.
 		const file = /\.\w+$/.test(rest) ? rest : `${rest}index.html`;
 		required.set(file, `linked from ${doc}`);
