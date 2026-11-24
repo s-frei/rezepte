@@ -2,6 +2,7 @@ import type { UserColor } from '#lib/user/color.js';
 import type { Locale, User } from './auth';
 import { avatarBody, cropQuery } from '#lib/user/avatar.js';
 import type { Crop } from '#lib/user/crop.js';
+import type { ImageFocus } from '#lib/images/focus.js';
 import { api } from './client';
 
 export type UserAccount = User & {
@@ -61,6 +62,10 @@ export type LatestRecipe = {
 	slug: string;
 	title: string;
 	coverImageId: string | null;
+	/** The cover's pixel size and focus point, null with the cover. */
+	coverWidth: number | null;
+	coverHeight: number | null;
+	coverFocus: ImageFocus | null;
 };
 
 /** Every account, ordered by username; readable by any signed-in account. */

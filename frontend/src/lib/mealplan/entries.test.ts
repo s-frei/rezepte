@@ -11,6 +11,9 @@ const entry = (id: string, day: string | null, position: number): PlanEntry => (
 	title: id,
 	servings: null,
 	photo: null,
+	photoWidth: null,
+	photoHeight: null,
+	photoFocus: null,
 	createdBy: null,
 	lists: []
 });

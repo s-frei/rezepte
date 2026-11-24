@@ -21,7 +21,18 @@ function plan(id: string, meals: number, updatedAt: string, personal = false, tr
 }
 
 function entry(id: string, day: string, over: Partial<WeekEntry> = {}): WeekEntry {
-	return { id, day, kind: 'recipe', recipeId: 'r', title: id, photo: null, ...over };
+	return {
+		id,
+		day,
+		kind: 'recipe',
+		recipeId: 'r',
+		title: id,
+		photo: null,
+		photoWidth: null,
+		photoHeight: null,
+		photoFocus: null,
+		...over
+	};
 }
 
 describe('plans overview', () => {

@@ -1,3 +1,4 @@
+import type { ImageFocus } from '#lib/images/focus.js';
 import { api } from './client';
 
 export type Department =
@@ -17,6 +18,10 @@ export type ShoppingEntry = {
 	recipeId: string | null;
 	recipeSlug: string | null;
 	coverImageId: string | null;
+	/** The cover's pixel size and focus point, null with the cover. */
+	coverWidth: number | null;
+	coverHeight: number | null;
+	coverFocus: ImageFocus | null;
 	title: string;
 	baseServings: number;
 	servings: number;

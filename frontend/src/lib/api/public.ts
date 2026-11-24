@@ -1,3 +1,4 @@
+import type { ImageFocus } from '#lib/images/focus.js';
 import type { IngredientGroup, ImageVariant, Step } from './recipes';
 
 // Contract types (binding for both the backend and the frontend; see
@@ -5,7 +6,7 @@ import type { IngredientGroup, ImageVariant, Step } from './recipes';
 // type, not RecipeContent: a public link answers with exactly these keys
 // and nothing a member's session would carry.
 
-export type PublicImage = { id: string; width: number; height: number };
+export type PublicImage = { id: string; width: number; height: number; focus: ImageFocus };
 
 export type PublicRecipe = {
 	title: string;

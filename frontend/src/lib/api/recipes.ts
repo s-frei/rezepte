@@ -1,5 +1,6 @@
 import type { UserColor } from '#lib/user/color.js';
 import { buildListQuery, type ListQuery } from '#lib/recipe/query.js';
+import type { ImageFocus } from '#lib/images/focus.js';
 import { api } from './client';
 import { uploadWithProgress } from './upload';
 
@@ -43,6 +44,8 @@ export type RecipeCard = {
 	/** The cover's pixel size, so a card can hold its photo's shape before it loads. */
 	coverWidth: number | null;
 	coverHeight: number | null;
+	/** The cover's focus point; null without a cover. */
+	coverFocus: ImageFocus | null;
 	/** Who wrote the recipe and who last changed it, shown as initials. */
 	createdBy: Person;
 	updatedBy: Person;
@@ -80,7 +83,14 @@ export type SearchFind = {
  */
 export type SearchMatch = { section: SearchSection; title?: FindPart[]; finds: SearchFind[] };
 
-export type Image = { id: string; width: number; height: number; position: number };
+export type Image = {
+	id: string;
+	width: number;
+	height: number;
+	position: number;
+	/** The point every crop of the photo keeps in view. */
+	focus: ImageFocus;
+};
 
 export type ImageVariant = 'thumb' | 'detail' | 'original';
 
@@ -322,6 +332,18 @@ export function deleteImage(
 	return api<void>(
 		`/recipes/${encodeURIComponent(recipeId)}/images/${encodeURIComponent(imageId)}`,
 		{ method: 'DELETE', keepalive }
+	);
+}
+
+/** Sets the point every crop of the photo keeps in view. */
+export function setImageFocus(
+	recipeId: string,
+	imageId: string,
+	focus: ImageFocus
+): Promise<Image> {
+	return api<Image>(
+		`/recipes/${encodeURIComponent(recipeId)}/images/${encodeURIComponent(imageId)}`,
+		{ method: 'PATCH', body: JSON.stringify({ focus }) }
 	);
 }
 

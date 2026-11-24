@@ -1,4 +1,5 @@
 import { getLocalTimeZone, today } from '@internationalized/date';
+import type { ImageFocus } from '#lib/images/focus.js';
 import { api } from './client';
 import type { ListPerson } from './shopping';
 
@@ -25,6 +26,10 @@ export type PlanEntry = {
 	servings: number | null;
 	/** The recipe's cover image id. */
 	photo: string | null;
+	/** The cover's pixel size and focus point, null with `photo`. */
+	photoWidth: number | null;
+	photoHeight: number | null;
+	photoFocus: ImageFocus | null;
 	/** Null once the account of whoever added it is gone. */
 	createdBy: ListPerson | null;
 	lists: LinkedList[];
@@ -75,6 +80,10 @@ export type WeekEntry = {
 	title: string;
 	/** The recipe's cover image id. */
 	photo: string | null;
+	/** The cover's pixel size and focus point, null with `photo`. */
+	photoWidth: number | null;
+	photoHeight: number | null;
+	photoFocus: ImageFocus | null;
 };
 
 /** A plan with one week of it, as the plans page shows it. */

@@ -8,6 +8,7 @@
 	import { session } from '#lib/auth.svelte.js';
 	import { dedupeTextFinds, missingAfterTicks } from '#lib/recipe/finds.js';
 	import { formatMinutes } from '#lib/recipe/format.js';
+	import { cardRatio } from '#lib/images/focus.js';
 	import { initialFor, tintFor } from '#lib/recipe/placeholder.js';
 	import AuthorInitials from './AuthorInitials.svelte';
 	import SearchFinds from './SearchFinds.svelte';
@@ -96,9 +97,7 @@
 	// the box has its height before the picture loads and the grid places
 	// the card once. Square when the service does not know the size.
 	const ratio = $derived(
-		recipe.coverWidth && recipe.coverHeight
-			? Math.min(Math.max(recipe.coverWidth / recipe.coverHeight, 4 / 5), 16 / 9)
-			: 1
+		recipe.coverWidth && recipe.coverHeight ? cardRatio(recipe.coverWidth / recipe.coverHeight) : 1
 	);
 
 	// The title's type, shared by the title and the hover line's layer over
