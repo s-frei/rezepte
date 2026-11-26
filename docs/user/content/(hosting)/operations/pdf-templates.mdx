@@ -1,0 +1,55 @@
+---
+title: Custom PDF templates
+description: Give recipe PDFs your own design with Typst templates in a directory you mount
+---
+
+Rezepte prints recipes and makes recipe PDFs with its built-in design. Set `REZEPTE_PDF_TEMPLATE_DIR` to a directory with your own [Typst](https://typst.app) templates to replace it: printing, the PDF files and the preview in **Pass on** then all show your design. Typst is part of the Rezepte binary; there is nothing to install.
+
+## Set it up
+
+1. Make a directory and copy the built-in files into it from the repository's [`service/internal/pdf/templates/`](https://github.com/s-frei/rezepte/tree/main/service/internal/pdf/templates), using your version's tag instead of `main`. Take `lib.typ` and `recipe.typ` to change single recipes, `lib.typ`, `book.typ` and `mascot.png` to change the cookbook, or all of them.
+2. Mount it read-only and set the variable. In Docker Compose:
+
+```yaml title="docker-compose.yaml"
+services:
+  rezepte:
+    environment:
+      REZEPTE_PDF_TEMPLATE_DIR: /templates
+    volumes:
+      - ./pdf-templates:/templates:ro
+```
+
+3. Restart Rezepte. Templates are read once at start.
+
+Without Docker, set the variable to the directory's path. Rezepte refuses to start when the path does not exist or is a file.
+
+## What goes in the directory
+
+| Path | Used for |
+|---|---|
+| `recipe.typ` | One recipe: the PDF on a recipe's **PDF** tab and each file of an export with one PDF per recipe |
+| `book.typ` | The cookbook, one PDF with many recipes |
+| `lib.typ` | Your helpers, imported by the two files above |
+| `mascot.png` and other images | Images your templates use; the built-in cookbook's title page needs `mascot.png` |
+| `fonts/` | Fonts your design uses |
+| `packages/<namespace>/<name>/<version>/` | Typst packages your design imports |
+
+Have only `recipe.typ`, and the cookbook stays built-in; the same holds the other way round. The directory is used whole: a template cannot import a built-in file, which is why your own `lib.typ` must be in it. Copy the built-in one and edit it. Symbolic links inside the directory are not supported: a template with one fails, so copy the files in.
+
+<Callout type="warn" title="No network, no system fonts">
+  Typst cannot download packages and ignores the server's fonts. Put every package and font in the directory.
+</Callout>
+
+## What the template receives
+
+A template reads `data.json`, described by the [schema](https://github.com/s-frei/rezepte/blob/main/service/internal/pdf/schema/data.v1.schema.json) (again, use your version's tag; [`kaesespaetzle.json`](https://github.com/s-frei/rezepte/blob/main/service/internal/pdf/testdata/kaesespaetzle.json) is a full example): the recipes, the chosen options, labels in the reader's language, and the instance's address. `instance.product` is the product name for the credit line, which the built-in design prints only when `instance.attribution` is on.
+
+In an export with one PDF per recipe, each file gets its own `data.json` with `options.bundle` `single` and one recipe.
+
+`source.display` is how the source prints in the built-in design: its name, else the host of its address.
+
+Text fields keep a number and its unit together with a no-break space (U+00A0), so `1 ½ TL` or `180 °C` never breaks across lines.
+
+## When it fails
+
+Rezepte test-renders every custom template at start, with photos and without. If one fails, it logs `custom PDF template failed, using the built-in one` with the file name and Typst's error, and serves the built-in design. Fix the template and restart.

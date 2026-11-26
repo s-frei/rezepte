@@ -27,12 +27,15 @@ Configure Rezepte with environment variables; there is no config file.
     REZEPTE_SMTP_PASSWORD: { description: 'Password for that username', type: 'string', required: true },
     REZEPTE_SMTP_FROM: { description: 'The address mail is sent from; required with REZEPTE_SMTP_HOST', type: 'string', required: true },
     REZEPTE_SMTP_FROM_NAME: { description: 'The sender name people see in their inbox', type: 'string', default: 'Rezepte', required: true },
+    REZEPTE_PDF_TEMPLATE_DIR: { description: 'A directory with your own PDF templates, see Custom PDF templates. Must exist; without it Rezepte uses its built-in design', type: 'string', required: true },
     REZEPTE_UPDATE_CHECK: { description: 'false stops the daily check for a new version, see Updates', type: 'boolean', default: 'true', required: true },
     TZ: { description: 'Time zone, such as Europe/Berlin, for the times in mails, which name no zone, the hour the daily new recipes go out, and the meal plan’s today for API callers that send none', type: 'string', default: 'UTC', required: true },
   }}
 />
 
 `REZEPTE_ADMIN_USER` and `REZEPTE_ADMIN_PASSWORD` are read only on the first start; see [First login](/getting-started/first-login#the-owner-account).
+
+`REZEPTE_PDF_TEMPLATE_DIR` is explained in [Custom PDF templates](/operations/pdf-templates).
 
 `REZEPTE_UPDATE_CHECK` makes Rezepte ask GitHub once a day for the latest release; see [How you learn about a new version](/operations/updates#how-you-learn-about-a-new-version).
 

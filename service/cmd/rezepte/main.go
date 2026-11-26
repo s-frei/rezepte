@@ -312,12 +312,17 @@ func run() error {
 		logger.Warn("pdf: remove stale typst dirs failed", "err", err)
 	}
 	transfer.Register(srv.API(), transfer.NewService(recipes, images, cfg.DataDir, transfer.InputValidator(srv.API())))
+	// The probe needs typst; without one PDFs are off and the custom
+	// templates stay unchecked, a different log line than a broken template.
+	templateDir := cfg.PDFTemplateDir
 	pdfAvailable := pdf.Available()
 	if !pdfAvailable {
 		logger.Warn("pdf: typst unavailable, PDF downloads are off")
+		templateDir = ""
 	}
 	renderer := pdf.NewRenderer(cfg.DataDir, max(1, runtime.NumCPU()/2))
-	pdfs := pdf.NewService(renderer, recipes, images, instance, cfg.PublicURL, version, pdfAvailable, logger)
+	runnable := pdf.LoadTemplates(ctx, renderer, templateDir, logger)
+	pdfs := pdf.NewService(renderer, recipes, images, instance, cfg.PublicURL, version, pdfAvailable && runnable, logger)
 	pdf.Register(srv.API(), pdfs)
 	settings.Register(srv.API(), instance, mailer.Enabled, pdfs.Info)
 	update.Register(srv.API(), updates)

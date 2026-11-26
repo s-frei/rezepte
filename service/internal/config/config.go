@@ -27,6 +27,8 @@ type Config struct {
 	SecureCookies bool       // REZEPTE_SECURE_COOKIES, default false
 	UpdateCheck   bool       // REZEPTE_UPDATE_CHECK, default true
 
+	PDFTemplateDir string // REZEPTE_PDF_TEMPLATE_DIR, optional directory with recipe.typ and/or book.typ
+
 	PublicURL        string // REZEPTE_PUBLIC_URL, no default; stored without a trailing slash
 	OIDCIssuer       string // REZEPTE_OIDC_ISSUER
 	OIDCClientID     string // REZEPTE_OIDC_CLIENT_ID
@@ -61,6 +63,7 @@ func load(getenv func(string) string) (Config, error) {
 		LogFormat:     get("REZEPTE_LOG_FORMAT", "text"),
 		Locale:        get("REZEPTE_LOCALE", "en"),
 
+		PDFTemplateDir:   getenv("REZEPTE_PDF_TEMPLATE_DIR"),
 		PublicURL:        getenv("REZEPTE_PUBLIC_URL"),
 		OIDCIssuer:       getenv("REZEPTE_OIDC_ISSUER"),
 		OIDCClientID:     getenv("REZEPTE_OIDC_CLIENT_ID"),
@@ -94,6 +97,13 @@ func load(getenv func(string) string) (Config, error) {
 	}
 	if _, err := user.ParseLocale(cfg.Locale); err != nil {
 		return Config{}, fmt.Errorf("REZEPTE_LOCALE must be one of %v, got %q", user.Locales, cfg.Locale)
+	}
+	if cfg.PDFTemplateDir != "" {
+		if info, err := os.Stat(cfg.PDFTemplateDir); err != nil {
+			return Config{}, fmt.Errorf("REZEPTE_PDF_TEMPLATE_DIR must be a directory: %w", err)
+		} else if !info.IsDir() {
+			return Config{}, fmt.Errorf("REZEPTE_PDF_TEMPLATE_DIR must be a directory: %s is a file", cfg.PDFTemplateDir)
+		}
 	}
 	if cfg.PublicURL != "" {
 		public, err := parsePublicURL(cfg.PublicURL)

@@ -4,7 +4,10 @@ import (
 	"errors"
 	"log/slog"
 	"maps"
+	"os"
+	"path/filepath"
 	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/s-frei/rezepte/service/internal/mail"
@@ -275,6 +278,27 @@ func TestOpenURL(t *testing.T) {
 		c := Config{Addr: tc.addr, PublicURL: tc.public}
 		if got := c.OpenURL(); got != tc.want {
 			t.Errorf("Config{Addr: %q, PublicURL: %q}.OpenURL() = %q, want %q", tc.addr, tc.public, got, tc.want)
+		}
+	}
+}
+
+func TestPDFTemplateDir(t *testing.T) {
+	dir := t.TempDir()
+	file := filepath.Join(dir, "recipe.typ")
+	if err := os.WriteFile(file, nil, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	cfg, err := LoadFrom(map[string]string{"REZEPTE_PDF_TEMPLATE_DIR": dir})
+	if err != nil || cfg.PDFTemplateDir != dir {
+		t.Fatalf("dir: cfg=%q err=%v", cfg.PDFTemplateDir, err)
+	}
+	if cfg, err = LoadFrom(nil); err != nil || cfg.PDFTemplateDir != "" {
+		t.Fatalf("unset: cfg=%q err=%v", cfg.PDFTemplateDir, err)
+	}
+	for name, v := range map[string]string{"file": file, "missing": filepath.Join(dir, "nope")} {
+		_, err := LoadFrom(map[string]string{"REZEPTE_PDF_TEMPLATE_DIR": v})
+		if err == nil || !strings.HasPrefix(err.Error(), "REZEPTE_PDF_TEMPLATE_DIR must be a directory: ") {
+			t.Errorf("%s: err = %v", name, err)
 		}
 	}
 }
