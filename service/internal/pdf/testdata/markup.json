@@ -1,0 +1,134 @@
+{
+  "schemaVersion": 1,
+  "generator": {
+    "name": "rezepte",
+    "version": "0.0.0-test"
+  },
+  "generatedAt": "2026-11-25T12:00:00Z",
+  "locale": "de",
+  "options": {
+    "bundle": "single",
+    "paper": "a4",
+    "photo": true,
+    "footer": true
+  },
+  "instance": {
+    "product": "Rezepte",
+    "url": "https://rezepte.example.com",
+    "attribution": true
+  },
+  "labels": {
+    "servings": "Portionen",
+    "prep": "Vorbereitung",
+    "cook": "Kochen",
+    "total": "Gesamt",
+    "ingredients": "Zutaten",
+    "steps": "Zubereitung",
+    "source": "Quelle",
+    "addedBy": "Hinzugefügt von",
+    "contents": "Inhalt",
+    "recipeFallback": "Rezept",
+    "continued": "Forts.",
+    "nextPage": "Weiter auf der nächsten Seite",
+    "openRecipe": "Rezept öffnen",
+    "scaledFrom": "umgerechnet von {n}",
+    "scaledFromShort": "von {n}"
+  },
+  "book": null,
+  "recipes": [
+    {
+      "id": "r-markup",
+      "slug": "markup",
+      "url": "https://rezepte.example.com/recipes/markup",
+      "title": "# Titel $x$ * _kursiv_ <tag> @user \\ ] [ `code` \"quote\"",
+      "description": "Beschreibung: #let x = 1 und $$ und *fett* _unterstrichen_ <label> @ref \\n ]",
+      "tags": [
+        "#tag",
+        "a_b",
+        "$",
+        "*"
+      ],
+      "servings": {
+        "value": 4,
+        "original": 4,
+        "display": "4 Portionen"
+      },
+      "times": {
+        "prep": {
+          "minutes": 5,
+          "display": "5 Min."
+        },
+        "cook": null,
+        "total": null
+      },
+      "source": {
+        "name": "Buch #1 *neu*",
+        "url": "https://example.com/a?b=c&d=e#f",
+        "display": "Buch #1 *neu*"
+      },
+      "author": {
+        "displayName": "Samuel"
+      },
+      "createdAt": "2026-11-25T12:00:00Z",
+      "updatedAt": "2026-11-25T12:00:00Z",
+      "photo": null,
+      "qr": {
+        "url": "https://rezepte.example.com/recipes/markup",
+        "path": "qr-r-markup.svg"
+      },
+      "ingredientGroups": [
+        {
+          "name": "Gruppe #1 _x_",
+          "ingredients": [
+            {
+              "quantity": {
+                "value": 1,
+                "display": "1"
+              },
+              "unit": "Stück",
+              "name": "Zwiebel *rot*",
+              "note": "in $Ringen$",
+              "display": "1 Stück Zwiebel *rot*, in $Ringen$"
+            },
+            {
+              "quantity": {
+                "value": 2,
+                "display": "2"
+              },
+              "unit": "EL",
+              "name": "Öl #heiß",
+              "note": null,
+              "display": "2 EL Öl #heiß"
+            }
+          ]
+        }
+      ],
+      "steps": [
+        {
+          "number": 1,
+          "text": "Schritt mit #Zwiebel und \\ Backslash, ] Klammer, <b> und @mention.",
+          "segments": [
+            {
+              "kind": "text",
+              "text": "Schritt mit ",
+              "amount": null,
+              "minutes": null
+            },
+            {
+              "kind": "ingredient",
+              "text": "#Zwiebel",
+              "amount": "1 Stück",
+              "minutes": null
+            },
+            {
+              "kind": "text",
+              "text": " und \\ Backslash, ] Klammer, <b> und @mention.",
+              "amount": null,
+              "minutes": null
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

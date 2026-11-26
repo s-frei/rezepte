@@ -1,0 +1,301 @@
+{
+  "schemaVersion": 1,
+  "generator": {
+    "name": "rezepte",
+    "version": "0.0.0-test"
+  },
+  "generatedAt": "2026-11-25T12:00:00Z",
+  "locale": "de",
+  "options": {
+    "bundle": "single",
+    "paper": "a4",
+    "photo": true,
+    "footer": true
+  },
+  "instance": {
+    "product": "Rezepte",
+    "url": "https://rezepte.example.com",
+    "attribution": true
+  },
+  "labels": {
+    "servings": "Portionen",
+    "prep": "Vorbereitung",
+    "cook": "Kochen",
+    "total": "Gesamt",
+    "ingredients": "Zutaten",
+    "steps": "Zubereitung",
+    "source": "Quelle",
+    "addedBy": "Hinzugefügt von",
+    "contents": "Inhalt",
+    "recipeFallback": "Rezept",
+    "continued": "Forts.",
+    "nextPage": "Weiter auf der nächsten Seite",
+    "openRecipe": "Rezept öffnen",
+    "scaledFrom": "umgerechnet von {n}",
+    "scaledFromShort": "von {n}"
+  },
+  "book": null,
+  "recipes": [
+    {
+      "id": "r-kaese",
+      "slug": "kaesespaetzle",
+      "url": "https://rezepte.example.com/recipes/kaesespaetzle",
+      "title": "Käsespätzle",
+      "description": "Schwäbische Spätzle mit reichlich Bergkäse überbacken und mit knusprigen Röstzwiebeln serviert.",
+      "tags": [
+        "vegetarisch",
+        "schwäbisch"
+      ],
+      "servings": {
+        "value": 2,
+        "original": 4,
+        "display": "2 Portionen"
+      },
+      "times": {
+        "prep": {
+          "minutes": 20,
+          "display": "20 Min."
+        },
+        "cook": {
+          "minutes": 20,
+          "display": "20 Min."
+        },
+        "total": {
+          "minutes": 40,
+          "display": "40 Min."
+        }
+      },
+      "source": {
+        "name": null,
+        "url": "https://www.example.com/kaesespaetzle",
+        "display": "example.com"
+      },
+      "author": {
+        "displayName": "Samuel"
+      },
+      "createdAt": "2026-11-25T12:00:00Z",
+      "updatedAt": "2026-11-25T12:00:00Z",
+      "photo": {
+        "path": "photos/1.jpg",
+        "width": 600,
+        "height": 448,
+        "focus": {
+          "x": 0.5,
+          "y": 0.5
+        }
+      },
+      "qr": {
+        "url": "https://rezepte.example.com/recipes/kaesespaetzle",
+        "path": "qr-r-kaese.svg"
+      },
+      "ingredientGroups": [
+        {
+          "name": "Spätzle",
+          "ingredients": [
+            {
+              "quantity": {
+                "value": 200,
+                "display": "200"
+              },
+              "unit": "g",
+              "name": "Mehl",
+              "note": null,
+              "display": "200 g Mehl"
+            },
+            {
+              "quantity": {
+                "value": 2,
+                "display": "2"
+              },
+              "unit": "Stück",
+              "name": "Ei",
+              "note": null,
+              "display": "2 Stück Ei"
+            },
+            {
+              "quantity": {
+                "value": 100,
+                "display": "100"
+              },
+              "unit": "ml",
+              "name": "Wasser",
+              "note": null,
+              "display": "100 ml Wasser"
+            },
+            {
+              "quantity": {
+                "value": 0.5,
+                "display": "0,5"
+              },
+              "unit": "TL",
+              "name": "Salz",
+              "note": null,
+              "display": "0,5 TL Salz"
+            },
+            {
+              "quantity": {
+                "value": 100,
+                "display": "100"
+              },
+              "unit": "g",
+              "name": "Bergkäse",
+              "note": "gerieben",
+              "display": "100 g Bergkäse, gerieben"
+            }
+          ]
+        },
+        {
+          "name": "Röstzwiebeln",
+          "ingredients": [
+            {
+              "quantity": {
+                "value": 1,
+                "display": "1"
+              },
+              "unit": "Stück",
+              "name": "Zwiebeln",
+              "note": null,
+              "display": "1 Stück Zwiebeln"
+            },
+            {
+              "quantity": {
+                "value": 1,
+                "display": "1"
+              },
+              "unit": "EL",
+              "name": "Butter",
+              "note": null,
+              "display": "1 EL Butter"
+            },
+            {
+              "quantity": {
+                "value": 0.5,
+                "display": "0,5"
+              },
+              "unit": "Prise",
+              "name": "Salz",
+              "note": null,
+              "display": "0,5 Prise Salz"
+            }
+          ]
+        }
+      ],
+      "steps": [
+        {
+          "number": 1,
+          "text": "Mehl, Eier, Wasser und Salz zu einem zähen Teig verrühren, bis er Blasen wirft.",
+          "segments": [
+            {
+              "kind": "ingredient",
+              "text": "Mehl",
+              "amount": "200 g",
+              "minutes": null
+            },
+            {
+              "kind": "text",
+              "text": ", ",
+              "amount": null,
+              "minutes": null
+            },
+            {
+              "kind": "ingredient",
+              "text": "Eier",
+              "amount": "2 Stück",
+              "minutes": null
+            },
+            {
+              "kind": "text",
+              "text": ", ",
+              "amount": null,
+              "minutes": null
+            },
+            {
+              "kind": "ingredient",
+              "text": "Wasser",
+              "amount": "100 ml",
+              "minutes": null
+            },
+            {
+              "kind": "text",
+              "text": " und Salz zu einem zähen Teig verrühren, bis er Blasen wirft.",
+              "amount": null,
+              "minutes": null
+            }
+          ]
+        },
+        {
+          "number": 2,
+          "text": "Teig durch eine Spätzlepresse oder vom Brett ins kochende Salzwasser schaben.",
+          "segments": [
+            {
+              "kind": "text",
+              "text": "Teig durch eine Spätzlepresse oder vom Brett ins kochende Salzwasser schaben.",
+              "amount": null,
+              "minutes": null
+            }
+          ]
+        },
+        {
+          "number": 3,
+          "text": "Spätzle garziehen lassen, bis sie an die Oberfläche steigen, abschöpfen.",
+          "segments": [
+            {
+              "kind": "text",
+              "text": "Spätzle ",
+              "amount": null,
+              "minutes": null
+            },
+            {
+              "kind": "time",
+              "text": "garziehen lassen",
+              "amount": null,
+              "minutes": 5
+            },
+            {
+              "kind": "text",
+              "text": ", bis sie an die Oberfläche steigen, abschöpfen.",
+              "amount": null,
+              "minutes": null
+            }
+          ]
+        },
+        {
+          "number": 4,
+          "text": "Zwiebeln in Ringe schneiden und in Butter goldbraun braten.",
+          "segments": [
+            {
+              "kind": "text",
+              "text": "Zwiebeln in Ringe schneiden und in Butter goldbraun braten.",
+              "amount": null,
+              "minutes": null
+            }
+          ]
+        },
+        {
+          "number": 5,
+          "text": "Spätzle lagenweise mit Käse in eine Pfanne schichten, schmelzen lassen und mit Röstzwiebeln servieren.",
+          "segments": [
+            {
+              "kind": "text",
+              "text": "Spätzle lagenweise mit ",
+              "amount": null,
+              "minutes": null
+            },
+            {
+              "kind": "ingredient",
+              "text": "Käse",
+              "amount": "100 g",
+              "minutes": null
+            },
+            {
+              "kind": "text",
+              "text": " in eine Pfanne schichten, schmelzen lassen und mit Röstzwiebeln servieren.",
+              "amount": null,
+              "minutes": null
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

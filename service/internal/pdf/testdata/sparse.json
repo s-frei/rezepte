@@ -1,0 +1,81 @@
+{
+  "schemaVersion": 1,
+  "generator": {
+    "name": "rezepte",
+    "version": "0.0.0-test"
+  },
+  "generatedAt": "2026-11-25T12:00:00Z",
+  "locale": "de",
+  "options": {
+    "bundle": "single",
+    "paper": "a5",
+    "photo": false,
+    "footer": false
+  },
+  "instance": {
+    "product": "Rezepte",
+    "url": "https://rezepte.example.com",
+    "attribution": true
+  },
+  "labels": {
+    "servings": "Portionen",
+    "prep": "Vorbereitung",
+    "cook": "Kochen",
+    "total": "Gesamt",
+    "ingredients": "Zutaten",
+    "steps": "Zubereitung",
+    "source": "Quelle",
+    "addedBy": "Hinzugefügt von",
+    "contents": "Inhalt",
+    "recipeFallback": "Rezept",
+    "continued": "Forts.",
+    "nextPage": "Weiter auf der nächsten Seite",
+    "openRecipe": "Rezept öffnen",
+    "scaledFrom": "umgerechnet von {n}",
+    "scaledFromShort": "von {n}"
+  },
+  "book": null,
+  "recipes": [
+    {
+      "id": "r-sparse",
+      "slug": "wasser",
+      "url": "https://rezepte.example.com/recipes/wasser",
+      "title": "Wasser",
+      "description": "",
+      "tags": [],
+      "servings": {
+        "value": 1,
+        "original": 1,
+        "display": "1 Portion"
+      },
+      "times": {
+        "prep": null,
+        "cook": null,
+        "total": null
+      },
+      "source": null,
+      "author": {
+        "displayName": "Samuel"
+      },
+      "createdAt": "2026-11-25T12:00:00Z",
+      "updatedAt": "2026-11-25T12:00:00Z",
+      "photo": null,
+      "qr": null,
+      "ingredientGroups": [
+        {
+          "name": null,
+          "ingredients": [
+            {
+              "quantity": null,
+              "unit": null,
+              "name": "Wasser",
+              "note": null,
+              "display": "Wasser"
+            }
+          ]
+        }
+      ],
+      "steps": []
+    }
+  ]
+}

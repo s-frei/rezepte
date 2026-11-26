@@ -1,0 +1,430 @@
+{
+  "schemaVersion": 1,
+  "generator": {
+    "name": "rezepte",
+    "version": "0.0.0-test"
+  },
+  "generatedAt": "2026-11-25T12:00:00Z",
+  "locale": "de",
+  "options": {
+    "bundle": "single",
+    "paper": "a4",
+    "photo": true,
+    "footer": true
+  },
+  "instance": {
+    "product": "Rezepte",
+    "url": "https://rezepte.example.com",
+    "attribution": true
+  },
+  "labels": {
+    "servings": "Portionen",
+    "prep": "Vorbereitung",
+    "cook": "Kochen",
+    "total": "Gesamt",
+    "ingredients": "Zutaten",
+    "steps": "Zubereitung",
+    "source": "Quelle",
+    "addedBy": "Hinzugefügt von",
+    "contents": "Inhalt",
+    "recipeFallback": "Rezept",
+    "continued": "Forts.",
+    "nextPage": "Weiter auf der nächsten Seite",
+    "openRecipe": "Rezept öffnen",
+    "scaledFrom": "umgerechnet von {n}",
+    "scaledFromShort": "von {n}"
+  },
+  "book": null,
+  "recipes": [
+    {
+      "id": "r-rouladen",
+      "slug": "rinderrouladen",
+      "url": "https://rezepte.example.com/recipes/rinderrouladen",
+      "title": "Rinderrouladen",
+      "description": "Rinderrouladen mit Senf, Speck und Gewürzgurken gefüllt und in dunkler Sauce geschmort.",
+      "tags": [
+        "fleisch",
+        "klassiker",
+        "schmoren"
+      ],
+      "servings": {
+        "value": 4,
+        "original": 4,
+        "display": "4"
+      },
+      "times": {
+        "prep": {
+          "minutes": 30,
+          "display": "30 Min"
+        },
+        "cook": {
+          "minutes": 100,
+          "display": "1 Std 40 Min"
+        },
+        "total": {
+          "minutes": 130,
+          "display": "2 Std 10 Min"
+        }
+      },
+      "source": {
+        "name": "Sonntagsküche",
+        "url": "https://example.com/rinderrouladen",
+        "display": "Sonntagsküche"
+      },
+      "author": {
+        "displayName": "Jonas Zimt"
+      },
+      "createdAt": "2026-11-25T12:00:00Z",
+      "updatedAt": "2026-11-25T12:00:00Z",
+      "photo": {
+        "path": "photos/1.jpg",
+        "width": 600,
+        "height": 448,
+        "focus": {
+          "x": 0.5,
+          "y": 0.5
+        }
+      },
+      "qr": {
+        "url": "https://rezepte.example.com/recipes/kaesespaetzle",
+        "path": "qr-r-kaese.svg"
+      },
+      "ingredientGroups": [
+        {
+          "name": "Rouladen",
+          "ingredients": [
+            {
+              "quantity": {
+                "value": 4,
+                "display": "4"
+              },
+              "unit": "Stück",
+              "name": "Rinderrouladen",
+              "note": null,
+              "display": "4 Stück Rinderrouladen"
+            },
+            {
+              "quantity": {
+                "value": 4,
+                "display": "4"
+              },
+              "unit": "TL",
+              "name": "Senf",
+              "note": null,
+              "display": "4 TL Senf"
+            },
+            {
+              "quantity": {
+                "value": 4,
+                "display": "4"
+              },
+              "unit": "Stück",
+              "name": "Speck",
+              "note": null,
+              "display": "4 Stück Speck"
+            },
+            {
+              "quantity": {
+                "value": 1,
+                "display": "1"
+              },
+              "unit": "Stück",
+              "name": "Zwiebel",
+              "note": null,
+              "display": "1 Stück Zwiebel"
+            },
+            {
+              "quantity": {
+                "value": 2,
+                "display": "2"
+              },
+              "unit": "Stück",
+              "name": "Gewürzgurken",
+              "note": null,
+              "display": "2 Stück Gewürzgurken"
+            },
+            {
+              "quantity": {
+                "value": 1,
+                "display": "1"
+              },
+              "unit": "Prise",
+              "name": "Salz",
+              "note": null,
+              "display": "1 Prise Salz"
+            },
+            {
+              "quantity": {
+                "value": 1,
+                "display": "1"
+              },
+              "unit": "Prise",
+              "name": "Pfeffer",
+              "note": null,
+              "display": "1 Prise Pfeffer"
+            }
+          ]
+        },
+        {
+          "name": "Sauce",
+          "ingredients": [
+            {
+              "quantity": {
+                "value": 2,
+                "display": "2"
+              },
+              "unit": "EL",
+              "name": "Tomatenmark",
+              "note": null,
+              "display": "2 EL Tomatenmark"
+            },
+            {
+              "quantity": {
+                "value": 500,
+                "display": "500"
+              },
+              "unit": "ml",
+              "name": "Rinderbrühe",
+              "note": null,
+              "display": "500 ml Rinderbrühe"
+            },
+            {
+              "quantity": {
+                "value": 1,
+                "display": "1"
+              },
+              "unit": "Stück",
+              "name": "Möhre",
+              "note": null,
+              "display": "1 Stück Möhre"
+            },
+            {
+              "quantity": {
+                "value": 1,
+                "display": "1"
+              },
+              "unit": "Stück",
+              "name": "Zwiebel",
+              "note": null,
+              "display": "1 Stück Zwiebel"
+            },
+            {
+              "quantity": {
+                "value": 2,
+                "display": "2"
+              },
+              "unit": "EL",
+              "name": "Mehl",
+              "note": "zum Andicken",
+              "display": "2 EL Mehl"
+            },
+            {
+              "quantity": {
+                "value": 1,
+                "display": "1"
+              },
+              "unit": "Prise",
+              "name": "Salz",
+              "note": null,
+              "display": "1 Prise Salz"
+            }
+          ]
+        }
+      ],
+      "steps": [
+        {
+          "number": 1,
+          "text": "Rouladen flach auslegen, mit Senf bestreichen, mit Speck, Zwiebel- und Gurkenstreifen belegen, salzen und pfeffern.",
+          "segments": [
+            {
+              "kind": "ingredient",
+              "text": "Rouladen",
+              "amount": "4 Stück",
+              "minutes": null
+            },
+            {
+              "kind": "text",
+              "text": " flach auslegen, mit ",
+              "amount": null,
+              "minutes": null
+            },
+            {
+              "kind": "ingredient",
+              "text": "Senf",
+              "amount": "4 TL",
+              "minutes": null
+            },
+            {
+              "kind": "text",
+              "text": " bestreichen, mit ",
+              "amount": null,
+              "minutes": null
+            },
+            {
+              "kind": "ingredient",
+              "text": "Speck",
+              "amount": "4 Stück",
+              "minutes": null
+            },
+            {
+              "kind": "text",
+              "text": ", Zwiebel- und ",
+              "amount": null,
+              "minutes": null
+            },
+            {
+              "kind": "ingredient",
+              "text": "Gurkenstreifen",
+              "amount": "2 Stück",
+              "minutes": null
+            },
+            {
+              "kind": "text",
+              "text": " belegen, salzen und pfeffern.",
+              "amount": null,
+              "minutes": null
+            }
+          ]
+        },
+        {
+          "number": 2,
+          "text": "Rouladen aufrollen und mit Rouladennadeln oder Küchengarn feststecken.",
+          "segments": [
+            {
+              "kind": "ingredient",
+              "text": "Rouladen",
+              "amount": "4 Stück",
+              "minutes": null
+            },
+            {
+              "kind": "text",
+              "text": " aufrollen und mit Rouladennadeln oder Küchengarn feststecken.",
+              "amount": null,
+              "minutes": null
+            }
+          ]
+        },
+        {
+          "number": 3,
+          "text": "In einem Bräter rundum scharf anbraten.",
+          "segments": [
+            {
+              "kind": "text",
+              "text": "In einem Bräter rundum scharf anbraten.",
+              "amount": null,
+              "minutes": null
+            }
+          ]
+        },
+        {
+          "number": 4,
+          "text": "Möhre und Zwiebel würfeln, zugeben und kurz mitrösten, Tomatenmark einrühren.",
+          "segments": [
+            {
+              "kind": "ingredient",
+              "text": "Möhre",
+              "amount": "1 Stück",
+              "minutes": null
+            },
+            {
+              "kind": "text",
+              "text": " und Zwiebel würfeln, zugeben und kurz mitrösten, ",
+              "amount": null,
+              "minutes": null
+            },
+            {
+              "kind": "ingredient",
+              "text": "Tomatenmark",
+              "amount": "2 EL",
+              "minutes": null
+            },
+            {
+              "kind": "text",
+              "text": " einrühren.",
+              "amount": null,
+              "minutes": null
+            }
+          ]
+        },
+        {
+          "number": 5,
+          "text": "Mit Brühe ablöschen und die Rouladen zugedeckt bei kleiner Hitze etwa 90 Minuten schmoren.",
+          "segments": [
+            {
+              "kind": "text",
+              "text": "Mit ",
+              "amount": null,
+              "minutes": null
+            },
+            {
+              "kind": "ingredient",
+              "text": "Brühe",
+              "amount": "500 ml",
+              "minutes": null
+            },
+            {
+              "kind": "text",
+              "text": " ablöschen und die ",
+              "amount": null,
+              "minutes": null
+            },
+            {
+              "kind": "ingredient",
+              "text": "Rouladen",
+              "amount": "4 Stück",
+              "minutes": null
+            },
+            {
+              "kind": "text",
+              "text": " zugedeckt bei kleiner Hitze etwa ",
+              "amount": null,
+              "minutes": null
+            },
+            {
+              "kind": "time",
+              "text": "90 Minuten",
+              "amount": null,
+              "minutes": 90
+            },
+            {
+              "kind": "text",
+              "text": " schmoren.",
+              "amount": null,
+              "minutes": null
+            }
+          ]
+        },
+        {
+          "number": 6,
+          "text": "Rouladen herausnehmen, Sauce mit Mehl binden, abschmecken und die Rouladen darin servieren.",
+          "segments": [
+            {
+              "kind": "ingredient",
+              "text": "Rouladen",
+              "amount": "4 Stück",
+              "minutes": null
+            },
+            {
+              "kind": "text",
+              "text": " herausnehmen, Sauce mit ",
+              "amount": null,
+              "minutes": null
+            },
+            {
+              "kind": "ingredient",
+              "text": "Mehl",
+              "amount": "2 EL",
+              "minutes": null
+            },
+            {
+              "kind": "text",
+              "text": " binden, abschmecken und die Rouladen darin servieren.",
+              "amount": null,
+              "minutes": null
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

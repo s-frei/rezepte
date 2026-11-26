@@ -1,0 +1,981 @@
+{
+  "schemaVersion": 1,
+  "generator": {
+    "name": "rezepte",
+    "version": "0.0.0-test"
+  },
+  "generatedAt": "2026-11-25T12:00:00Z",
+  "locale": "de",
+  "options": {
+    "bundle": "single",
+    "paper": "a4",
+    "photo": true,
+    "footer": true
+  },
+  "instance": {
+    "product": "Rezepte",
+    "url": "https://rezepte.example.com",
+    "attribution": true
+  },
+  "labels": {
+    "servings": "Portionen",
+    "prep": "Vorbereitung",
+    "cook": "Kochen",
+    "total": "Gesamt",
+    "ingredients": "Zutaten",
+    "steps": "Zubereitung",
+    "source": "Quelle",
+    "addedBy": "Hinzugefügt von",
+    "contents": "Inhalt",
+    "recipeFallback": "Rezept",
+    "continued": "Forts.",
+    "nextPage": "Weiter auf der nächsten Seite",
+    "openRecipe": "Rezept öffnen",
+    "scaledFrom": "umgerechnet von {n}",
+    "scaledFromShort": "von {n}"
+  },
+  "book": null,
+  "recipes": [
+    {
+      "id": "r-sauerbraten",
+      "title": "Sauerbraten",
+      "description": "Traditionell gebeizter Rinderbraten: drei bis fünf Tage in Essig, Rotwein und Gewürzen eingelegt, lange geschmort und mit einer süßsauren Lebkuchensauce serviert.",
+      "tags": [
+        "klassiker",
+        "fleisch",
+        "schmoren"
+      ],
+      "servings": {
+        "value": 4,
+        "original": 4,
+        "display": "4"
+      },
+      "times": {
+        "prep": {
+          "minutes": 30,
+          "display": "30 Min"
+        },
+        "cook": {
+          "minutes": 150,
+          "display": "2 Std 30 Min"
+        },
+        "total": {
+          "minutes": 180,
+          "display": "3 Std"
+        }
+      },
+      "source": {
+        "name": "Rheinische Sonntagsküche",
+        "url": "https://example.com/sauerbraten",
+        "display": "Rheinische Sonntagsküche"
+      },
+      "ingredientGroups": [
+        {
+          "name": "Beize",
+          "ingredients": [
+            {
+              "quantity": {
+                "value": 500,
+                "display": "500"
+              },
+              "unit": "ml",
+              "name": "Rotweinessig",
+              "note": "kräftig",
+              "display": "500 ml Rotweinessig"
+            },
+            {
+              "quantity": {
+                "value": 500,
+                "display": "500"
+              },
+              "unit": "ml",
+              "name": "Rotwein",
+              "note": "trocken, kräftig",
+              "display": "500 ml Rotwein"
+            },
+            {
+              "quantity": {
+                "value": 250,
+                "display": "250"
+              },
+              "unit": "ml",
+              "name": "Wasser",
+              "note": null,
+              "display": "250 ml Wasser"
+            },
+            {
+              "quantity": {
+                "value": 2,
+                "display": "2"
+              },
+              "unit": "Stück",
+              "name": "Zwiebel",
+              "note": "geschält",
+              "display": "2 Stück Zwiebel"
+            },
+            {
+              "quantity": {
+                "value": 1,
+                "display": "1"
+              },
+              "unit": "Stück",
+              "name": "Möhre",
+              "note": "geschält",
+              "display": "1 Stück Möhre"
+            },
+            {
+              "quantity": {
+                "value": 100,
+                "display": "100"
+              },
+              "unit": "g",
+              "name": "Knollensellerie",
+              "note": "geschält",
+              "display": "100 g Knollensellerie"
+            },
+            {
+              "quantity": {
+                "value": 3,
+                "display": "3"
+              },
+              "unit": "Stück",
+              "name": "Lorbeerblätter",
+              "note": "getrocknet",
+              "display": "3 Stück Lorbeerblätter"
+            },
+            {
+              "quantity": {
+                "value": 6,
+                "display": "6"
+              },
+              "unit": "Stück",
+              "name": "Wacholderbeeren",
+              "note": "angedrückt",
+              "display": "6 Stück Wacholderbeeren"
+            },
+            {
+              "quantity": {
+                "value": 1,
+                "display": "1"
+              },
+              "unit": "TL",
+              "name": "Pfefferkörner",
+              "note": "schwarz",
+              "display": "1 TL Pfefferkörner"
+            },
+            {
+              "quantity": {
+                "value": 4,
+                "display": "4"
+              },
+              "unit": "Stück",
+              "name": "Pimentkörner",
+              "note": "ganz",
+              "display": "4 Stück Pimentkörner"
+            },
+            {
+              "quantity": {
+                "value": 3,
+                "display": "3"
+              },
+              "unit": "Stück",
+              "name": "Gewürznelken",
+              "note": "ganz, nicht gemahlen",
+              "display": "3 Stück Gewürznelken"
+            },
+            {
+              "quantity": {
+                "value": 1,
+                "display": "1"
+              },
+              "unit": "EL",
+              "name": "Zucker",
+              "note": null,
+              "display": "1 EL Zucker"
+            },
+            {
+              "quantity": {
+                "value": 1,
+                "display": "1"
+              },
+              "unit": "TL",
+              "name": "Salz",
+              "note": null,
+              "display": "1 TL Salz"
+            }
+          ]
+        },
+        {
+          "name": "Braten",
+          "ingredients": [
+            {
+              "quantity": {
+                "value": 1.5,
+                "display": "1 ½"
+              },
+              "unit": "kg",
+              "name": "Rinderbraten",
+              "note": "aus der Keule",
+              "display": "1 ½ kg Rinderbraten"
+            },
+            {
+              "quantity": {
+                "value": 2,
+                "display": "2"
+              },
+              "unit": "EL",
+              "name": "Butterschmalz",
+              "note": null,
+              "display": "2 EL Butterschmalz"
+            },
+            {
+              "quantity": {
+                "value": 1,
+                "display": "1"
+              },
+              "unit": "EL",
+              "name": "Mehl",
+              "note": "zum Bestäuben",
+              "display": "1 EL Mehl"
+            },
+            {
+              "quantity": {
+                "value": 2,
+                "display": "2"
+              },
+              "unit": "EL",
+              "name": "Tomatenmark",
+              "note": null,
+              "display": "2 EL Tomatenmark"
+            },
+            {
+              "quantity": {
+                "value": 1,
+                "display": "1"
+              },
+              "unit": "Prise",
+              "name": "Salz",
+              "note": null,
+              "display": "1 Prise Salz"
+            },
+            {
+              "quantity": {
+                "value": 1,
+                "display": "1"
+              },
+              "unit": "Prise",
+              "name": "Pfeffer",
+              "note": null,
+              "display": "1 Prise Pfeffer"
+            },
+            {
+              "quantity": {
+                "value": 1,
+                "display": "1"
+              },
+              "unit": "Bund",
+              "name": "Suppengrün",
+              "note": null,
+              "display": "1 Bund Suppengrün"
+            }
+          ]
+        },
+        {
+          "name": "Sauce",
+          "ingredients": [
+            {
+              "quantity": {
+                "value": 50,
+                "display": "50"
+              },
+              "unit": "g",
+              "name": "Soßenlebkuchen",
+              "note": "zerbröselt",
+              "display": "50 g Soßenlebkuchen"
+            },
+            {
+              "quantity": {
+                "value": 50,
+                "display": "50"
+              },
+              "unit": "g",
+              "name": "Rosinen",
+              "note": null,
+              "display": "50 g Rosinen"
+            },
+            {
+              "quantity": {
+                "value": 2,
+                "display": "2"
+              },
+              "unit": "EL",
+              "name": "Rübenkraut",
+              "note": null,
+              "display": "2 EL Rübenkraut"
+            },
+            {
+              "quantity": {
+                "value": 1,
+                "display": "1"
+              },
+              "unit": "EL",
+              "name": "Johannisbeergelee",
+              "note": null,
+              "display": "1 EL Johannisbeergelee"
+            },
+            {
+              "quantity": {
+                "value": 1,
+                "display": "1"
+              },
+              "unit": "TL",
+              "name": "Speisestärke",
+              "note": null,
+              "display": "1 TL Speisestärke"
+            },
+            {
+              "quantity": {
+                "value": 100,
+                "display": "100"
+              },
+              "unit": "g",
+              "name": "Sahne",
+              "note": null,
+              "display": "100 g Sahne"
+            },
+            {
+              "quantity": {
+                "value": 1,
+                "display": "1"
+              },
+              "unit": "Prise",
+              "name": "Salz",
+              "note": "zum Abschmecken",
+              "display": "1 Prise Salz"
+            },
+            {
+              "quantity": {
+                "value": 1,
+                "display": "1"
+              },
+              "unit": "Prise",
+              "name": "Pfeffer",
+              "note": null,
+              "display": "1 Prise Pfeffer"
+            }
+          ]
+        }
+      ],
+      "steps": [
+        {
+          "number": 1,
+          "text": "Für die Beize Zwiebel, Möhre und Knollensellerie schälen und grob würfeln.",
+          "segments": [
+            {
+              "kind": "text",
+              "text": "Für die Beize ",
+              "amount": null,
+              "minutes": null
+            },
+            {
+              "kind": "ingredient",
+              "text": "Zwiebel",
+              "amount": "2 Stück",
+              "minutes": null
+            },
+            {
+              "kind": "text",
+              "text": ", ",
+              "amount": null,
+              "minutes": null
+            },
+            {
+              "kind": "ingredient",
+              "text": "Möhre",
+              "amount": "1 Stück",
+              "minutes": null
+            },
+            {
+              "kind": "text",
+              "text": " und ",
+              "amount": null,
+              "minutes": null
+            },
+            {
+              "kind": "ingredient",
+              "text": "Knollensellerie",
+              "amount": "100 g",
+              "minutes": null
+            },
+            {
+              "kind": "text",
+              "text": " schälen und grob würfeln.",
+              "amount": null,
+              "minutes": null
+            }
+          ]
+        },
+        {
+          "number": 2,
+          "text": "Rotweinessig, Rotwein und Wasser mit dem Gemüse, Lorbeerblättern, Wacholderbeeren, Pfefferkörnern, Piment, Nelken, Zucker und Salz aufkochen und vollständig abkühlen lassen.",
+          "segments": [
+            {
+              "kind": "ingredient",
+              "text": "Rotweinessig",
+              "amount": "500 ml",
+              "minutes": null
+            },
+            {
+              "kind": "text",
+              "text": ", ",
+              "amount": null,
+              "minutes": null
+            },
+            {
+              "kind": "ingredient",
+              "text": "Rotwein",
+              "amount": "500 ml",
+              "minutes": null
+            },
+            {
+              "kind": "text",
+              "text": " und ",
+              "amount": null,
+              "minutes": null
+            },
+            {
+              "kind": "ingredient",
+              "text": "Wasser",
+              "amount": "250 ml",
+              "minutes": null
+            },
+            {
+              "kind": "text",
+              "text": " mit dem Gemüse, ",
+              "amount": null,
+              "minutes": null
+            },
+            {
+              "kind": "ingredient",
+              "text": "Lorbeerblättern",
+              "amount": "3 Stück",
+              "minutes": null
+            },
+            {
+              "kind": "text",
+              "text": ", ",
+              "amount": null,
+              "minutes": null
+            },
+            {
+              "kind": "ingredient",
+              "text": "Wacholderbeeren",
+              "amount": "6 Stück",
+              "minutes": null
+            },
+            {
+              "kind": "text",
+              "text": ", ",
+              "amount": null,
+              "minutes": null
+            },
+            {
+              "kind": "ingredient",
+              "text": "Pfefferkörnern",
+              "amount": "1 TL",
+              "minutes": null
+            },
+            {
+              "kind": "text",
+              "text": ", ",
+              "amount": null,
+              "minutes": null
+            },
+            {
+              "kind": "ingredient",
+              "text": "Piment",
+              "amount": "4 Stück",
+              "minutes": null
+            },
+            {
+              "kind": "text",
+              "text": ", ",
+              "amount": null,
+              "minutes": null
+            },
+            {
+              "kind": "ingredient",
+              "text": "Nelken",
+              "amount": "3 Stück",
+              "minutes": null
+            },
+            {
+              "kind": "text",
+              "text": ", ",
+              "amount": null,
+              "minutes": null
+            },
+            {
+              "kind": "ingredient",
+              "text": "Zucker",
+              "amount": "1 EL",
+              "minutes": null
+            },
+            {
+              "kind": "text",
+              "text": " und ",
+              "amount": null,
+              "minutes": null
+            },
+            {
+              "kind": "ingredient",
+              "text": "Salz",
+              "amount": "1 TL",
+              "minutes": null
+            },
+            {
+              "kind": "text",
+              "text": " aufkochen und vollständig abkühlen lassen.",
+              "amount": null,
+              "minutes": null
+            }
+          ]
+        },
+        {
+          "number": 3,
+          "text": "Rinderbraten in eine enge Schüssel legen, mit der kalten Beize ganz bedecken und abgedeckt 3 bis 5 Tage im Kühlschrank ziehen lassen; täglich einmal wenden.",
+          "segments": [
+            {
+              "kind": "ingredient",
+              "text": "Rinderbraten",
+              "amount": "1 ½ kg",
+              "minutes": null
+            },
+            {
+              "kind": "text",
+              "text": " in eine enge Schüssel legen, mit der kalten Beize ganz bedecken und abgedeckt 3 bis 5 Tage im Kühlschrank ziehen lassen; täglich einmal wenden.",
+              "amount": null,
+              "minutes": null
+            }
+          ]
+        },
+        {
+          "number": 4,
+          "text": "Fleisch aus der Beize heben, gut abtropfen lassen und mit Küchenpapier trocken tupfen. Die Beize durch ein Sieb gießen und das Gemüse auffangen.",
+          "segments": [
+            {
+              "kind": "ingredient",
+              "text": "Fleisch",
+              "amount": "1 ½ kg",
+              "minutes": null
+            },
+            {
+              "kind": "text",
+              "text": " aus der Beize heben, gut abtropfen lassen und mit Küchenpapier trocken tupfen. Die Beize durch ein Sieb gießen und das Gemüse auffangen.",
+              "amount": null,
+              "minutes": null
+            }
+          ]
+        },
+        {
+          "number": 5,
+          "text": "Fleisch rundum mit Salz und Pfeffer würzen und dünn mit Mehl bestäuben.",
+          "segments": [
+            {
+              "kind": "ingredient",
+              "text": "Fleisch",
+              "amount": "1 ½ kg",
+              "minutes": null
+            },
+            {
+              "kind": "text",
+              "text": " rundum mit ",
+              "amount": null,
+              "minutes": null
+            },
+            {
+              "kind": "ingredient",
+              "text": "Salz",
+              "amount": "1 Prise",
+              "minutes": null
+            },
+            {
+              "kind": "text",
+              "text": " und ",
+              "amount": null,
+              "minutes": null
+            },
+            {
+              "kind": "ingredient",
+              "text": "Pfeffer",
+              "amount": "1 Prise",
+              "minutes": null
+            },
+            {
+              "kind": "text",
+              "text": " würzen und dünn mit ",
+              "amount": null,
+              "minutes": null
+            },
+            {
+              "kind": "ingredient",
+              "text": "Mehl",
+              "amount": "1 EL",
+              "minutes": null
+            },
+            {
+              "kind": "text",
+              "text": " bestäuben.",
+              "amount": null,
+              "minutes": null
+            }
+          ]
+        },
+        {
+          "number": 6,
+          "text": "Butterschmalz in einem Bräter stark erhitzen und das Fleisch darin von allen Seiten kräftig anbraten, dann herausnehmen.",
+          "segments": [
+            {
+              "kind": "ingredient",
+              "text": "Butterschmalz",
+              "amount": "2 EL",
+              "minutes": null
+            },
+            {
+              "kind": "text",
+              "text": " in einem Bräter stark erhitzen und das ",
+              "amount": null,
+              "minutes": null
+            },
+            {
+              "kind": "ingredient",
+              "text": "Fleisch",
+              "amount": "1 ½ kg",
+              "minutes": null
+            },
+            {
+              "kind": "text",
+              "text": " darin von allen Seiten kräftig anbraten, dann herausnehmen.",
+              "amount": null,
+              "minutes": null
+            }
+          ]
+        },
+        {
+          "number": 7,
+          "text": "Suppengrün putzen, würfeln und mit dem Gemüse aus der Beize im Bräter anrösten. Tomatenmark zugeben und 2 Minuten mitrösten, bis es leicht dunkel wird.",
+          "segments": [
+            {
+              "kind": "ingredient",
+              "text": "Suppengrün",
+              "amount": "1 Bund",
+              "minutes": null
+            },
+            {
+              "kind": "text",
+              "text": " putzen, würfeln und mit dem Gemüse aus der Beize im Bräter anrösten. ",
+              "amount": null,
+              "minutes": null
+            },
+            {
+              "kind": "ingredient",
+              "text": "Tomatenmark",
+              "amount": "2 EL",
+              "minutes": null
+            },
+            {
+              "kind": "text",
+              "text": " zugeben und ",
+              "amount": null,
+              "minutes": null
+            },
+            {
+              "kind": "time",
+              "text": "2 Minuten",
+              "amount": null,
+              "minutes": 2
+            },
+            {
+              "kind": "text",
+              "text": " mitrösten, bis es leicht dunkel wird.",
+              "amount": null,
+              "minutes": null
+            }
+          ]
+        },
+        {
+          "number": 8,
+          "text": "Mit der Hälfte der Beize ablöschen, den Bratensatz mit einem Holzlöffel vom Boden lösen und alles einmal kräftig aufkochen lassen, damit ein Teil der Säure verdampft. Den Braten zurück in den Bräter legen; er sollte etwa zu einem Drittel in der Flüssigkeit liegen, sonst etwas Beize nachgießen. Den Deckel auflegen und das Fleisch bei kleiner Hitze auf dem Herd oder im Ofen bei 160 °C etwa 2,5 Stunden schmoren. Alle 30 Minuten wenden und mit dem Schmorfond übergießen, damit die Oberfläche nicht austrocknet. Verdampft zu viel Flüssigkeit, nach und nach Beize zugeben, aber nie so viel, dass der Braten darin schwimmt: Er soll schmoren, nicht kochen. Gegen Ende mit einer Fleischgabel prüfen, ob das Fleisch gar ist; sie muss sich ohne Widerstand hineinstechen und wieder herausziehen lassen. Ist es noch fest, weitere 20 bis 30 Minuten schmoren und erneut prüfen. Am Ende sollte der Fond kräftig braun sein und angenehm säuerlich duften; ist er zu sauer, mit einem Schuss Wasser mildern.",
+          "segments": [
+            {
+              "kind": "text",
+              "text": "Mit der Hälfte der Beize ablöschen, den Bratensatz mit einem Holzlöffel vom Boden lösen und alles einmal kräftig aufkochen lassen, damit ein Teil der Säure verdampft. Den Braten zurück in den Bräter legen; er sollte etwa zu einem Drittel in der Flüssigkeit liegen, sonst etwas Beize nachgießen. Den Deckel auflegen und das ",
+              "amount": null,
+              "minutes": null
+            },
+            {
+              "kind": "ingredient",
+              "text": "Fleisch",
+              "amount": "1 ½ kg",
+              "minutes": null
+            },
+            {
+              "kind": "text",
+              "text": " bei kleiner Hitze auf dem Herd oder im Ofen bei 160 °C etwa ",
+              "amount": null,
+              "minutes": null
+            },
+            {
+              "kind": "time",
+              "text": "2,5 Stunden",
+              "amount": null,
+              "minutes": 150
+            },
+            {
+              "kind": "text",
+              "text": " schmoren. Alle ",
+              "amount": null,
+              "minutes": null
+            },
+            {
+              "kind": "time",
+              "text": "30 Minuten",
+              "amount": null,
+              "minutes": 30
+            },
+            {
+              "kind": "text",
+              "text": " wenden und mit dem Schmorfond übergießen, damit die Oberfläche nicht austrocknet. Verdampft zu viel Flüssigkeit, nach und nach Beize zugeben, aber nie so viel, dass der Braten darin schwimmt: Er soll schmoren, nicht kochen. Gegen Ende mit einer Fleischgabel prüfen, ob das Fleisch gar ist; sie muss sich ohne Widerstand hineinstechen und wieder herausziehen lassen. Ist es noch fest, weitere ",
+              "amount": null,
+              "minutes": null
+            },
+            {
+              "kind": "time",
+              "text": "20 bis 30 Minuten",
+              "amount": null,
+              "minutes": 20
+            },
+            {
+              "kind": "text",
+              "text": " schmoren und erneut prüfen. Am Ende sollte der Fond kräftig braun sein und angenehm säuerlich duften; ist er zu sauer, mit einem Schuss Wasser mildern.",
+              "amount": null,
+              "minutes": null
+            }
+          ]
+        },
+        {
+          "number": 9,
+          "text": "Den Braten herausnehmen, in Alufolie wickeln und 10 Minuten ruhen lassen.",
+          "segments": [
+            {
+              "kind": "text",
+              "text": "Den Braten herausnehmen, in Alufolie wickeln und ",
+              "amount": null,
+              "minutes": null
+            },
+            {
+              "kind": "time",
+              "text": "10 Minuten",
+              "amount": null,
+              "minutes": 10
+            },
+            {
+              "kind": "text",
+              "text": " ruhen lassen.",
+              "amount": null,
+              "minutes": null
+            }
+          ]
+        },
+        {
+          "number": 10,
+          "text": "Den Schmorfond durch ein Sieb in einen Topf gießen und das Gemüse dabei gut ausdrücken.",
+          "segments": [
+            {
+              "kind": "text",
+              "text": "Den Schmorfond durch ein Sieb in einen Topf gießen und das Gemüse dabei gut ausdrücken.",
+              "amount": null,
+              "minutes": null
+            }
+          ]
+        },
+        {
+          "number": 11,
+          "text": "Soßenlebkuchen in den Fond bröseln, Rübenkraut und Johannisbeergelee einrühren und alles 10 Minuten leise köcheln lassen, bis sich der Lebkuchen aufgelöst hat.",
+          "segments": [
+            {
+              "kind": "ingredient",
+              "text": "Soßenlebkuchen",
+              "amount": "50 g",
+              "minutes": null
+            },
+            {
+              "kind": "text",
+              "text": " in den Fond bröseln, ",
+              "amount": null,
+              "minutes": null
+            },
+            {
+              "kind": "ingredient",
+              "text": "Rübenkraut",
+              "amount": "2 EL",
+              "minutes": null
+            },
+            {
+              "kind": "text",
+              "text": " und ",
+              "amount": null,
+              "minutes": null
+            },
+            {
+              "kind": "ingredient",
+              "text": "Johannisbeergelee",
+              "amount": "1 EL",
+              "minutes": null
+            },
+            {
+              "kind": "text",
+              "text": " einrühren und alles ",
+              "amount": null,
+              "minutes": null
+            },
+            {
+              "kind": "time",
+              "text": "10 Minuten",
+              "amount": null,
+              "minutes": 10
+            },
+            {
+              "kind": "text",
+              "text": " leise köcheln lassen, bis sich der Lebkuchen aufgelöst hat.",
+              "amount": null,
+              "minutes": null
+            }
+          ]
+        },
+        {
+          "number": 12,
+          "text": "Rosinen zugeben und weitere 5 Minuten in der Sauce ziehen lassen.",
+          "segments": [
+            {
+              "kind": "ingredient",
+              "text": "Rosinen",
+              "amount": "50 g",
+              "minutes": null
+            },
+            {
+              "kind": "text",
+              "text": " zugeben und weitere ",
+              "amount": null,
+              "minutes": null
+            },
+            {
+              "kind": "time",
+              "text": "5 Minuten",
+              "amount": null,
+              "minutes": 5
+            },
+            {
+              "kind": "text",
+              "text": " in der Sauce ziehen lassen.",
+              "amount": null,
+              "minutes": null
+            }
+          ]
+        },
+        {
+          "number": 13,
+          "text": "Speisestärke mit wenig kaltem Wasser glatt rühren, in die Sauce geben und einmal aufkochen.",
+          "segments": [
+            {
+              "kind": "ingredient",
+              "text": "Speisestärke",
+              "amount": "1 TL",
+              "minutes": null
+            },
+            {
+              "kind": "text",
+              "text": " mit wenig kaltem Wasser glatt rühren, in die Sauce geben und einmal aufkochen.",
+              "amount": null,
+              "minutes": null
+            }
+          ]
+        },
+        {
+          "number": 14,
+          "text": "Sahne einrühren und die Sauce mit Salz, Pfeffer und einem Schuss Beize süßsauer abschmecken.",
+          "segments": [
+            {
+              "kind": "ingredient",
+              "text": "Sahne",
+              "amount": "100 g",
+              "minutes": null
+            },
+            {
+              "kind": "text",
+              "text": " einrühren und die Sauce mit ",
+              "amount": null,
+              "minutes": null
+            },
+            {
+              "kind": "ingredient",
+              "text": "Salz",
+              "amount": "1 Prise",
+              "minutes": null
+            },
+            {
+              "kind": "text",
+              "text": ", ",
+              "amount": null,
+              "minutes": null
+            },
+            {
+              "kind": "ingredient",
+              "text": "Pfeffer",
+              "amount": "1 Prise",
+              "minutes": null
+            },
+            {
+              "kind": "text",
+              "text": " und einem Schuss Beize süßsauer abschmecken.",
+              "amount": null,
+              "minutes": null
+            }
+          ]
+        },
+        {
+          "number": 15,
+          "text": "Den Braten quer zur Faser in fingerdicke Scheiben schneiden, auf einer vorgewärmten Platte anrichten und mit der Sauce servieren; dazu passen Rotkohl und Klöße.",
+          "segments": [
+            {
+              "kind": "text",
+              "text": "Den Braten quer zur Faser in fingerdicke Scheiben schneiden, auf einer vorgewärmten Platte anrichten und mit der Sauce servieren; dazu passen Rotkohl und Klöße.",
+              "amount": null,
+              "minutes": null
+            }
+          ]
+        }
+      ],
+      "slug": "sauerbraten",
+      "url": "https://rezepte.example.com/recipes/sauerbraten",
+      "author": {
+        "displayName": "Jonas Zimt"
+      },
+      "createdAt": "2026-11-25T12:00:00Z",
+      "updatedAt": "2026-11-25T12:00:00Z",
+      "photo": {
+        "path": "photos/1.jpg",
+        "width": 600,
+        "height": 448,
+        "focus": {
+          "x": 0.5,
+          "y": 0.5
+        }
+      },
+      "qr": {
+        "url": "https://rezepte.example.com/recipes/sauerbraten",
+        "path": "qr-r-sauerbraten.svg"
+      }
+    }
+  ]
+}
