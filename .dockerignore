@@ -23,5 +23,7 @@
 !service/cmd
 !service/internal
 
-# ...except the directory stage 1 writes and stage 2 copies from it.
+# ...except the directory stage 1 writes and stage 2 copies from it, and a
+# Typst download from a local build, which stage 2 fetches for its own target.
 service/internal/web/dist
+service/internal/pdf/typstbin/typst_*

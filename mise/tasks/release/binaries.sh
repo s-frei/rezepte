@@ -59,11 +59,31 @@ SBOM="$STAGE/sbom"
 mkdir -p "$SBOM/frontend"
 rsync -a -m --include='*/' --include='package.json' --exclude='*' \
 	frontend/node_modules "$SBOM/frontend/"
+# The embedded Typst binary is opaque to syft (bytes inside the Go binary), so
+# its package entry is appended by hand.
+TYPST_VERSION="$(cat service/internal/pdf/typstbin/VERSION)"
+export TYPST_VERSION
 for archive in "$DIST"/*.tar.gz; do
 	tar -xzf "$archive" -C "$SBOM"
+	sbom="${archive%.tar.gz}.spdx.json"
 	syft scan "dir:$SBOM" --source-name rezepte --source-version "$VERSION" \
 		--override-default-catalogers go-module-binary-cataloger,javascript-package-cataloger \
-		-q -o "spdx-json=${archive%.tar.gz}.spdx.json"
+		-q -o "spdx-json=$sbom"
+	yq -i -p json -o json '.packages += [{
+		"name": "typst",
+		"SPDXID": "SPDXRef-Package-typst",
+		"versionInfo": strenv(TYPST_VERSION),
+		"downloadLocation": "https://github.com/typst/typst/releases/tag/v" + strenv(TYPST_VERSION),
+		"filesAnalyzed": false,
+		"licenseConcluded": "Apache-2.0",
+		"licenseDeclared": "Apache-2.0",
+		"copyrightText": "NOASSERTION",
+		"externalRefs": [{
+			"referenceCategory": "PACKAGE-MANAGER",
+			"referenceType": "purl",
+			"referenceLocator": "pkg:github/typst/typst@v" + strenv(TYPST_VERSION)
+		}]
+	}]' "$sbom"
 done
 
 # shasum rather than sha256sum: it exists on both macOS and the CI runner.

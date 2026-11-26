@@ -17,17 +17,24 @@ FROM --platform=$BUILDPLATFORM golang:1.27.4 AS backend
 WORKDIR /src/service
 COPY service/go.mod service/go.sum ./
 RUN go mod download
-COPY service ./
-COPY --from=frontend /src/service/internal/web/dist ./internal/web/dist
+# The image runs the same embedded Typst as the release binaries. fetch.sh
+# needs xz, which the golang image lacks; it runs before the rest of service/
+# is copied, so the download is cached until the Typst pin changes.
+RUN apt-get update && apt-get install -y --no-install-recommends xz-utils \
+	&& rm -rf /var/lib/apt/lists/*
+COPY service/internal/pdf/typstbin/fetch.sh service/internal/pdf/typstbin/VERSION service/internal/pdf/typstbin/SHA256SUMS ./internal/pdf/typstbin/
 # TARGETARCH comes from BuildKit. Building on $BUILDPLATFORM and cross-compiling
 # keeps QEMU out of the multi-platform build: modernc.org/sqlite is pure Go and
 # the build is already CGO_ENABLED=0, so the target is two variables. The
 # version arrives the same way service/mise.toml's build:only task takes it:
 # a REZEPTE_VERSION build arg, defaulting to "dev" when none is given.
 ARG TARGETARCH
+RUN internal/pdf/typstbin/fetch.sh linux "$TARGETARCH"
+COPY service ./
+COPY --from=frontend /src/service/internal/web/dist ./internal/web/dist
 ARG REZEPTE_VERSION=dev
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=$TARGETARCH \
-	go build -trimpath -ldflags="-s -w -X main.version=${REZEPTE_VERSION}" -o /out/rezepte ./cmd/rezepte
+	go build -tags typst -trimpath -ldflags="-s -w -X main.version=${REZEPTE_VERSION}" -o /out/rezepte ./cmd/rezepte
 RUN mkdir -p /out/data && chown 65532:65532 /out/data
 
 # Stage 3: minimal runtime

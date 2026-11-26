@@ -79,6 +79,12 @@
       matchDepNames: ['sqlc'],
       prBodyNotes: ['Run `mise run //service:generate` on this branch and commit the output before merging.'],
     },
+    // The embedded Typst is pinned again in VERSION and SHA256SUMS
+    // (docs/memory/content/architecture/toolchain.mdx).
+    {
+      matchDepNames: ['typst'],
+      prBodyNotes: ['Update `service/internal/pdf/typstbin/VERSION` and the four hashes in its `SHA256SUMS` from the new release before merging.'],
+    },
     // Renovate updates mise.toml but not the checksums in mise.lock.
     {
       matchManagers: ['mise'],

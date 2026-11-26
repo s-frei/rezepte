@@ -18,6 +18,8 @@ service/bin/
 service/internal/web/dist/*
 !service/internal/web/dist/.gitkeep
 service/internal/mail/preview/out/
+# the Typst release fetch.sh downloads for the build to embed
+service/internal/pdf/typstbin/typst_*
 /dist/
 
 # JS

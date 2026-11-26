@@ -38,7 +38,7 @@ Docker is the one tool in this list not in `[tools]`: nothing else here needs it
 
 `mise/lib/` holds what is not a task. `mise/lib/instance.sh` is the port guard and the `/healthz` wait that `//:demo` and `//:e2e` both source rather than run; it cannot live beside them, because a file inside `mise/tasks/` would become a task itself, and `mise/lib/` is not scanned. `mise/lib/release/` is the TypeScript behind the release tasks (`release:start`, `release:finish`, `release:notes`, which are Bun files with a `//MISE` header): version and changelog logic as pure functions with `bun test` beside them, run by `//:test:release` inside `check`, and the few git calls apart from them. There is no `scripts/` directory.
 
-`[tools]` pins Go, Bun, golangci-lint, sqlc, watchexec, git-lfs, syft and yq, and `[settings] lockfile = true` keeps a lockfile beside it, so adding a tool is one line and a lockfile update rather than a README instruction. `mise tasks --all` is the only authority on what tasks exist; nothing repeats that list.
+`[tools]` pins Go, Bun, golangci-lint, sqlc, watchexec, git-lfs, syft, yq and Typst, and `[settings] lockfile = true` keeps a lockfile beside it, so adding a tool is one line and a lockfile update rather than a README instruction. `mise tasks --all` is the only authority on what tasks exist; nothing repeats that list.
 
 `//docs/user:film` pins ffmpeg from conda (the registry's backend whose build carries libx264) as a task-level `tools`, locked in `docs/user/mise.lock`: it encodes only the product film, and a tool in a `[tools]` table would be installed for every task of the config, `check` and the Pages build included.
 
@@ -47,6 +47,15 @@ Git LFS holds the generated originals: the demo photos under `assets/demo-photos
 **Node is deliberately not pinned.** Every JavaScript tool here - Next, Vite, svelte-check, ESLint, Prettier, Playwright - ships a `#!/usr/bin/env node` shebang, but Bun puts its own `node` shim in front of them, so the whole build, lint, test and docs-export chain runs on Bun alone and a pinned Node would only be a download CI repeats per job. The Svelte MCP server in `.mcp.json` runs through `bunx` for the same reason. Re-add Node only for a tool that actually breaks under the shim, and say in this paragraph which one.
 
 CI installs the same pinned tools through `jdx/mise-action`, runs `mise run setup` in every job and splits the gate across runners ([GitHub Actions](/conventions/github-actions)). A green `mise run check` locally does not guarantee a green CI gate: CI also regenerates the API reference and fails on any uncommitted diff ([Documentation sites](/architecture/docs)), and runs `mise run e2e`, neither of which `check` does. [Releases](/architecture/releases) owns the workflow a version tag runs.
+
+## Typst inside the binary
+
+**The binary carries the Typst CLI that renders PDFs, so a release archive stays one file with nothing to install.** `//service:build:only` runs `service/internal/pdf/typstbin/fetch.sh <goos> <goarch>` and then `go build -tags typst`; the Dockerfile's Go stage runs the same script for `linux $TARGETARCH`. `fetch.sh` writes `typst_<goos>_<goarch>` next to itself, which `embed_<goos>_<goarch>.go` embeds under the `typst` tag. For a build for the machine it runs on, with a `typst` that reports exactly `VERSION` (`mise which typst`, else PATH), it copies that binary: mise installs it from the release and checks it against `mise.lock`, so dev and every CI job need no download. Any other build downloads the official release archive, checks it against `SHA256SUMS` and extracts it with `tar -xJOf`; the archive stays beside it, gitignored, so a rebuild downloads nothing; `.dockerignore` keeps both out of the image context, so the image fetches for its own target. A build without the tag or for a platform Typst publishes no binary for gets `embed_none.go` and an empty binary.
+
+- **One version in four places:** `[tools]` in `mise.toml` (dev, tests and CI run that `typst` from PATH), `mise.lock`, `service/internal/pdf/typstbin/VERSION` and the four archive hashes in `SHA256SUMS`, taken from the release (Typst publishes no checksum file; GitHub's asset digests and `mise.lock` carry the same values). `TestVersionMatchesMise` fails when `mise.toml` and `VERSION` disagree; `fetch.sh` fails when a hash does not.
+- **The download needs `curl` and `tar`, and `xz` when `tar` is GNU tar** (bsdtar on macOS reads xz itself); `fetch.sh` stops with a message naming the missing one. The `golang` image lacks `xz` and has no typst, so the Dockerfile installs `xz-utils` in that stage. The real path of `typst` is resolved first, so a mise shim is never copied as the binary.
+- **At run time** `typstbin.Path` writes the embedded binary once per process to `<os temp dir>/rezepte-typst-<version>-<8 hex of its sha256>/typst` (directory 0700, file 0500), verifies its hash after the write, and on later calls compares size and mode only, rewriting it when a temp cleaner removed it. A directory of that name that is a symlink, belongs to another user or is not 0700 is never used; a fresh `rezepte-typst-*` directory from `MkdirTemp` takes its place. Without an embedded binary `Path` returns `typst` from PATH, else `ErrUnavailable`. `SweepStale` removes this user's `rezepte-typst-*` directories that are not the current one.
+- **To inspect a build:** `go version -m service/bin/rezepte` lists `-tags=typst`; the binary is about 45 MB larger with Typst linked, the gzip archive about 22 MB; `go test -tags typst ./internal/pdf/typstbin/... -run TestEmbeddedRuns` extracts it and runs `typst --version`.
 
 ## Dependency updates
 
@@ -59,7 +68,8 @@ Renovate keeps every pinned version current, configured in `renovate.json5` at t
 - a `mise.toml` update leaves `mise.lock` behind: run `mise lock` on the branch and commit it;
 - a sqlc update changes the header of every generated file, so `generate:check` fails until `mise run //service:generate` is committed;
 - an update to huma or another dependency that shapes the OpenAPI document fails CI's API reference diff until the reference is regenerated ([Regenerate the API reference](/howtos/regenerate-api-reference));
-- a golangci-lint update can bring new findings.
+- a golangci-lint update can bring new findings;
+- a Typst update in `mise.toml` also needs `service/internal/pdf/typstbin/VERSION` and the four hashes in its `SHA256SUMS` from the new release; `TestVersionMatchesMise` fails until `VERSION` matches.
 
 CI runs on every pull request, so each of these shows up as a red check rather than on `develop`.
 
