@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { FIXED_TIME, prepare, shot } from './helpers';
+import { FIXED_TIME, isMobile, prepare, shot } from './helpers';
 
 // The demo gives its admin and its two signed-in members (mila, jonas)
 // public links of their own - its third member, noah, has no password and
@@ -127,4 +127,18 @@ test('recipe-card', async ({ page }, testInfo) => {
 	const sheet = page.getByRole('dialog', { name: 'Pass on recipe' });
 	await expect(sheet.getByRole('img', { name: /^Recipe image:/ })).toBeVisible({ timeout: 20_000 });
 	await shot(page, 'recipe-card');
+});
+
+test('recipe-pdf', async ({ page }, testInfo) => {
+	test.skip(isMobile(testInfo), 'the PDF tab is shown on the desktop sheet');
+	await page.goto('/recipes/macaroni-cheese');
+	await page.getByRole('button', { name: 'Pass on', exact: true }).click();
+	const sheet = page.getByRole('dialog', { name: 'Pass on recipe' });
+	await sheet.getByRole('radio', { name: 'PDF', exact: true }).click();
+	await expect(sheet.getByRole('button', { name: 'Download PDF' })).toBeVisible();
+	// The preview is page 1 rendered by the server: wait for the image, not the spinner.
+	const preview = sheet.locator('[data-preview] img');
+	await expect(preview).toHaveJSProperty('complete', true, { timeout: 20_000 });
+	await expect(sheet.locator('[data-preview] .animate-spin')).toHaveCount(0);
+	await shot(page, 'recipe-pdf');
 });

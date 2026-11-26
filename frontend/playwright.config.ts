@@ -40,10 +40,11 @@ export default defineConfig({
 		// Safari draws the recipe card differently enough (fonts, pictures,
 		// canvas size) to deserve its own run, and focuses no button on click,
 		// which the step-time popover has to survive; only those tests pay for it.
+		// share-pdf: Safari's refused share and its Share now.
 		{
 			name: 'webkit',
 			use: iPhone,
-			testMatch: /(share-image|step-times)\.test\.ts/
+			testMatch: /(share-image|share-pdf|step-times)\.test\.ts/
 		},
 		// Safari 26.4 lays the overview out with native `grid-lanes`, the path
 		// the Chromium projects (the JS fallback) never exercise, and scrolls

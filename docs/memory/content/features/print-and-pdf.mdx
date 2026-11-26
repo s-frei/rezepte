@@ -1,12 +1,16 @@
 ---
 title: Print and PDF
-description: The PDF endpoint, the Typst renderer and the built-in templates
+description: Printing a recipe through its Typst PDF, the PDF tab's preview, and the PDF endpoint, renderer and templates
 ---
 
-The service renders recipes as PDFs with Typst: "Kochbuch" (layout B, A4) or "Karte" (layout C, A5), with or without the cover photo and the footer (QR code and credit), one recipe or a cookbook. `service/internal/pdf` holds the `data.json` contract, the renderer, the fonts and the built-in Typst templates. `POST /api/v1/pdf` serves them ([The PDF endpoint](#the-pdf-endpoint)).
+A member can print a recipe or save it as a PDF; both are the same document, rendered by the service with Typst: "Kochbuch" (layout B, A4) or "Karte" (layout C, A5), with or without the cover photo and the footer (QR code and credit). The browser formats the recipe (`buildClientRecipe` in `frontend/src/lib/recipe/pdf-document.ts`) and hands it to the browser's print, a tab or a download (`frontend/src/lib/recipe/print.ts`); `service/internal/pdf` holds the `data.json` contract, the renderer, the fonts and the built-in Typst templates.
 
 <Callout type="warn" title="Traps">
 
+- Playwright's default headless Chromium (the headless shell) has no PDF viewer: `pdfViewerEnabled` is false and a PDF in a frame downloads instead of loading. `e2e/print.test.ts` runs on `channel: 'chromium'`, the full Chromium, whose new headless mode has the viewer ([Printing](#printing)).
+- `test.use({ channel })` cannot sit in a `describe`: it forces a new worker. Every spec that prints through the frame lives in `e2e/print.test.ts`, the PDF tab's Print included.
+- Firefox's PDF viewer in a frame is a cross-origin window: `contentWindow.print()` and even `addEventListener` on it throw. Firefox prints from a tab, never a frame. Playwright's Firefox ships with pdf.js off (`pdfjs.disabled`).
+- The tab is opened before the PDF request, inside the click or key press: after the `await` a popup blocker refuses `window.open`.
 - A segment carries both `amount` and `minutes`, `null` when its kind has none: huma requires every key of `pdf.Segment`, so an omitted one is a `422` (`TestBrowserShapeAccepted` posts the client's exact shape).
 - Never decide "typst cannot run" with `errors.Is(err, syscall.EACCES)` on a `Render` error: the work dir, the template copy and the photos can fail with it as well, and one unreadable file would switch PDFs off for everyone. Check `pdf.ErrCannotRun` only (`TestOtherEACCESIs500`).
 - A Typst error in a template surfaces only as the error string (`typst: exit status 1: <stderr>`); the work dir is already gone, so reproduce with `prepare` into a temp dir and run `typst compile` by hand ([PDF pipeline](#pdf-pipeline)).
@@ -24,6 +28,26 @@ The service renders recipes as PDFs with Typst: "Kochbuch" (layout B, A4) or "Ka
 </Callout>
 
 ## How it works
+
+### Printing
+
+**Print renders the PDF and hands it to the browser.** The "Print" item in the recipe's "..." menu (after "Pass on", printer icon, the shortcut hint on desktop: ⌘P on Apple platforms, else `detail_print_shortcut`), ⌘P on Apple platforms and Ctrl+P elsewhere on the recipe page (a `keydown` handler on the window, only while PDFs are available; it leaves IME composition alone and falls back to `event.code` on a layout without Latin letters) and the PDF tab's Print all call `printRecipe` with the body from `recipeRequest`: a `single` PDF with the remembered options (`printOptions` from `print-options.svelte.ts`, `localStorage` key `rezepte-print`) at the page's servings, read back from storage with `createServings`. A print asked for while one is in flight joins it. Until the PDF is handed to the browser (the frame's `print()` ran, the tab or the download got it) the menu's "..." trigger shows a spinner (`aria-busy`), the tab's button "Creating PDF"; a failure is the `share_pdf_failed` toast, and a tab opened for it closes. File → Print cannot be intercepted and prints the screen page as it is.
+
+**`printRoute` picks how, by evidence per engine.** Desktop Chromium (Chrome, Edge) loads the PDF blob in a hidden same-origin iframe (laid out, not `display: none`, or no viewer loads) and calls its `contentWindow.print()`, so the print dialog shows the PDF. Firefox (cross-origin viewer), Safari (prints the page around the frame) and every phone or tablet with a PDF viewer open the PDF in a tab, opened before the request; without a viewer (`navigator.pdfViewerEnabled` false: Android Chrome, a viewer turned off) or with the popup blocked, or with the tab closed while it rendered, the PDF downloads through `saveBlob`. A frame print that throws downloads too. The frame and its blob URL go on the frame window's `afterprint`, or when the next print replaces the frame; never on a timeout, which could pull it while the dialog is open. A tab's blob URL is never revoked: its viewer may fetch it again to share or save, and it goes with the page.
+
+**Without PDFs (`pdf.available === false`)** there is no Print in the menu and no PDF tab in the pass-on sheet (a stored PDF tab opens on Image), and Ctrl+P is left to the browser, which prints the screen page. Settings that failed to load offer the PDF; a failed request says so.
+
+**Tests.** `e2e/print.test.ts` runs on `channel: 'chromium'` (the full Chromium, see Traps) and records every `print()` as `page` or `frame` (`observePrints` in `e2e/helpers.ts`, which stubs it). Its `mobile` project is phone emulation on a Chromium with a PDF viewer, so it covers the tab route of iOS and Firefox on Android, not Android Chrome; the download route runs in `share-pdf.test.ts` on the headless shell, which has no viewer. The `webkit` project does not run `print.test.ts`, so WebKit's tab route rests on `printRoute`'s unit test.
+
+### The PDF tab
+
+**The pass-on sheet's third tab is `SharePdfPanel.svelte`.** It lays out like the Link tab ([Recipe card](/features/recipe-card)): one column in the phone sheet's tab cell, the dialog's two columns from 768px. The preview is page 1 as Typst renders it, the custom template's too: the effect builds `recipeRequest(…)` synchronously, so it tracks every input, and debounces only the send (`requestPreview`) when the tab shows and after a change of Format, Photo or Footer; the image is a blob URL in an `img` tilted like the Image tab's picture. A paper-shaped placeholder stands in until the first image, a spinner lies over it while one renders, and a change aborts the request in flight, which cancels its render on the server and frees its slot. Format, Photo and Footer write `printOptions` through `setPrintOption`, so the preview, the menu's Print and Ctrl+P all follow at once.
+
+**Download, Print and Share render the PDF when tapped.** Download PDF calls `requestPdf(recipeRequest(…))` (a `single` bundle from `buildClientRecipe` at the page's servings), then `saveBlob`; Print calls `printRecipe` ([Printing](#printing)); each button shows "Creating PDF" and `busy` meanwhile, and a failure is a toast. On a phone the sheet always offers downloading and printing: `[Share PDF][○ Download][○ Print]` with file sharing, else `[Download PDF][○ Print]`, the round secondaries as on the Image tab.
+
+**Share keeps a refused PDF for a second tap.** Share (desktop) and Share PDF (the phone's primary) show only where `canShareFiles('application/pdf')`. The request spends the tap's user activation, so Safari may refuse `navigator.share` with `NotAllowedError`: the panel keeps the file and the button turns into "Share now", whose tap shares at once without a request. A change of Format, Photo or Footer drops the held file, a PDF that finishes rendering after such a change is not shared, and a refusal that arrives after one holds nothing, so Share now never shares what the preview no longer shows. `AbortError` changes nothing; any other failure is a toast. This is why it does not reuse `shareImage`, which downloads on `NotAllowedError`. The held file lives in the panel, which unmounts with the sheet, so closing drops it.
+
+**Tests.** `e2e/share-pdf.test.ts` runs in `desktop`, `mobile` and `webkit`; the share specs stub `/api/v1/pdf` with `page.route`, and `pdf.available` is switched by a `page.route` on the settings.
 
 ### Long list first
 
@@ -67,7 +91,7 @@ The service renders recipes as PDFs with Typst: "Kochbuch" (layout B, A4) or "Ka
 
 ### Templates
 
-**The Typst templates are the only design.** `templates/recipe.typ` (one recipe, page or card) and `templates/book.typ` (title page, clickable contents from `outline()`, each recipe on a new page) both call `recipe()` in `lib.typ`, which composes `head`, then `stacked-body` (the list above the steps: the card, or A4's long list) or `side-body` (A4's rail), then `foot`. Check a design change by rendering the fixtures as PNGs (`typst compile --format png` on a `prepare`d dir).
+**The Typst templates are the only design.** `templates/recipe.typ` (one recipe, page or card) and `templates/book.typ` (title page, clickable contents from `outline()`, each recipe on a new page) both call `recipe()` in `lib.typ`, which composes `head`, then `stacked-body` (the list above the steps: the card, or A4's long list) or `side-body` (A4's rail), then `foot`. Print, download, share and the PDF tab's preview all show what they render. Check a design change by rendering the fixtures as PNGs (`typst compile --format png` on a `prepare`d dir).
 
 **The book's title page looks intentional with and without photos.** With photos, up to three covers fill the page down to the title block at its foot (`TestBookCollageFillsThePage`); without, the mascot stands as a seal over the title in the upper third (`TestBookTitlePlacement`, A4 and A5). A short structure rule, the count and the date follow. `instance.product` signs the foot over a hairline only when `instance.attribution` is on, as in the recipe footer (`TestBookSignatureNeedsAttribution`), and it is not the title already, so a book titled "Rezepte" never says it twice (`TestBookSignatureOnlyWhenNotTheTitle`).
 
@@ -82,6 +106,8 @@ The service renders recipes as PDFs with Typst: "Kochbuch" (layout B, A4) or "Ka
 **One quantity and unit column per recipe.** `ingredient-columns` measures the widest quantity (bold) and unit (regular) across every group of the recipe, each plus its gap, and `recipe()` adds them to `g` (`qw`, `uw`), so every group, in the rail or in columns, shares one vertical for its units and one for its names, and a list of short units has no hole before the names (`TestIngredientColumnsPerRecipe`).
 
 **Line heights are CSS-style line boxes.** `lh(h)` turns a `line-height` into Typst `top-edge`/`bottom-edge` from each font's ascender and descender, with zero leading and zero block spacing, so every gap is an explicit value. A step number's `top-edge` is the absolute distance to the text's first baseline, so number and text share it.
+
+**A number keeps its unit.** `buildClientRecipe` puts a no-break space between a number and a word, a fraction glyph, `°` or `%` after it in notes, step text, amount hints and the description (`glueAmounts`), so the PDF never breaks "etwa 300 g", "1 ½ TL" or "180 °C". The no-break space is in `data.json`, so custom templates get it too, and the user docs say so.
 
 **Ingredient names hyphenate, and nothing is clipped.** An ingredient's name is the one text that hyphenates: `hyphenate: true` in the cell of `group` in `lib.typ`, by the recipe's language, with the note set `hyphenate: false`, since Typst would split a short word ("gele-sen"). A word that hyphenation cannot fit breaks between any two letters: `fit` in `lib.typ`, which inserts zero-width spaces into a word only when `measure` at the cell's width comes back clamped to that width (an overflowing line). `TestIngredientNameHyphenates` (Paella's "Artischockenherzen, geviertelt" in three columns), `TestLongIngredientNameIsNeverClipped` hold it.
 
@@ -113,11 +139,26 @@ The service renders recipes as PDFs with Typst: "Kochbuch" (layout B, A4) or "Ka
 
 ## Why it is this way
 
+Printing goes through the PDF so there is one implementation of the design. A browser print version needed a second one in HTML and CSS, kept in step by hand, and still broke in real print dialogs: CSS cannot target a recipe's last page, `vh` resolved against the window in Chrome's dialog, and Firefox started pages on descenders. Typst paginates, keeps the footer with the last steps and repeats a continued group's name on every engine alike, and the PDF tab's preview is the real page.
+
 The PDF is typeset by Typst rather than by a headless browser: Typst is one static binary that ships inside the Go binary, starts in milliseconds and needs no cgo, while a browser would add hundreds of megabytes and a process to manage.
+
+`printRoute` decides by engine and `pdfViewerEnabled`, measured in Playwright's Chromium, Firefox and WebKit, because no feature test tells whether `contentWindow.print()` on a PDF frame prints the PDF: it exists everywhere and fails silently or throws only when called.
 
 `rsc.io/qr` encodes the footer QR code: a small, pure-Go, dependency-free encoder. A hand-rolled encoder (Reed-Solomon, masking, version selection) would be real work for no gain, and Typst QR packages would need a bundled package tree inside every template.
 
+## Rejected
+
+- **A browser print version** (`RecipePrint.svelte`, CSS pagination): a second implementation of the design that real print dialogs kept breaking ([Why it is this way](#why-it-is-this-way)).
+- **A print stylesheet for File → Print**: the menu and the shortcut print the PDF; the browser's own menu prints the screen page, which is enough for the rare reader who takes it.
+- **Printing a PDF frame in Firefox or Safari**: Firefox's viewer is cross-origin to the page and Safari prints the page around the frame.
+
 ## Limits
 
+- Printing needs the server: offline, Print fails with the `share_pdf_failed` toast and prints nothing; with PDFs off, only the browser's own print is left, which prints the screen page.
+- File → Print in the browser's menu prints the screen page, not the PDF.
+- Outside desktop Chromium, Print opens the PDF in a tab or downloads it; the reader prints from there.
+- Automated tests prove only that `print()` runs on the PDF frame (they stub it; a headless print has no dialog). That Chrome's and Edge's dialog shows the PDF, and that the frame window's `afterprint` fires after it, is checked by hand in real desktop Chrome and Edge; where `afterprint` does not fire, the frame stays until the next print or a reload.
 - Beside A4's rail, a method of one or two long steps next to a list that runs on past the page (but not so far past the method that the list goes first) leaves the footer to follow the list, without the last steps.
 - The footer always keeps the last two steps (R6); no recipe was found where keeping one would save a page.
+- The public share page prints as it is.

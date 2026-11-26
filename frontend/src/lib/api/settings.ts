@@ -25,6 +25,8 @@ export type Settings = {
 	mailEnabled: boolean;
 	/** The hour, 0 to 23 in the server's time zone, of the daily new recipes mail. */
 	recipeDigestHour: number;
+	/** Whether the service can render PDFs. */
+	pdf: { available: boolean };
 };
 
 export function getSettings(): Promise<Settings> {

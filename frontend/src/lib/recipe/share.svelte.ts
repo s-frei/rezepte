@@ -136,13 +136,13 @@ export function canShareLink(): boolean {
 	return typeof navigator.share === 'function';
 }
 
-/** Whether this browser's share sheet takes files - Safari and Chrome on phones and macOS. */
-export function canShareFiles(): boolean {
+/** Whether this browser's share sheet takes files of `type` - Safari and Chrome on phones and macOS. */
+export function canShareFiles(type = 'image/png'): boolean {
 	if (typeof navigator.canShare !== 'function') {
 		return false;
 	}
 	try {
-		return navigator.canShare({ files: [new File([], 'card.png', { type: 'image/png' })] });
+		return navigator.canShare({ files: [new File([], `card.${type.split('/')[1]}`, { type })] });
 	} catch {
 		return false;
 	}

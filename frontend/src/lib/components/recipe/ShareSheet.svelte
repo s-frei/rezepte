@@ -2,6 +2,7 @@
 	import { Dialog } from 'bits-ui';
 	import ClipboardCopy from '@lucide/svelte/icons/clipboard-copy';
 	import Download from '@lucide/svelte/icons/download';
+	import FileText from '@lucide/svelte/icons/file-text';
 	import ImageIcon from '@lucide/svelte/icons/image';
 	import Link from '@lucide/svelte/icons/link';
 	import Share from '@lucide/svelte/icons/share';
@@ -11,6 +12,7 @@
 	import { MediaQuery } from 'svelte/reactivity';
 	import { fade } from 'svelte/transition';
 	import type { Recipe } from '#lib/api/recipes.js';
+	import type { Settings } from '#lib/api/settings.js';
 	import BaseDialog from '#lib/components/ui/BaseDialog.svelte';
 	import BottomSheet from '#lib/components/ui/BottomSheet.svelte';
 	import Button from '#lib/components/ui/Button.svelte';
@@ -32,19 +34,22 @@
 	import Perforation from './Perforation.svelte';
 	import ShareCard from './ShareCard.svelte';
 	import ShareLinkPanel from './ShareLinkPanel.svelte';
+	import SharePdfPanel from './SharePdfPanel.svelte';
 
-	type Tab = 'image' | 'link';
+	type Tab = 'image' | 'link' | 'pdf';
 
-	// Passing a recipe on, in two tabs: as the recipe card - a picture of the
-	// whole recipe - or as a link, drawn as a ticket. The card is drawn as
+	// Passing a recipe on, in three tabs: as the recipe card - a picture of the
+	// whole recipe - as a link, drawn as a ticket, or as a PDF. The card is drawn as
 	// soon as the sheet opens, whichever tab shows, and every picture action
 	// waits for it, so a tap never spends Safari's user activation on a
 	// picture that is not there yet. The preview is the drawn picture itself,
-	// not a second rendering of it. The Link tab is `ShareLinkPanel`.
+	// not a second rendering of it. The Link tab is `ShareLinkPanel`, the PDF
+	// tab `SharePdfPanel`.
 	let {
 		open = $bindable(false),
 		recipe,
 		attribution,
+		settings,
 		share = $bindable(null),
 		initialTab,
 		...link
@@ -53,6 +58,8 @@
 		recipe: Recipe;
 		/** The instance's "name Rezepte when sharing" setting. */
 		attribution: boolean;
+		/** The instance settings: PDF availability, the template, the public URL. */
+		settings: Settings | null;
 		/** The tab to open on; without one, the tab this device used last. */
 		initialTab?: Tab;
 	} & Pick<
@@ -89,10 +96,14 @@
 	const label = 'text-label font-bold tracking-[0.08em] text-text-muted uppercase';
 
 	const TAB_KEY = 'rezepte-share-tab';
-	const tabs = [
+	// Without PDFs there is no PDF tab. Unknown settings (they failed to
+	// load) offer it: a failed request says so with a toast.
+	const pdf = $derived(settings?.pdf.available !== false);
+	const tabs = $derived([
 		{ value: 'image' as const, label: m.share_tab_image(), icon: ImageIcon },
-		{ value: 'link' as const, label: m.share_tab_link(), icon: Link }
-	];
+		{ value: 'link' as const, label: m.share_tab_link(), icon: Link },
+		...(pdf ? [{ value: 'pdf' as const, label: m.share_tab_pdf(), icon: FileText }] : [])
+	]);
 
 	// Decided as the sheet opens - the page's choice, else the tab this
 	// device used last - then the switch's. Only `open` is tracked, and on
@@ -100,7 +111,11 @@
 	// it while it slides away.
 	let onScreen: Tab = 'image';
 	let tab: Tab = $derived.by(() => {
-		if (open) onScreen = untrack(() => initialTab ?? (load(TAB_KEY) === 'link' ? 'link' : 'image'));
+		if (open)
+			onScreen = untrack(() => {
+				const want = initialTab ?? load(TAB_KEY);
+				return want === 'link' || (want === 'pdf' && pdf) ? want : 'image';
+			});
 		return onScreen;
 	});
 
@@ -240,6 +255,9 @@
 		{switcher}
 		{heading}
 	/>
+	{#if pdf}
+		<SharePdfPanel {recipe} {servings} phone={onPhone} shown={tab === 'pdf'} {switcher} {heading} />
+	{/if}
 {/snippet}
 
 {#if phone.current}

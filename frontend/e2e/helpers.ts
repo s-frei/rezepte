@@ -313,6 +313,23 @@ export async function search(page: Page, term: string) {
 	await expect(page.getByRole('listbox', { name: 'Suggestions' })).toHaveCount(0);
 }
 
+/**
+ * Records every `print()` in the top window as `page` or `frame`. A PDF
+ * frame runs it only in a Chromium with its PDF viewer: the `chromium`
+ * channel, not the default headless shell, which downloads the PDF instead.
+ */
+export async function observePrints(page: Page) {
+	await page.addInitScript(() => {
+		const top = window.top as unknown as { prints?: string[] };
+		window.print = () => {
+			(top.prints ??= []).push(window === window.top ? 'page' : 'frame');
+		};
+	});
+}
+
+export const prints = (page: Page) =>
+	page.evaluate(() => (window as unknown as { prints?: string[] }).prints ?? []);
+
 /** Opens the detail page's "..." menu - the only entry point both viewports share. */
 export async function openRecipeMenu(page: Page) {
 	await page.getByRole('button', { name: 'More actions' }).click();

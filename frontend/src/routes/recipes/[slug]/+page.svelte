@@ -11,7 +11,10 @@
 	import Ellipsis from '@lucide/svelte/icons/ellipsis';
 	import Globe from '@lucide/svelte/icons/globe';
 	import Link from '@lucide/svelte/icons/link';
+	import LoaderCircle from '@lucide/svelte/icons/loader-circle';
+	import Command from '@lucide/svelte/icons/command';
 	import Pencil from '@lucide/svelte/icons/pencil';
+	import Printer from '@lucide/svelte/icons/printer';
 	import Share2 from '@lucide/svelte/icons/share-2';
 	import Trash2 from '@lucide/svelte/icons/trash-2';
 	import { toast } from 'svelte-sonner';
@@ -35,7 +38,9 @@
 	import TastyPeople from '#lib/components/recipe/TastyPeople.svelte';
 	import { session } from '#lib/auth.svelte.js';
 	import { clear as clearChecked } from '#lib/recipe/checked.svelte.js';
-	import { clearServings } from '#lib/recipe/servings.svelte.js';
+	import { printOptions } from '#lib/recipe/print-options.svelte.js';
+	import { printRecipe, recipeRequest } from '#lib/recipe/print.js';
+	import { clearServings, createServings } from '#lib/recipe/servings.svelte.js';
 	import { servingsParam } from '#lib/recipe/servings.js';
 	import { copyLink, ShareLink } from '#lib/recipe/share.svelte.js';
 	import { m } from '#lib/paraglide/messages.js';
@@ -57,6 +62,37 @@
 	const editHref = $derived(recipe && resolve('/recipes/[slug]/edit', { slug: recipe.slug }));
 	const cookHref = $derived(recipe && resolve('/recipes/[slug]/cook', { slug: recipe.slug }));
 	const settings = $derived(data.settings);
+	// The print shortcut as the platform spells it, beside "Print" in the menu.
+	const apple = /Mac|iPhone|iPad/.test(navigator.platform);
+	// Unknown settings (they failed to load) offer the PDF, as the pass-on
+	// sheet does; without PDFs there is no Print and Ctrl+P is the browser's.
+	const pdfAvailable = $derived(settings?.pdf.available !== false);
+	// The PDF renders for Print; the menu's trigger is busy meanwhile.
+	let printing = $state(false);
+
+	// Print is the PDF with the remembered options at the page's servings
+	// (stored, so read back here).
+	async function print() {
+		if (printing) return;
+		printing = true;
+		const servings = createServings(recipe.id, recipe.servings).value;
+		await printRecipe(recipeRequest(recipe, servings, printOptions));
+		printing = false;
+	}
+
+	// ⌘P on Apple platforms, Ctrl+P elsewhere, print the PDF too (Ctrl+P on
+	// a Mac moves the cursor up in a text field); File > Print cannot be
+	// intercepted and prints the page as it is. A layout without Latin
+	// letters still has the key in the P position.
+	function onkeydown(event: KeyboardEvent) {
+		const mod = apple ? event.metaKey : event.ctrlKey;
+		if (!pdfAvailable || !mod || event.altKey || event.shiftKey) return;
+		if (event.isComposing || event.defaultPrevented) return;
+		const latin = /^[a-z]$/i.test(event.key);
+		if (latin ? event.key.toLowerCase() !== 'p' : event.code !== 'KeyP') return;
+		event.preventDefault();
+		void print();
+	}
 
 	// The people behind the tasty count. Derived from the loaded recipe, and
 	// written over when the reader marks or unmarks it, so their own circle
@@ -104,7 +140,7 @@
 	let share: PublicShare | null = $derived(data.share);
 	let passOnOpen = $state(false);
 	// The sheet's tab on opening; unset, it opens on the tab this device used last.
-	let passOnTab = $state<'image' | 'link'>();
+	let passOnTab = $state<'image' | 'link' | 'pdf'>();
 	// Public sharing is on and this member may use it. With an existing link
 	// the sheet offers it regardless, shown as paused if either has since
 	// gone off, with Revoke still available.
@@ -289,6 +325,14 @@
 </svelte:head>
 
 <!-- Edit and delete show only to those the server lets do them; see `Recipe.canEdit`. -->
+{#snippet menuIcon()}
+	{#if printing}
+		<LoaderCircle class="size-5 animate-spin motion-reduce:animate-none" aria-hidden="true" />
+	{:else}
+		<Ellipsis class="size-5" aria-hidden="true" />
+	{/if}
+{/snippet}
+
 {#snippet menuItems()}
 	{#if recipe?.canEdit}
 		<DropdownMenu.Item
@@ -313,6 +357,26 @@
 		<Share2 class="size-4" aria-hidden="true" />
 		{m.share_pass_on()}
 	</DropdownMenu.Item>
+	{#if pdfAvailable}
+		<!-- Straight to printing the PDF with the remembered options, as Ctrl+P. -->
+		<DropdownMenu.Item
+			onSelect={print}
+			aria-keyshortcuts={apple ? 'Meta+P' : 'Control+P'}
+			class="flex h-10 items-center gap-2 rounded-sm px-3 text-body-sm text-text transition hover:bg-background"
+		>
+			<Printer class="size-4" aria-hidden="true" />
+			{m.detail_print()}
+			<kbd
+				aria-hidden="true"
+				class="ml-auto hidden items-center gap-px text-micro font-semibold tracking-wide text-text-muted md:inline-flex"
+				>{#if apple}<Command
+						class="size-2.5"
+						strokeWidth={2.5}
+						aria-hidden="true"
+					/>P{:else}{m.detail_print_shortcut()}{/if}</kbd
+			>
+		</DropdownMenu.Item>
+	{/if}
 	{#if recipe?.canDelete}
 		<!-- The one destructive item sits apart from the rest. -->
 		<DropdownMenu.Separator class="mx-1 my-1.5 h-px bg-popover-border" />
@@ -341,8 +405,12 @@
 		{m.detail_cook_mode()}
 	</Button>
 	<DropdownMenu.Root>
-		<DropdownMenu.Trigger aria-label={m.detail_menu()} class={menuTriggerClass}>
-			<Ellipsis class="size-5" aria-hidden="true" />
+		<DropdownMenu.Trigger
+			aria-label={m.detail_menu()}
+			aria-busy={printing}
+			class={menuTriggerClass}
+		>
+			{@render menuIcon()}
 		</DropdownMenu.Trigger>
 		<DropdownMenu.Portal>
 			<DropdownMenu.Content
@@ -357,7 +425,7 @@
 	</DropdownMenu.Root>
 {/snippet}
 
-<svelte:window bind:scrollY />
+<svelte:window bind:scrollY {onkeydown} />
 
 {#if recipe}
 	<!--
@@ -416,11 +484,12 @@
 		<DropdownMenu.Root>
 			<DropdownMenu.Trigger
 				aria-label={m.detail_menu()}
+				aria-busy={printing}
 				class="{menuTriggerClass} {headerCircle} pointer-events-auto {scrolled
 					? ''
 					: 'shadow-card'}"
 			>
-				<Ellipsis class="size-5" aria-hidden="true" />
+				{@render menuIcon()}
 			</DropdownMenu.Trigger>
 			<DropdownMenu.Portal>
 				<!--
@@ -574,6 +643,7 @@
 		bind:open={passOnOpen}
 		{recipe}
 		attribution={settings?.publicShareAttribution ?? true}
+		{settings}
 		linkUrl={() => shareable?.url ?? location.href}
 		bind:share
 		{canCreateShare}
