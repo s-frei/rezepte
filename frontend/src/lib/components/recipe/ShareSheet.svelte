@@ -121,6 +121,14 @@
 	let preview = $state<string | null>(null);
 	let failed = $state(false);
 	let lifting = $state(false);
+	// The picture leans by at most 2.5deg, and by less as it grows taller, so
+	// its edges drift about as far on a long recipe as on a short one.
+	let previewHeight = $state(0);
+	const tilt = $derived(
+		previewHeight
+			? Math.min(2.5, (Math.asin(Math.min(1, 14 / previewHeight)) * 180) / Math.PI)
+			: 2.5
+	);
 	// A share sheet is up: a second tap would only be refused by the browser.
 	let sending = $state(false);
 
@@ -183,8 +191,10 @@
 			<img
 				src={preview}
 				alt={m.share_preview_alt({ title: recipe.title })}
+				bind:clientHeight={previewHeight}
+				style:rotate="{-tilt}deg"
 				in:fade={{ duration: 150 }}
-				class="h-max w-[220px] -rotate-[2.5deg] rounded-lg shadow-lift transition duration-300 ease-spring motion-reduce:transition-none {lifting
+				class="h-max w-[220px] shrink-0 rounded-lg shadow-lift transition duration-300 ease-spring motion-reduce:transition-none {lifting
 					? '-translate-y-24 opacity-0'
 					: ''}"
 			/>
