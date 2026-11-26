@@ -3,7 +3,7 @@ title: Data and backup
 description: Where Rezepte stores its data and how to back it up safely
 ---
 
-Back up one directory and you have everything: the data directory (`REZEPTE_DATA_DIR`, `/data` in the Docker image).
+Back up the data directory (`REZEPTE_DATA_DIR`, `/data` in the Docker image) and you have every recipe, photo, account and setting made in Rezepte.
 
 <Files>
   <Folder name="data" defaultOpen>
@@ -24,11 +24,17 @@ Back up one directory and you have everything: the data directory (`REZEPTE_DATA
 
 Back up the three `rezepte.db*` files together or not at all. Back up `avatars/` too, or every account comes back with its initial instead of its photo.
 
-<Callout type="warn" title="Backups contain secrets">
-  A mail password set under [Settings → Email](/guide/mail) and a client secret set under [Settings → Sign-in](/operations/single-sign-on) are stored in the database unencrypted. Keep backups as private as those secrets. Values set with `REZEPTE_SMTP_PASSWORD` or `REZEPTE_OIDC_CLIENT_SECRET` stay out of the database.
-</Callout>
+Three things live outside the data directory. Keep a copy of each:
 
-A comment photo added to the recipe photos is a hard link to the same files. Copy with `rsync -H`, as below, so a backup does not store it twice.
+| Outside the data directory | Without it |
+| --- | --- |
+| `docker-compose.yaml`, or the systemd unit and `/etc/rezepte.env` | Settings made with `REZEPTE_*` variables are gone, such as the public address, sign-in and mail set there |
+| The directory in `REZEPTE_PDF_TEMPLATE_DIR` ([Custom PDF templates](/operations/pdf-templates)) | Rezepte refuses to start until the directory exists again |
+| Your reverse proxy's configuration | The instance is not reachable at its address |
+
+<Callout type="warn" title="Backups contain secrets">
+  A mail password set under [Settings → Email](/guide/mail) and a client secret set under [Settings → Sign-in](/operations/single-sign-on) are stored in the database unencrypted, like the keys that sign links and notifications. Keep backups as private as those secrets. Values set with `REZEPTE_SMTP_PASSWORD` or `REZEPTE_OIDC_CLIENT_SECRET` stay out of the database.
+</Callout>
 
 To pass recipes to another instance instead, see [Import and export](/guide/import-export).
 
@@ -40,33 +46,45 @@ To pass recipes to another instance instead, see [Import and export](/guide/impo
     Stop Rezepte for a few seconds and pack the data directory into one archive, from a throwaway container:
 
     ```bash
+    name="rezepte-$(date +%F-%H%M).tar.gz"
+    mkdir -p backups
     docker compose stop rezepte
     docker run --rm --volumes-from "$(docker compose ps -aq rezepte)" \
       -v "$PWD/backups:/backup" alpine:3 \
-      tar czf "/backup/rezepte-$(date +%F).tar.gz" -C /data .
+      sh -c "umask 077 && tar czf /backup/$name -C /data . \
+        && tar tzf /backup/$name > /tmp/list \
+        && grep -qx ./rezepte.db /tmp/list && echo backup ok"
     docker compose start rezepte
     ```
 
-    Run it next to your `docker-compose.yaml`; the archive lands in `backups/`. It works for a named volume and a bind mount alike.
+    Run it next to your `docker-compose.yaml`. The archive lands in `backups/`, readable only by its owner. No `backup ok` means there is no usable archive. It works for a named volume and a bind mount alike.
 
-    Started with `docker run --name rezepte` instead of compose? Use `docker stop rezepte` and `docker start rezepte`, and `--volumes-from rezepte`.
+    Started with `docker run --name rezepte` instead of compose? Use `docker stop rezepte` and `docker start rezepte`, and `--volumes-from rezepte`. If `docker compose ps -aq rezepte` prints more than one line, remove the leftover containers of `docker compose run` first.
 
-    With a bind mount, you can instead back up the host directory while Rezepte keeps running, with the commands in the Binary tab. Run them as UID 65532, which owns the files.
+    On a Linux host with a bind mount, you can instead back up the host directory while Rezepte keeps running, with the commands in the Binary tab. Set `data` to the mounted directory and run them as UID 65532, which owns the files. Do not do this with Docker Desktop on macOS or Windows: its file sharing does not keep SQLite's locks.
 
   </Tab>
   <Tab value="Binary">
 
-    With the binary, back up while Rezepte keeps running. You need the `sqlite3` tool on the host:
+    Back up while Rezepte keeps running. You need `sqlite3` and `rsync` on the host. Set `data` to your `REZEPTE_DATA_DIR`: `/var/lib/rezepte` in the [systemd unit](/getting-started/binary#run-as-a-systemd-service), or `data` in the directory Rezepte was started from if you never set it.
 
     ```bash
-    sqlite3 /var/lib/rezepte/rezepte.db ".backup /backups/rezepte-$(date +%F).db"
-    rsync -aH --exclude 'rezepte.db*' /var/lib/rezepte/ /backups/files/
+    umask 077
+    data=/var/lib/rezepte
+    dest="/backups/rezepte-$(date +%F-%H%M)"
+    mkdir -p "$dest"
+    sqlite3 "$data/rezepte.db" ".backup '$dest/rezepte.db'"
+    rsync -a --exclude 'rezepte.db*' "$data/" "$dest/"
+    sqlite3 "file:$dest/rezepte.db?immutable=1" \
+      "PRAGMA integrity_check; SELECT count(*) FROM recipes;"
     ```
 
-    `sqlite3` writes one consistent file; `rsync` copies everything else in the data directory.
+    The last command must print `ok` and your number of recipes. Anything else, or an error, means the backup is not usable. Each backup is one directory that holds a complete data directory.
+
+    Keep this order: the database first, then the photos. A photo deleted between the two commands is then missing from this backup. Stop Rezepte first if you need an exact copy.
 
     <Callout type="warn">
-      Run both as the account that owns the data directory: `rezepte` in the [systemd unit](/getting-started/binary#run-as-a-systemd-service). Run as root, SQLite can leave files next to the database that Rezepte cannot write.
+      Run the commands as the account that owns the data directory, `rezepte` in the systemd unit, for example in a `sudo -u rezepte sh` shell. That account must be able to write to `/backups`. Run as root, SQLite can leave files next to the database that Rezepte cannot write.
     </Callout>
 
   </Tab>
@@ -76,37 +94,62 @@ To pass recipes to another instance instead, see [Import and export](/guide/impo
   Never copy `rezepte.db` with `cp` while Rezepte runs: the copy can miss recent writes or catch the database mid-write. Use `sqlite3 .backup`, or stop Rezepte first.
 </Callout>
 
+## Keeping backups you can rely on
+
+- **Run it every night.** Save the commands above as a script that starts with `set -eu`, and start it from cron or a systemd timer. For Docker, begin with `cd` to the directory of your `docker-compose.yaml`, and put `trap 'docker compose start rezepte' EXIT` right after the `stop` line, so Rezepte starts again even when the backup fails.
+- **Keep several.** Every backup has its own name, and the names sort by date. Delete the oldest by hand once you have enough.
+- **Copy them off the machine.** A backup on the same disk is lost with the disk.
+- **Try a restore.** Restore a backup on another machine, or into another data directory and port, and open a recipe with photos. Do it once now and after every major update.
+- **Back up before every update.** See [Updates](/operations/updates).
+
 ## Restoring
 
 <Callout type="warn">
-  A restore replaces everything in the data directory. Anything changed since the backup is lost.
+  A restore replaces everything in the data directory. Anything changed since the backup is lost, and passwords, sessions, API tokens and public links are again as they were then.
+</Callout>
+
+<Callout type="warn" title="Start the version that made the backup, or a newer one">
+  A newer version updates the restored database on its first start. An older version starts without a warning and then fails in places. Never run one on a newer backup.
 </Callout>
 
 <Tabs groupId="install" persist items={['Docker', 'Binary']}>
   <Tab value="Docker">
 
-    Stop Rezepte, empty the volume, unpack the archive and give the files back to UID 65532:
+    Stop Rezepte, check the archive, empty the volume, unpack it and give the files back to UID 65532:
 
     ```bash
+    archive=rezepte-2026-01-31-0300.tar.gz
     docker compose stop rezepte
     docker run --rm --volumes-from "$(docker compose ps -aq rezepte)" \
       -v "$PWD/backups:/backup:ro" alpine:3 \
-      sh -c 'rm -rf /data/* \
-        && tar xzf /backup/rezepte-2026-01-31.tar.gz -C /data \
-        && chown -R 65532:65532 /data'
-    docker compose start rezepte
+      sh -c "tar tzf /backup/$archive > /tmp/list \
+        && grep -qx ./rezepte.db /tmp/list \
+        && find /data -mindepth 1 -delete \
+        && tar xzf /backup/$archive -C /data \
+        && chown -R 65532:65532 /data" \
+      && docker compose start rezepte
     ```
 
-    Replace `rezepte-2026-01-31.tar.gz` with your archive's name.
+    Set `archive` to your archive's name. Rezepte starts only when every step worked, and nothing is deleted when the archive cannot be read.
+
+    On a new machine, run `docker compose create` first, so the container and its volume exist.
 
   </Tab>
   <Tab value="Binary">
 
-    1. Stop Rezepte.
-    2. Replace `rezepte.db` with the backup, and delete any leftover `rezepte.db-wal` / `rezepte.db-shm` next to it — they belong to the database you replaced, not to the backup.
-    3. Copy the backed-up files back into the data directory: `rsync -aH /backups/files/ /var/lib/rezepte/`.
-    4. Give the data directory back to the account Rezepte runs as, for example `chown -R rezepte:rezepte /var/lib/rezepte`.
-    5. Start Rezepte again.
+    Move the old data directory aside and copy the backup into a fresh one. The paths are those of the [systemd unit](/getting-started/binary#run-as-a-systemd-service); use your own.
+
+    ```bash
+    sudo systemctl stop rezepte
+    sudo mv /var/lib/rezepte /var/lib/rezepte.old \
+      && sudo rsync -a /backups/rezepte-2026-01-31-0300/ /var/lib/rezepte/ \
+      && sudo chown -R rezepte:rezepte /var/lib/rezepte \
+      && sudo systemctl start rezepte
+    ```
+
+    Rezepte starts only when every step worked. If `mv` fails, stop there: remove a `/var/lib/rezepte.old` left from an earlier restore first. Once a recipe with photos opens, delete `/var/lib/rezepte.old`.
+
+    Never copy a backup over a data directory that is still in place. A leftover `rezepte.db-wal` from the old database is applied to the restored one and corrupts it, and Rezepte still starts.
 
   </Tab>
 </Tabs>

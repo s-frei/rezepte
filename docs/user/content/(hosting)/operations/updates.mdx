@@ -31,6 +31,16 @@ Before you update, read the release's page in the [Changelog](/changelog). If th
   </Tab>
 </Tabs>
 
+## Go back to the previous version
+
+The only way back is the backup you made before the update. Everything changed since then is lost.
+
+1. Stop Rezepte.
+2. [Restore](/operations/data-and-backup#restoring) that backup.
+3. Start the version you ran before. In `docker-compose.yaml`, set its tag in place of `latest`, for example `ghcr.io/s-frei/rezepte:1.6.0`. With the binary, install that release's archive again.
+
+An older version on the updated database starts without a warning and then fails in places, so never skip the restore.
+
 ## How you learn about a new version<NewIn release="v1.6.0" />
 
 Once a day, Rezepte asks GitHub (`api.github.com`) for the latest release. When it is newer than the running version, the owner sees a note on the overview, with a link to the release. Each version's note can be dismissed with ×, in that browser only. Members never see it.
