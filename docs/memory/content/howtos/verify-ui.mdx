@@ -45,7 +45,7 @@ description: End-to-end tests and screenshots, no browser extensions
 
     - A helper that branches on what the page looks like right after a click: `openNewRecipe` asked whether the bottom nav was there, while an empty overview's own "New recipe" link had already taken it to the editor.
     - A helper that returns before what it started has finished: `signOut` now returns once the app has reached `/login`, since the app's logout still running under the next `login` landed a test on `/login` right after signing in.
-    - A click on a button that something loading late pushes away: the password meter's label, which arrives 250 ms after typing, holds its line from the start.
+    - A click on a button that something loading late pushes away: the password meter's label, which arrives 250 ms after typing, holds its line from the start; a dead setup link's page waits for the reset answer its hint depends on before it shows.
     - A drop on a spot that itself moves the page (see the edge trap in [Images](/features/images)).
     - A step that takes longer than the 5s an `expect` waits by default (300 recipe cards in phone WebKit).
     - A wall-clock budget on the app's answer: `toBeChecked({ timeout: 150 })` measured the machine. To prove a click lands during an animation, stretch the animation in the test (`page.addStyleTag`) and wait as long as usual.

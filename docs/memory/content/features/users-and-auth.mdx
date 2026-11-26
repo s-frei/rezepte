@@ -212,7 +212,7 @@ The people an instance serves share one recipe collection. Accounts are created,
 
 - It passes `history.state` on, SvelteKit's entry for the page: with `null` a back onto `/welcome` changed only the address and left the previous page on screen (`back onto a setup link shows its page again`). `/confirm-email` clears its token the same way.
 - It calls `inspectSetupLink` to greet the person and `redeemSetupLink` on submit. For a setup link (not a reset) it names the inviter and shows "This is how the others see you" (`welcome_seen_as`): the person's mark, name and color as the account was created. Both marks get no `avatarId` - the person has no picture yet; `an invited person sets their own password through the setup link` in `e2e/setup-links.test.ts` checks that no `/avatars/` image shows.
-- A `404` from either call is the only case that shows "This link no longer works"; any other inspect failure offers a retry, since the token stays in the page's memory.
+- A `404` from either call is the only case that shows "This link no longer works"; any other inspect failure offers a retry, since the token stays in the page's memory. That page waits for `GET /api/v1/auth/password` too, since its hint names "Forgot password?" only while a reset is available: swapped in after the page showed, the longer hint pushed "Back to sign-in" away under a press already on it (`a dead setup link's page shows once whole`).
 - `/welcome` is exempt from the root layout's login redirect, so a browser already signed in as another account shows a notice naming both, and finishing the link replaces that session.
 
 ### Passwords

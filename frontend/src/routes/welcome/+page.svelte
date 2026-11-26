@@ -36,6 +36,10 @@
 	let token = $state('');
 	let oidc = $state<OidcInfo | null>(null);
 	let resetAvailable = $state(false);
+	// The dead link's hint names the reset when there is one, so that page
+	// waits for this answer: a hint swapped in late pushed "Back to sign-in"
+	// away under a finger already on it.
+	let resetKnown: Promise<void> = Promise.resolve();
 	// Set when a provider sign-in came back here. The service redirects
 	// without the fragment, so the token is gone and the person has to open
 	// the link again.
@@ -86,6 +90,7 @@
 				// Unknown, used or expired - one message for all three, so
 				// this page learns nothing a prober could not already tell
 				// from the response.
+				await resetKnown;
 				invalid = true;
 			} else {
 				loadError = true;
@@ -103,8 +108,10 @@
 		// The button is an extra, so a failed lookup simply leaves it out.
 		const info = getOidc().catch(() => null);
 		void info.then((i) => (oidc = i));
-		getPasswordReset().then(
-			(r) => (resetAvailable = r.available),
+		resetKnown = getPasswordReset().then(
+			(r) => {
+				resetAvailable = r.available;
+			},
 			() => {}
 		);
 		if (!token) {
@@ -113,6 +120,7 @@
 			if (oidcReturn) {
 				await info;
 			}
+			await resetKnown;
 			invalid = true;
 			loading = false;
 			return;

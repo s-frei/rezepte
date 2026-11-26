@@ -106,3 +106,19 @@ test('back onto a setup link shows its page again', async ({ browser }) => {
 	await expect(page.getByRole('heading', { name: 'This link no longer works' })).toBeVisible();
 	await expect(page.getByRole('button', { name: 'Sign in' })).toHaveCount(0);
 });
+
+// The hint names the reset when mail is on, an answer of its own. Swapped in
+// after the page had shown, it pushed "Back to sign-in" down under a press
+// already on it, so the dead link's page waits for that answer.
+test("a dead setup link's page shows once whole", async ({ browser }) => {
+	const page = await (await browser.newContext()).newPage();
+	await pinLocale(page);
+	await page.route('**/api/v1/auth/password', async (route) => {
+		await new Promise((done) => setTimeout(done, 300));
+		await route.fulfill({ json: { available: true } });
+	});
+	await page.goto(`/welcome#unknown${uniqueToken()}`);
+	await expect(page.getByRole('heading', { name: 'This link no longer works' })).toBeVisible();
+	// Read at once on purpose: the hint is already the reset's when the page shows.
+	expect(await page.getByRole('link', { name: 'Forgot password?' }).count()).toBe(1);
+});
