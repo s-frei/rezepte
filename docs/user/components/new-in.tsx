@@ -28,7 +28,7 @@ export function isNewIn(release: string | undefined): boolean {
 export function NewBadge({ release, className = '' }: { release: string; className?: string }) {
 	return (
 		<span
-			className={`inline-block rounded-full bg-fd-primary px-2 py-0.5 align-middle font-sans text-[11px] leading-none font-semibold text-fd-primary-foreground ${className}`}
+			className={`inline-block shrink-0 whitespace-nowrap rounded-full bg-fd-primary px-2 py-0.5 align-middle font-sans text-[11px] leading-none font-semibold text-fd-primary-foreground ${className}`}
 			title={`New in ${release}`}
 		>
 			New
