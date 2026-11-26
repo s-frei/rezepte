@@ -25,6 +25,7 @@ import (
 	"github.com/s-frei/rezepte/service/internal/image"
 	"github.com/s-frei/rezepte/service/internal/mcpserver"
 	"github.com/s-frei/rezepte/service/internal/mealplan"
+	"github.com/s-frei/rezepte/service/internal/pdf"
 	"github.com/s-frei/rezepte/service/internal/preview"
 	"github.com/s-frei/rezepte/service/internal/push"
 	"github.com/s-frei/rezepte/service/internal/recipe"
@@ -98,7 +99,8 @@ func newFullApp(t *testing.T) fullApp {
 	image.Register(srv.API(), images)
 	image.RegisterUploadLink(srv.API(), images, links)
 	transfer.Register(srv.API(), transfer.NewService(recipes, images, dataDir, transfer.InputValidator(srv.API())))
-	settings.Register(srv.API(), instance, func(context.Context) bool { return false })
+	pdf.Register(srv.API(), pdf.NewService(pdf.NewRenderer(dataDir, 1), recipes, images, instance, "", "test", true, slog.New(slog.DiscardHandler)))
+	settings.Register(srv.API(), instance, func(context.Context) bool { return false }, func() settings.PDFInfo { return settings.PDFInfo{} })
 	preview.Register(srv.API(), previews)
 	share.Register(srv.API(), shares)
 	avatars := avatar.NewService(conn, t.TempDir(), images)
@@ -274,9 +276,9 @@ func TestEveryFeatureRegisters(t *testing.T) {
 			ids[op.OperationID] = true
 		}
 	}
-	// One operation per feature package: proof that all ten registrations
+	// One operation per feature package: proof that all eleven registrations
 	// made it into the same document.
-	for _, id := range []string{"login", "list-recipes", "upload-image", "import-recipes", "get-settings", "create-share-link", "list-users", "list-api-tokens", "create-public-share", "get-public-recipe"} {
+	for _, id := range []string{"login", "list-recipes", "upload-image", "import-recipes", "get-settings", "create-share-link", "list-users", "list-api-tokens", "create-public-share", "get-public-recipe", "create-pdf", "preview-pdf"} {
 		if !ids[id] {
 			t.Errorf("operation %q missing from the OpenAPI document", id)
 		}

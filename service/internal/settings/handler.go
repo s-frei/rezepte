@@ -14,13 +14,20 @@ import (
 	"github.com/s-frei/rezepte/service/internal/user"
 )
 
-// settings is Settings plus whether mail is on, which the settings service
-// does not own (package mail does). huma names a schema after its Go type
+// settings is Settings plus what the settings service does not own: whether
+// mail is on (package mail) and what PDF rendering can do (package pdf).
+// huma names a schema after its Go type
 // with the first letter raised, so this lowercase name keeps the API
 // schema called Settings.
 type settings struct {
 	Settings
-	MailEnabled bool `json:"mailEnabled" doc:"Whether Rezepte can send mail, which switches the Add account dialog"`
+	MailEnabled bool    `json:"mailEnabled" doc:"Whether Rezepte can send mail, which switches the Add account dialog"`
+	PDF         PDFInfo `json:"pdf" doc:"Whether the service can render PDFs"`
+}
+
+// PDFInfo is what package pdf reports about rendering.
+type PDFInfo struct {
+	Available bool `json:"available" doc:"Whether PDFs work; false hides the PDF tab and Print, and the browser's own print stays"`
 }
 
 type settingsOutput struct {
@@ -81,7 +88,10 @@ type updateSettingsInput struct {
 
 // Register installs get-settings (any session or a recipes:read token) and
 // update-settings (the owner's session only).
-func Register(api huma.API, svc *Service, mailEnabled func(context.Context) bool) {
+func Register(api huma.API, svc *Service, mailEnabled func(context.Context) bool, pdfInfo func() PDFInfo) {
+	out := func(ctx context.Context, s Settings) *settingsOutput {
+		return &settingsOutput{Body: settings{Settings: s, MailEnabled: mailEnabled(ctx), PDF: pdfInfo()}}
+	}
 	huma.Register(api, huma.Operation{
 		OperationID: "get-settings",
 		Method:      http.MethodGet,
@@ -94,7 +104,7 @@ func Register(api huma.API, svc *Service, mailEnabled func(context.Context) bool
 		if err != nil {
 			return nil, err
 		}
-		return &settingsOutput{Body: settings{Settings: s, MailEnabled: mailEnabled(ctx)}}, nil
+		return out(ctx, s), nil
 	})
 
 	huma.Register(api, huma.Operation{
@@ -120,7 +130,7 @@ func Register(api huma.API, svc *Service, mailEnabled func(context.Context) bool
 		if err != nil {
 			return nil, err
 		}
-		return &settingsOutput{Body: settings{Settings: s, MailEnabled: mailEnabled(ctx)}}, nil
+		return out(ctx, s), nil
 	})
 }
 

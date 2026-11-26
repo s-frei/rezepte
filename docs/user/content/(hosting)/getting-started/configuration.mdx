@@ -51,6 +51,14 @@ Set `REZEPTE_SMTP_HOST`, `REZEPTE_SMTP_FROM` and `REZEPTE_PUBLIC_URL` (plus the 
   For mail to reach inboxes rather than spam, publish the SPF and DKIM records your provider documents for the sender's domain.
 </Callout>
 
+## PDFs
+
+Rezepte makes PDFs with [Typst](https://typst.app), which is part of the binary. On the first PDF it unpacks Typst into the system's temp directory (`TMPDIR`, else `/tmp`).
+
+- That directory must be writable and allow running programs. A tmpfs mounted with `noexec` fails; mount it with `exec`.
+- When Typst cannot run, the PDF buttons disappear and the log says why.
+- A large export, one cookbook or one PDF per recipe, renders every recipe before the download starts. A reverse proxy may need a longer read timeout for it, such as nginx's `proxy_read_timeout`.
+
 ## Command-line flags
 
 ### `--demo`

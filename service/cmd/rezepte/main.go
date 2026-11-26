@@ -13,6 +13,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"syscall"
 	"text/tabwriter"
@@ -35,6 +36,8 @@ import (
 	"github.com/s-frei/rezepte/service/internal/mealplan"
 	"github.com/s-frei/rezepte/service/internal/notify"
 	"github.com/s-frei/rezepte/service/internal/oidc"
+	"github.com/s-frei/rezepte/service/internal/pdf"
+	"github.com/s-frei/rezepte/service/internal/pdf/typstbin"
 	"github.com/s-frei/rezepte/service/internal/preview"
 	"github.com/s-frei/rezepte/service/internal/push"
 	"github.com/s-frei/rezepte/service/internal/recipe"
@@ -302,8 +305,21 @@ func run() error {
 	if err := transfer.SweepTemp(cfg.DataDir); err != nil {
 		logger.Warn("transfer: remove temp files failed", "err", err)
 	}
+	if err := pdf.SweepTemp(cfg.DataDir); err != nil {
+		logger.Warn("pdf: remove work dirs failed", "err", err)
+	}
+	if err := typstbin.SweepStale(os.TempDir()); err != nil {
+		logger.Warn("pdf: remove stale typst dirs failed", "err", err)
+	}
 	transfer.Register(srv.API(), transfer.NewService(recipes, images, cfg.DataDir, transfer.InputValidator(srv.API())))
-	settings.Register(srv.API(), instance, mailer.Enabled)
+	pdfAvailable := pdf.Available()
+	if !pdfAvailable {
+		logger.Warn("pdf: typst unavailable, PDF downloads are off")
+	}
+	renderer := pdf.NewRenderer(cfg.DataDir, max(1, runtime.NumCPU()/2))
+	pdfs := pdf.NewService(renderer, recipes, images, instance, cfg.PublicURL, version, pdfAvailable, logger)
+	pdf.Register(srv.API(), pdfs)
+	settings.Register(srv.API(), instance, mailer.Enabled, pdfs.Info)
 	update.Register(srv.API(), updates)
 	mailapi.Register(srv.API(), mailer, users)
 	oidc.RegisterSettings(srv.API(), oidcSettings)

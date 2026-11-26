@@ -19,6 +19,11 @@ import (
 
 func newHandler(t *testing.T) http.Handler {
 	t.Helper()
+	return newHandlerWith(t, func() settings.PDFInfo { return settings.PDFInfo{} })
+}
+
+func newHandlerWith(t *testing.T, pdfInfo func() settings.PDFInfo) http.Handler {
+	t.Helper()
 	conn := dbtest.Open(t)
 	users := user.NewService(conn, "")
 	for name, role := range map[string]user.Role{"olga": user.RoleSuperadmin, "adam": user.RoleAdmin, "mia": user.RoleUser} {
@@ -33,7 +38,7 @@ func newHandler(t *testing.T) http.Handler {
 		APIMiddleware: auth.Middleware(sessions, tokens, false),
 	})
 	auth.Register(srv.API(), sessions, auth.NewDevice(make([]byte, 32)), false)
-	settings.Register(srv.API(), settings.NewService(conn), func(context.Context) bool { return false })
+	settings.Register(srv.API(), settings.NewService(conn), func(context.Context) bool { return false }, pdfInfo)
 	return srv.Handler()
 }
 
@@ -194,5 +199,19 @@ func TestRecipeDigestHourEndpoint(t *testing.T) {
 	rec = do(h, http.MethodPatch, "/api/v1/settings", `{"recipeDigestHour":9}`, login(t, h, "adam"))
 	if rec.Code != http.StatusForbidden {
 		t.Errorf("patch as admin: %d %s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestSettingsExposePDF(t *testing.T) {
+	h := newHandler(t)
+	rec := do(h, http.MethodGet, "/api/v1/settings", "", login(t, h, "mia"))
+	if body := rec.Body.String(); !strings.Contains(body, `"pdf":{"available":false}`) {
+		t.Errorf("unset: %d %s", rec.Code, body)
+	}
+
+	h = newHandlerWith(t, func() settings.PDFInfo { return settings.PDFInfo{Available: true} })
+	rec = do(h, http.MethodGet, "/api/v1/settings", "", login(t, h, "mia"))
+	if body := rec.Body.String(); !strings.Contains(body, `"pdf":{"available":true}`) {
+		t.Errorf("set: %d %s", rec.Code, body)
 	}
 }

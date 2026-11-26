@@ -1,13 +1,16 @@
 ---
 title: Print and PDF
-description: The Typst renderer and the built-in templates that turn recipes into PDFs
+description: The PDF endpoint, the Typst renderer and the built-in templates
 ---
 
-The service renders recipes as PDFs with Typst: "Kochbuch" (layout B, A4) or "Karte" (layout C, A5), with or without the cover photo and the footer (QR code and credit), one recipe or a cookbook. `service/internal/pdf` holds the `data.json` contract, the renderer, the fonts and the built-in Typst templates.
+The service renders recipes as PDFs with Typst: "Kochbuch" (layout B, A4) or "Karte" (layout C, A5), with or without the cover photo and the footer (QR code and credit), one recipe or a cookbook. `service/internal/pdf` holds the `data.json` contract, the renderer, the fonts and the built-in Typst templates. `POST /api/v1/pdf` serves them ([The PDF endpoint](#the-pdf-endpoint)).
 
 <Callout type="warn" title="Traps">
 
+- A segment carries both `amount` and `minutes`, `null` when its kind has none: huma requires every key of `pdf.Segment`, so an omitted one is a `422` (`TestBrowserShapeAccepted` posts the client's exact shape).
+- Never decide "typst cannot run" with `errors.Is(err, syscall.EACCES)` on a `Render` error: the work dir, the template copy and the photos can fail with it as well, and one unreadable file would switch PDFs off for everyone. Check `pdf.ErrCannotRun` only (`TestOtherEACCESIs500`).
 - A Typst error in a template surfaces only as the error string (`typst: exit status 1: <stderr>`); the work dir is already gone, so reproduce with `prepare` into a temp dir and run `typst compile` by hand ([PDF pipeline](#pdf-pipeline)).
+- `prepare` fails on a recipe whose `photo.path` has no entry in the `photos` map, so the handler sends the cover whenever one exists, even with the Photo option off; the template decides by `options.photo` whether to show it.
 - The OS temp dir is shared: every Rezepte process of one user (other worktrees, a dev server, tests through `typstbin.Path`) sweeps `rezepte-typst-*` at startup, so a starting instance can remove a running one's binary dir. Renders self-heal, but a typst run in flight at that moment can fail once.
 - The server's QR code is bare, its view box the modules alone: the band's 3 mm gaps and the page margin are its quiet zone. A template that sets it against other ink must leave four modules of white around it. Typst reads the mascot from the SVG's data URI and ignores CSS `clip-path`; the mascot PNG is round already.
 - In Typst markup, `#metadata(v) <label>` with a space leaves a space in the text; test labels are written `#metadata(v)<label>`, or step text gets double spaces.
@@ -27,6 +30,20 @@ The service renders recipes as PDFs with Typst: "Kochbuch" (layout B, A4) or "Ka
 **A4 sets a long list above a short method, measured in Typst.** `recipe()` in `lib.typ` measures the rail and the steps beside it unbroken (`overhang`); a list that runs on more than `list-first` (about six rows) below the steps goes first. Paella's 31 rows beside four short steps go first; Rinderrouladen and Sauerbraten stay beside (`TestIngredientsFirst`). Then the list takes the full width under its heading, in three balanced columns over a hairline, and the steps follow at the reading measure; beside the steps the rail would leave a hole under them, and past half a page the footer could not keep the last two steps. The card always sets its list above the steps.
 
 **The QR code is drawn by the server.** `qr.go` (`rsc.io/qr`) draws it at level H: a round dot a module wide per dark module, rounded eyes for the three finders, all in pure black ink (so an office driver prints it with black toner alone rather than as a misregistering CMY+K composite; `TestQRStyle`), and a white rounded hole of 9 × 9 modules in the center holding the mascot (`templates/mascot.png`, a copy of `assets/brand/lockups/rezepte-favicon-192.png`, which the book's title page uses too), which level H's error correction covers. `TestQRStyle` checks the SVG against the encoder's modules for a short and an 83-character URL and reads level H back from the format bits; `TestQRMascotCopy` holds the mascot byte-equal to the brand file. A long URL takes a larger version, so its modules are finer: still read at 160 px, not at 96 px.
+
+**The footer follows the instance's rules.** Footer on: the QR code (to `<instance.url>/recipes/<slug>`: `REZEPTE_PUBLIC_URL` when set, else the origin the browser sends, `location.origin`), its caption and "Added by" with the author's display name, plus " · Rezepte" only when `publicShareAttribution` is on. Footer off: the hairline and the source line only, at the same place; with no source either, no band.
+
+### The PDF endpoint
+
+**`POST /api/v1/pdf` (`create-pdf`) takes formatted recipes and adds what only the server knows.** `pdf.Service` (`service/internal/pdf/handler.go`) gets the client's `labels`, `locale`, `options`, `book` and `ClientRecipe`s; the schema refuses unknown keys, so a client cannot send `author` or a photo. It then loads every recipe with `recipe.Service.ByID` before anything renders (an unknown id is a `404` and no `pdf-*` dir is made), and merges in slug, URL, author (the creator's display name), timestamps and the cover (`detail` variant, as `photos/<n>.jpg`). A cover file that is gone prints without a photo.
+
+**`POST /api/v1/pdf/preview` (`preview-pdf`) answers page 1 as a PNG, for the PDF tab's preview.** It takes create-pdf's body, bundle `single` only (`422` for book and zip), goes through the same `create` and then `Renderer.Preview`, and sends no `Content-Disposition`: it is an image to show, not a file to keep. Its own route keeps `/api/v1/pdf` answering what its name says, always a PDF or a zip.
+
+**Who may ask for what.** `single` takes exactly one recipe and is open to every member, since every member can view every recipe; `book` and `zip` are admin only (`auth.RequireRole`, `403`), and `book` needs a `book` block (`422`); single and zip get `book: null`. `locale` must be one of `i18n.Locales()` (`422`). `origin` must be a bare http(s) origin (schema pattern, `422`); `instance.url` is `REZEPTE_PUBLIC_URL` when set, else that origin, and each recipe's URL is `<instance.url>/recipes/<slug>`. `instance.product` is always the product name `Rezepte`, never an operator's text, and `instance.attribution` is `publicShareAttribution`.
+
+**The response is the file, served from the work dir.** `http.ServeContent` sets the exact length; `Result.Close` removes the dir after the body is written. Names: single `FileName(title, labels.recipeFallback)`, book `rezepte-<date>.pdf`, zip `rezepte-pdf-<date>.zip`. `Content-Disposition` always has a quoted ASCII `filename` (non-ASCII as `_`) and, when the name needs it, the RFC 6266 `filename*=utf-8''…` from `mime.FormatMediaType`, which the client prefers.
+
+**Availability is one flag, read by the settings response.** `pdf.Available()` at startup is "typst embedded, or on PATH"; without it main.go logs `pdf: typst unavailable, PDF downloads are off`. The first render that fails with `pdf.ErrCannotRun` flips it to false with one log line until a restart; from then on the endpoint answers `503` without running anything. `Render` returns that error only when `typstbin.Path` reports `ErrUnavailable` or `cmd.Start` fails with `EACCES` or `ENOEXEC` (a `noexec` temp dir, a wrong-platform binary). Any other error, a permission error on the work dir or a photo included, is a `500` and leaves PDFs on. `GET /settings` reports `pdf: {available}`; the client hides PDF actions on `available: false`.
 
 ### PDF pipeline
 

@@ -5,6 +5,8 @@
     "index",
     "list-authors",
     "list-ingredients",
+    "create-pdf",
+    "preview-pdf",
     "create-recipe-draft",
     "get-recipe-draft-photo",
     "list-recipes",
