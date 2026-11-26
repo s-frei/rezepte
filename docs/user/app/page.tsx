@@ -1,5 +1,5 @@
 import { HomeLayout } from 'fumadocs-ui/layouts/home';
-import { BotIcon, HeartIcon, LanguagesIcon, MessageCircleIcon, SearchIcon, ShieldCheckIcon, TabletIcon, TimerIcon, UserPlusIcon } from 'lucide-react';
+import { BotIcon, HeartIcon, LanguagesIcon, PrinterIcon, SearchIcon, ShieldCheckIcon, TabletIcon, TimerIcon, UserPlusIcon } from 'lucide-react';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import type { CSSProperties } from 'react';
@@ -80,7 +80,7 @@ const IDEAS = [
 	{ icon: UserPlusIcon, title: 'Invite with a link', text: 'Admins send the people you cook with a setup link, by mail if you like.', href: '/guide/users#add-an-account' },
 	{ icon: ShieldCheckIcon, title: 'Who may edit', text: 'Decide whether everyone may change a recipe, or only the people you choose.', href: '/guide/editing-rights' },
 	{ icon: HeartIcon, title: 'Tasty marks and favorites', text: 'Hearts show who liked a recipe; stars mark your private favorites.', href: '/guide/recipes#tasty' },
-	{ icon: MessageCircleIcon, title: 'Previews in your chats', text: 'Once the owner switches them on, a recipe link in a chat shows its photo and title.', href: '/guide/sharing#the-link-preview' },
+	{ icon: PrinterIcon, title: 'Print it, or a whole cookbook', text: 'A recipe as a page or a card, or many as one PDF cookbook.', href: '/guide/printing' },
 	{ icon: BotIcon, title: 'API and MCP', text: 'Scripts and AI assistants such as Claude read and edit recipes, plans and lists.', href: '/api/mcp' },
 	{ icon: LanguagesIcon, title: 'English and German', text: 'Everyone picks their own language.', href: '/guide/settings#choose-language-and-theme' }
 ];
