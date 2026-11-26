@@ -69,6 +69,14 @@ A member can print a recipe or save it as a PDF; both are the same document, ren
 
 **Availability is one flag, read by the settings response.** `pdf.Available()` at startup is "typst embedded, or on PATH"; without it main.go logs `pdf: typst unavailable, PDF downloads are off`. The first render that fails with `pdf.ErrCannotRun` flips it to false with one log line until a restart; from then on the endpoint answers `503` without running anything. `Render` returns that error only when `typstbin.Path` reports `ErrUnavailable` or `cmd.Start` fails with `EACCES` or `ENOEXEC` (a `noexec` temp dir, a wrong-platform binary). Any other error, a permission error on the work dir or a photo included, is a `500` and leaves PDFs on. `GET /settings` reports `pdf: {available}`; the client hides PDF actions on `available: false`.
 
+### Bulk PDF
+
+**Admins export ticked recipes as one cookbook or a zip of PDFs** from the Export card ([Import and export](/features/import-export)). `bulkPdfRequest` in `frontend/src/lib/recipe/bulk-pdf.ts` builds the body: `bundle` `book` or `zip`, paper from the format, each recipe through `buildClientRecipe` at the dialog's servings or its own, and for a book `{ title: pdf_label_book_title, date, dateDisplay, countDisplay }` with the browser's local day, "month year" in the UI locale and the count as the title page prints it ("12 recipes", from `settings_transfer_pdf_count*`).
+
+**The order is the list's sort, never its search.** The card sorts the ticked recipes with the comparator the list uses (title or last changed); a ticked recipe the search hides still goes in.
+
+**Servings is one value for all.** "As in recipe" stores `servings: null`; "Adjust" stores a number (2 to start) and shows the recipe page's `ServingsStepper`. Like the other options it is remembered in `printOptions`, but it stays in the browser: each recipe arrives already scaled, and `recipes[].servings` is the only servings the server sees.
+
 ### PDF pipeline
 
 **`pdf.Renderer` turns a `Data` into a file.** `Render(ctx, data, photos)` returns a `Result` (`Path`, `ContentType`) that the handler serves and then `Close`s; `Preview` is the same render of page 1 of a single recipe into `out.png` (`previewArgs`), through the same work dir, sandbox, semaphore and cleanup. It gets the binary from `typstbin.Path`, waits for a slot of a semaphore (`maxParallel`, `max(1, NumCPU/2)` from main), then renders under a timeout of 30 s for a single recipe and 30 s plus 1 s per recipe, at most 10 min, for book and zip.

@@ -5,6 +5,8 @@
 	import ImportCard from '#lib/components/settings/ImportCard.svelte';
 	import { m } from '#lib/paraglide/messages.js';
 
+	let { data } = $props();
+
 	let recipes = $state<RecipeCard[]>([]);
 	// The import marks titles already here, so it waits for the full list.
 	let ready = $state(false);
@@ -13,6 +15,6 @@
 <svelte:head><title>{m.settings_nav_transfer()} · {m.app_name()}</title></svelte:head>
 
 <SettingsLayout active="transfer">
-	<ExportCard bind:recipes onready={() => (ready = true)} />
+	<ExportCard bind:recipes settings={data.settings} onready={() => (ready = true)} />
 	<ImportCard existing={recipes} {ready} />
 </SettingsLayout>

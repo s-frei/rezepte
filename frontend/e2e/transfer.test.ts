@@ -1,4 +1,8 @@
-import { expect, test } from '@playwright/test';
+import { readFileSync } from 'node:fs';
+import { expect, test, type Page } from '@playwright/test';
+import { unzipSync } from 'fflate';
+import type { RecipeInput } from '../src/lib/api/recipes';
+import type { PdfRequest } from '../src/lib/recipe/pdf-document';
 import {
 	createRecipe,
 	createUser,
@@ -89,4 +93,136 @@ test('a recipe that moves to the next page while the list loads is listed once',
 	await page.goto('/settings/transfer');
 	await expect(page.getByRole('checkbox', { name: `Moved ${token}` })).toHaveCount(1);
 	await expect(page.getByLabel('Choose a file')).toHaveCount(1);
+});
+
+/** A recipe for the PDF export: 4 servings with 400 g of flour, so scaling shows in the body. */
+function pdfRecipe(title: string): RecipeInput {
+	return {
+		title,
+		description: '',
+		servings: 4,
+		prepMinutes: null,
+		cookMinutes: null,
+		sourceUrl: null,
+		sourceName: null,
+		tags: [],
+		ingredientGroups: [
+			{ name: null, ingredients: [{ quantity: 400, unit: 'g', name: 'Flour', note: null }] }
+		],
+		steps: [{ text: 'Mix the flour.', references: [], times: [] }]
+	};
+}
+
+/**
+ * Three recipes ticked through the search, created out of title order, so
+ * "Title A–Z" and "Last changed" put them in different orders.
+ */
+async function tickThreeForPdf(page: Page): Promise<string[]> {
+	const token = uniqueToken();
+	const titles = ['Banana', 'Cherry', 'Apple'].map((t) => `${t} ${token}`);
+	for (const title of titles) await createRecipe(page, pdfRecipe(title));
+	await page.goto('/settings/transfer');
+	await page.getByRole('searchbox').fill(token);
+	await expect(page.getByRole('checkbox', { name: titles[0] })).toBeVisible();
+	await page.getByRole('button', { name: 'Tick all shown' }).click();
+	return titles;
+}
+
+/** The instance's settings with `pdf.available` answered, not set: the service decides it at startup. */
+async function pdfAvailable(page: Page, available: boolean) {
+	await page.route('**/api/v1/settings', async (route) => {
+		const response = await route.fetch();
+		const json = await response.json();
+		await route.fulfill({
+			response,
+			json: { ...json, pdf: { ...json.pdf, available } }
+		});
+	});
+}
+
+test('As PDF sends the ticked recipes in the list order, scaled to the chosen servings', async ({
+	page
+}) => {
+	await pdfAvailable(page, true);
+	const bodies: PdfRequest[] = [];
+	await page.route('**/api/v1/pdf', async (route) => {
+		bodies.push(route.request().postDataJSON());
+		await route.fulfill({
+			body: '%PDF-1.7\n',
+			contentType: 'application/pdf',
+			headers: { 'Content-Disposition': 'attachment; filename="rezepte-2026-11-25.pdf"' }
+		});
+	});
+	await login(page);
+	const [banana, cherry, apple] = await tickThreeForPdf(page);
+
+	await page.getByRole('button', { name: 'As PDF' }).click();
+	const dialog = page.getByRole('dialog');
+	await expect(dialog.getByText('3 recipes')).toBeVisible();
+	await dialog.getByRole('radio', { name: 'Adjust' }).click();
+	await expect(
+		dialog.getByRole('group', { name: 'Servings' }).getByText('2', { exact: true })
+	).toBeVisible();
+	const downloading = page.waitForEvent('download');
+	await dialog.getByRole('button', { name: 'Create PDF' }).click();
+	await expect(dialog).toBeHidden();
+	expect((await downloading).suggestedFilename()).toBe('rezepte-2026-11-25.pdf');
+
+	const book = bodies[0];
+	expect(book.options).toMatchObject({ bundle: 'book', paper: 'a4' });
+	expect(book.recipes.map((r) => r.servings.value)).toEqual([2, 2, 2]);
+	expect(book.recipes.map((r) => r.title)).toEqual([apple, banana, cherry]);
+	expect(book.recipes[0].ingredientGroups[0].ingredients[0].quantity?.display).toBe('200');
+	expect(book.book?.title).toBe('Recipes');
+	expect(book.book?.date).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+
+	// The other sort, as one PDF per recipe at their own servings.
+	await page.getByRole('button', { name: 'Sort by' }).click();
+	await page.getByRole('option', { name: 'Last changed' }).click();
+	await page.getByRole('button', { name: 'As PDF' }).click();
+	await dialog.getByRole('radio', { name: 'One per recipe (.zip)' }).click();
+	await dialog.getByRole('radio', { name: 'As in recipe' }).click();
+	await dialog.getByRole('button', { name: 'Create PDF' }).click();
+	await expect.poll(() => bodies.length).toBe(2);
+	expect(bodies[1].options).toMatchObject({ bundle: 'zip' });
+	expect(bodies[1].recipes.map((r) => r.servings.value)).toEqual([4, 4, 4]);
+	expect(bodies[1].book).toBeNull();
+	expect(bodies[1].recipes.map((r) => r.title)).toEqual([apple, cherry, banana]);
+	expect(bodies[1].recipes[0].ingredientGroups[0].ingredients[0].quantity?.display).toBe('400');
+});
+
+test('without PDF rendering the Export card has no As PDF', async ({ page }) => {
+	await pdfAvailable(page, false);
+	await login(page);
+	await tickThreeForPdf(page);
+	await expect(page.getByRole('button', { name: 'Export .zip' })).toBeEnabled();
+	await expect(page.getByRole('button', { name: 'As PDF' })).toHaveCount(0);
+});
+
+// Against the real renderer: the files the service sends back.
+test('As PDF downloads one cookbook PDF', async ({ page }) => {
+	await login(page);
+	await tickThreeForPdf(page);
+	await page.getByRole('button', { name: 'As PDF' }).click();
+	const downloading = page.waitForEvent('download');
+	await page.getByRole('dialog').getByRole('button', { name: 'Create PDF' }).click();
+	const download = await downloading;
+	expect(download.suggestedFilename()).toMatch(/^rezepte-\d{4}-\d{2}-\d{2}\.pdf$/);
+	expect(
+		readFileSync(await download.path())
+			.subarray(0, 4)
+			.toString()
+	).toBe('%PDF');
+});
+
+test('As PDF downloads a zip with one PDF per recipe', async ({ page }) => {
+	await login(page);
+	const titles = await tickThreeForPdf(page);
+	await page.getByRole('button', { name: 'As PDF' }).click();
+	const dialog = page.getByRole('dialog');
+	await dialog.getByRole('radio', { name: 'One per recipe (.zip)' }).click();
+	const downloading = page.waitForEvent('download');
+	await dialog.getByRole('button', { name: 'Create PDF' }).click();
+	const entries = unzipSync(readFileSync(await (await downloading).path()));
+	expect(Object.keys(entries).sort()).toEqual(titles.map((t) => `${t}.pdf`).sort());
 });

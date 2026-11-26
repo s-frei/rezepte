@@ -2,9 +2,21 @@
 	import { onMount } from 'svelte';
 	import { resolve } from '$app/paths';
 	import { toast } from 'svelte-sonner';
-	import { imageUrl, listRecipes, type RecipeCard } from '#lib/api/recipes.js';
+	import FileText from '@lucide/svelte/icons/file-text';
+	import {
+		getRecipe,
+		imageUrl,
+		listRecipes,
+		type Recipe,
+		type RecipeCard
+	} from '#lib/api/recipes.js';
+	import { requestPdf } from '#lib/api/pdf.js';
+	import type { Settings } from '#lib/api/settings.js';
 	import { exportRecipes, saveBlob } from '#lib/api/transfer.js';
 	import { isSignedOut } from '#lib/api/client.js';
+	import { bulkPdfRequest } from '#lib/recipe/bulk-pdf.js';
+	import { printOptions } from '#lib/recipe/print-options.svelte.js';
+	import ExportPdfDialog from './ExportPdfDialog.svelte';
 	import Button from '#lib/components/ui/Button.svelte';
 	import Select from '#lib/components/ui/Select.svelte';
 	import Skeleton from '#lib/components/ui/Skeleton.svelte';
@@ -15,9 +27,12 @@
 	/** Every recipe here; bindable so the import card can spot titles already here. */
 	let {
 		recipes = $bindable([]),
+		settings = null,
 		onready
 	}: {
 		recipes?: RecipeCard[];
+		/** The instance's settings: "As PDF" shows only where the service can render PDFs. */
+		settings?: Settings | null;
 		/** Called once every recipe has loaded; the import card waits for it. */
 		onready?: () => void;
 	} = $props();
@@ -27,7 +42,9 @@
 	let query = $state('');
 	let sort = $state('title');
 	let ticked = $state<Record<string, boolean>>({});
-	let progress = $state<null | { loaded: number; total: number | null }>(null);
+	// One export at a time; `kind` names the button that shows its progress.
+	let progress = $state<null | { kind: 'zip' | 'pdf'; loaded: number; total: number | null }>(null);
+	let pdfOpen = $state(false);
 	// A text action in running text: an `::after` grows the target to 44px
 	// tall without moving the line (RecipeColophon's trigger).
 	const textAction =
@@ -73,12 +90,14 @@
 						r.tags.some((t) => t.toLocaleLowerCase().includes(q))
 				)
 			: [...recipes];
-		return list.sort((a, b) =>
-			sort === 'title'
-				? a.title.localeCompare(b.title, getLocale())
-				: b.updatedAt.localeCompare(a.updatedAt)
-		);
+		return list.sort(compare);
 	});
+	/** The list's order, which the PDF follows too. */
+	function compare(a: RecipeCard, b: RecipeCard) {
+		return sort === 'title'
+			? a.title.localeCompare(b.title, getLocale())
+			: b.updatedAt.localeCompare(a.updatedAt);
+	}
 	const selected = $derived(recipes.filter((r) => ticked[r.id]));
 	const bytes = $derived(selected.reduce((sum, r) => sum + r.imageBytes, 0));
 	// Whole megabytes, and never "~0 MB" for a pick that carries photos.
@@ -98,11 +117,11 @@
 	}
 
 	async function run() {
-		progress = { loaded: 0, total: null };
+		progress = { kind: 'zip', loaded: 0, total: null };
 		try {
 			const { blob, filename } = await exportRecipes(
 				selected.map((r) => r.id),
-				(loaded, total) => (progress = { loaded, total })
+				(loaded, total) => (progress = { kind: 'zip', loaded, total })
 			);
 			saveBlob(blob, filename);
 		} catch (error) {
@@ -111,7 +130,40 @@
 			progress = null;
 		}
 	}
+
+	// The PDF needs each recipe in full; ten requests at a time keep a large
+	// pick from opening hundreds at once. The order is the list's, whatever
+	// the search hides.
+	async function runPdf() {
+		progress = { kind: 'pdf', loaded: 0, total: null };
+		try {
+			const ids = [...selected].sort(compare).map((r) => r.id);
+			const full: Recipe[] = [];
+			for (let i = 0; i < ids.length; i += 10) {
+				full.push(...(await Promise.all(ids.slice(i, i + 10).map(getRecipe))));
+			}
+			const { blob, filename } = await requestPdf(
+				bulkPdfRequest(full, printOptions, location.origin),
+				(loaded, total) => (progress = { kind: 'pdf', loaded, total })
+			);
+			saveBlob(blob, filename);
+		} catch (error) {
+			if (!isSignedOut(error)) toast.error(m.settings_transfer_pdf_failed());
+		} finally {
+			progress = null;
+		}
+	}
 </script>
+
+{#snippet state(kind: 'zip' | 'pdf', idle: string)}
+	{#if progress?.kind !== kind}
+		{idle}
+	{:else if percent === null}
+		{m.settings_transfer_preparing()}
+	{:else}
+		{m.settings_transfer_downloading({ percent })}
+	{/if}
+{/snippet}
 
 <section class="rounded-2xl bg-surface p-6 md:p-7" aria-labelledby="transfer-export">
 	<h2 id="transfer-export" class="font-display text-heading font-medium">
@@ -195,15 +247,27 @@
 					{m.settings_transfer_clear()}
 				</button>
 			</span>
-			<Button variant="primary" disabled={selected.length === 0 || progress !== null} onclick={run}>
-				{#if progress === null}
-					{m.settings_transfer_export_button()}
-				{:else if percent === null}
-					{m.settings_transfer_preparing()}
-				{:else}
-					{m.settings_transfer_downloading({ percent })}
+			<!-- ml-auto: wrapped below the summary, the buttons stay on the right. -->
+			<div class="ml-auto flex flex-wrap justify-end gap-2">
+				{#if settings?.pdf.available}
+					<Button
+						variant="secondary"
+						disabled={selected.length === 0 || progress !== null}
+						onclick={() => (pdfOpen = true)}
+					>
+						<FileText class="size-4" aria-hidden="true" />
+						{@render state('pdf', m.settings_transfer_pdf_button())}
+					</Button>
 				{/if}
-			</Button>
+				<Button
+					variant="primary"
+					disabled={selected.length === 0 || progress !== null}
+					onclick={run}
+				>
+					{@render state('zip', m.settings_transfer_export_button())}
+				</Button>
+			</div>
 		</div>
+		<ExportPdfDialog bind:open={pdfOpen} count={selected.length} oncreate={() => void runPdf()} />
 	{/if}
 </section>
