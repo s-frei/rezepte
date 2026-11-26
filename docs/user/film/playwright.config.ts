@@ -18,5 +18,5 @@ export default defineConfig({
 		contextOptions: { reducedMotion: 'no-preference' },
 		viewport: { width: 1200, height: 750 }
 	},
-	projects: [{ name: 'light', use: { colorScheme: 'light' } }]
+	projects: [{ name: 'light', metadata: { look: 'desktop-light' }, use: { colorScheme: 'light' } }]
 });
