@@ -89,8 +89,8 @@ test('cook-mode-timers', async ({ page }, testInfo) => {
 
 test('cook-mode-step-photo', async ({ page }, testInfo) => {
 	await prepare(page, testInfo, { login: true });
-	// The demo links Sausage Rolls step 4's "brush the tops with the remaining
-	// egg" to its third photo: beside the step on a desktop, a sheet on a phone.
+	// The demo links Sausage Rolls step 4's "brush the tops" to its third
+	// photo: beside the step on a desktop, a sheet on a phone.
 	await page.goto('/recipes/sausage-rolls/cook?step=4');
 	await page.locator('[data-step-photo]').click();
 	const photo = isMobile(testInfo)

@@ -838,7 +838,7 @@ func TestSeedLinksATechniquePhotoToItsStep(t *testing.T) {
 		step         int
 	}{
 		{"de", "kaesespaetzle", "vom Brett ins kochende Salzwasser schaben", 1},
-		{"en", "sausage-rolls", "brush the tops with the remaining egg", 3},
+		{"en", "sausage-rolls", "brush the tops", 3},
 	}
 	for _, c := range cases {
 		t.Run(string(c.locale), func(t *testing.T) {

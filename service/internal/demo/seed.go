@@ -359,7 +359,7 @@ var samplePhotoLinks = map[string]struct {
 	photo  int
 }{
 	"kaesespaetzle": {1, "vom Brett ins kochende Salzwasser schaben", 2},
-	"sausage-rolls": {3, "brush the tops with the remaining egg", 2},
+	"sausage-rolls": {3, "brush the tops", 2},
 }
 
 // sampleFocus is the cover focus of the samples whose upright cover has its

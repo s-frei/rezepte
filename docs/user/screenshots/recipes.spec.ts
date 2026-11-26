@@ -181,7 +181,7 @@ test('editor-times', async ({ page }, testInfo) => {
 
 // The demo links Sausage Rolls step 4's phrase to the recipe's third photo.
 const PHOTO_RECIPE = '/recipes/sausage-rolls';
-const PHOTO_PHRASE = 'brush the tops with the remaining egg';
+const PHOTO_PHRASE = 'brush the tops';
 
 test('editor-step-photo', async ({ page }, testInfo) => {
 	await prepare(page, testInfo, { login: true });
