@@ -363,6 +363,8 @@ test("a held group's rows stay focusable but do not change", async ({ page }) =>
 test('a push in a visible window also shows as a toast that opens its page', async ({ page }) => {
 	await login(page);
 	await page.goto('/settings/notifications');
+	// The app's listener is up once it has rendered, not at the load event.
+	await expect(page.getByRole('region', { name: 'Push' })).toBeVisible();
 	const post = (data: unknown) =>
 		page.evaluate((d) => {
 			navigator.serviceWorker.dispatchEvent(new MessageEvent('message', { data: d }));

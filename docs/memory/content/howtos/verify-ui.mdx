@@ -46,15 +46,17 @@ description: End-to-end tests and screenshots, no browser extensions
     - A helper that branches on what the page looks like right after a click: `openNewRecipe` asked whether the bottom nav was there, while an empty overview's own "New recipe" link had already taken it to the editor.
     - A helper that returns before what it started has finished: `signOut` now returns once the app has reached `/login`, since the app's logout still running under the next `login` landed a test on `/login` right after signing in.
     - A click on a button that something loading late pushes away: the password meter's label, which arrives 250 ms after typing, holds its line from the start; a dead setup link's page waits for the reset answer its hint depends on before it shows.
+    - A message dispatched into the page right after `page.goto`: `goto` returns at the load event, but the SPA starts its listeners (the push toast's, in the root layout's `onMount`) only once it has rendered, so the test first waits for something on the page.
     - A drop on a spot that itself moves the page (see the edge trap in [Images](/features/images)).
     - A step that takes longer than the 5s an `expect` waits by default (300 recipe cards in phone WebKit).
+    - A test that does too much for the 30s a test gets: the step-time test that accepted, dismissed, rendered and then marked a time by hand took 5s on a laptop and ran out on CI's phone WebKit with every step on time. Its frames were not slow (no effect switched off changed them); it was split in two at the scenario boundary rather than given a longer timeout.
     - A wall-clock budget on the app's answer: `toBeChecked({ timeout: 150 })` measured the machine. To prove a click lands during an animation, stretch the animation in the test (`page.addStyleTag`) and wait as long as usual.
     - Two Playwright calls that must fall inside one short window, such as closing a dialog and reopening it during its 200 ms fade: run both inside the page, a frame apart (`import.test.ts`).
     - A tap before the page has the content it acts on: the search field scrolls to the top once on focus, and before the cards are in the page is too short to scroll.
 
     Fonts are not one of them: the app ships Karla and Literata, so the Playwright image's fonts (its `sans-serif` is WenQuanYi Zen Hei) against the runner's DejaVu change nothing.
 
-    **To reproduce CI locally, run the `mcr.microsoft.com/playwright` image in Docker with `--workers 4` and the CPU capped** (`docker update --cpus 1.2 <container>`). Two things make a Docker run lie: Playwright's `workers: '100%'` counts the host's cores even under `--cpuset-cpus`, and that many browsers in a Docker VM's memory get the binary OOM-killed, which reads as `ECONNREFUSED` and timeouts in every test after it.
+    **To reproduce CI locally, run the `mcr.microsoft.com/playwright` image in Docker with `--workers 4` and the CPU capped** (`docker update --cpus 1.2 <container>`). Inside it, start a `GOOS=linux` build of the binary on `localhost` and point the image's Playwright at it with `E2E_BASE_URL`; the build may leave out the `typst` tag when no spec renders a PDF. Two things make a Docker run lie: Playwright's `workers: '100%'` counts the host's cores even under `--cpuset-cpus`, and that many browsers in a Docker VM's memory get the binary OOM-killed, which reads as `ECONNREFUSED` and timeouts in every test after it.
 
     ### Traps of the whole suite
 

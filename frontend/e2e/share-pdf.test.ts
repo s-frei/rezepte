@@ -137,7 +137,8 @@ test('Download saves the PDF at the page servings', async ({ page }, testInfo) =
 	expect(body.options).toMatchObject({ bundle: 'single', paper: 'a4' });
 
 	const download = await downloading;
-	expect(download.suggestedFilename()).toBe(`${created.title}.pdf`);
+	// Playwright's WebKit saves `a.download` with spaces as underscores.
+	expect(download.suggestedFilename().replaceAll('_', ' ')).toBe(`${created.title}.pdf`);
 	const bytes = await readFile(await download.path());
 	expect(bytes.subarray(0, 4).toString('ascii')).toBe('%PDF');
 });

@@ -5186,7 +5186,9 @@ test.describe('ingredient search', () => {
 				(url) => url.pathname === '/api/v1/recipes' && url.searchParams.has('q'),
 				async (route) => {
 					hits++;
-					await new Promise((resolve) => setTimeout(resolve, 800));
+					// Long past the page's 300 ms skeleton delay: a loaded CI machine
+					// polled right past a shorter window.
+					await new Promise((resolve) => setTimeout(resolve, 2000));
 					await route.continue();
 				}
 			);

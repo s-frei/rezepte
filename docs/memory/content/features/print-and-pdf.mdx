@@ -11,6 +11,7 @@ A member can print a recipe or save it as a PDF; both are the same document, ren
 - `test.use({ channel })` cannot sit in a `describe`: it forces a new worker. Every spec that prints through the frame lives in `e2e/print.test.ts`, the PDF tab's Print included.
 - Firefox's PDF viewer in a frame is a cross-origin window: `contentWindow.print()` and even `addEventListener` on it throw. Firefox prints from a tab, never a frame. Playwright's Firefox ships with pdf.js off (`pdfjs.disabled`).
 - The tab is opened before the PDF request, inside the click or key press: after the `await` a popup blocker refuses `window.open`.
+- Playwright's WebKit reports a download's `suggestedFilename()` with spaces as underscores (`PDF_bread.pdf` for `a.download = 'PDF bread.pdf'`); a filename assertion that runs on `webkit` compares with underscores turned back into spaces.
 - A segment carries both `amount` and `minutes`, `null` when its kind has none: huma requires every key of `pdf.Segment`, so an omitted one is a `422` (`TestBrowserShapeAccepted` posts the client's exact shape).
 - Never decide "typst cannot run" with `errors.Is(err, syscall.EACCES)` on a `Render` error: the work dir, the template copy and the photos can fail with it as well, and one unreadable file would switch PDFs off for everyone. Check `pdf.ErrCannotRun` only (`TestOtherEACCESIs500`).
 - A custom template tree is the whole `REZEPTE_PDF_TEMPLATE_DIR`, never merged with built-in files: a custom `recipe.typ` cannot import the built-in `lib.typ` ([Custom templates](#custom-templates)).

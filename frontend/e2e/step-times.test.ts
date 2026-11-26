@@ -28,7 +28,7 @@ const RECIPE = {
 	]
 };
 
-test('step times: accepts, leaves open and renders them', async ({ page, browserName }) => {
+test('step times: accepts, leaves open and renders them', async ({ page }) => {
 	const recipe = await createRecipe(page, {
 		...RECIPE,
 		title: `Zeiten ${uniqueToken()}`,
@@ -92,6 +92,22 @@ test('step times: accepts, leaves open and renders them', async ({ page, browser
 
 	await page.goto(`/recipes/${recipe.slug}/cook`);
 	await expect(time('15 minutes')).toBeVisible();
+});
+
+// Its own test, not the end of the one above: together they ran past the 30s
+// a test gets on CI's loaded Linux WebKit.
+test('step times: marks a duration by hand', async ({ page, browserName }) => {
+	const recipe = await createRecipe(page, {
+		...RECIPE,
+		title: `Zeiten ${uniqueToken()}`,
+		steps: [
+			{ text: 'Simmer for 15 minutes.', references: [], times: [] },
+			{ text: 'Rest for 20 to 25 minutes, then bake 10 min.', references: [], times: [] },
+			{ text: 'Let it stand for 2 songs.', references: [], times: [] }
+		]
+	});
+	const step2 = page.getByRole('textbox', { name: 'Step 2', exact: true });
+	const time = (phrase: string) => page.locator('[data-time]', { hasText: phrase });
 
 	// A selection without a number is not a time.
 	await page.goto(`/recipes/${recipe.slug}/edit`);
