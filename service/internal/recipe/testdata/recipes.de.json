@@ -88,46 +88,74 @@
   },
   {
     "title": "Sauerbraten",
-    "description": "Traditionell gebeizter Rinderbraten, lange geschmort und mit einer süßsauren Sauce serviert.",
+    "description": "Traditionell gebeizter Rinderbraten: drei bis fünf Tage in Essig, Rotwein und Gewürzen eingelegt, lange geschmort und mit einer süßsauren Lebkuchensauce serviert.",
     "servings": 4,
     "prepMinutes": 30,
     "cookMinutes": 150,
-    "sourceUrl": null,
-    "sourceName": null,
+    "sourceUrl": "https://example.com/sauerbraten",
+    "sourceName": "Rheinische Sonntagsküche",
     "tags": ["klassiker", "fleisch", "schmoren"],
     "ingredientGroups": [
       {
         "name": "Beize",
         "ingredients": [
-          { "quantity": 500, "unit": "ml", "name": "Rotweinessig", "note": null },
-          { "quantity": 500, "unit": "ml", "name": "Wasser", "note": null },
-          { "quantity": 1, "unit": "Stück", "name": "Zwiebel", "note": null },
-          { "quantity": 1, "unit": "Stück", "name": "Möhre", "note": null },
-          { "quantity": 2, "unit": "Stück", "name": "Lorbeerblätter", "note": null },
-          { "quantity": 1, "unit": "TL", "name": "Pfefferkörner", "note": null },
-          { "quantity": 1, "unit": "Prise", "name": "Salz", "note": null }
+          { "quantity": 500, "unit": "ml", "name": "Rotweinessig", "note": "kräftig" },
+          { "quantity": 500, "unit": "ml", "name": "Rotwein", "note": "trocken, kräftig" },
+          { "quantity": 250, "unit": "ml", "name": "Wasser", "note": null },
+          { "quantity": 2, "unit": "Stück", "name": "Zwiebel", "note": "geschält" },
+          { "quantity": 1, "unit": "Stück", "name": "Möhre", "note": "geschält" },
+          { "quantity": 100, "unit": "g", "name": "Knollensellerie", "note": "geschält" },
+          { "quantity": 3, "unit": "Stück", "name": "Lorbeerblätter", "note": "getrocknet" },
+          { "quantity": 6, "unit": "Stück", "name": "Wacholderbeeren", "note": "angedrückt" },
+          { "quantity": 1, "unit": "TL", "name": "Pfefferkörner", "note": "schwarz" },
+          { "quantity": 4, "unit": "Stück", "name": "Pimentkörner", "note": "ganz" },
+          { "quantity": 3, "unit": "Stück", "name": "Gewürznelken", "note": "ganz, nicht gemahlen" },
+          { "quantity": 1, "unit": "EL", "name": "Zucker", "note": null },
+          { "quantity": 1, "unit": "TL", "name": "Salz", "note": null }
         ]
       },
       {
         "name": "Braten",
         "ingredients": [
-          { "quantity": 1.5, "unit": "kg", "name": "Rinderbraten", "note": null },
-          { "quantity": 2, "unit": "EL", "name": "Öl", "note": null },
+          { "quantity": 1.5, "unit": "kg", "name": "Rinderbraten", "note": "aus der Keule" },
+          { "quantity": 2, "unit": "EL", "name": "Butterschmalz", "note": null },
+          { "quantity": 1, "unit": "EL", "name": "Mehl", "note": "zum Bestäuben" },
           { "quantity": 2, "unit": "EL", "name": "Tomatenmark", "note": null },
+          { "quantity": 1, "unit": "Prise", "name": "Salz", "note": null },
+          { "quantity": 1, "unit": "Prise", "name": "Pfeffer", "note": null },
+          { "quantity": 1, "unit": "Bund", "name": "Suppengrün", "note": null }
+        ]
+      },
+      {
+        "name": "Sauce",
+        "ingredients": [
+          { "quantity": 50, "unit": "g", "name": "Soßenlebkuchen", "note": "zerbröselt" },
           { "quantity": 50, "unit": "g", "name": "Rosinen", "note": null },
-          { "quantity": 100, "unit": "g", "name": "Sahne", "note": "zum Binden" },
-          { "quantity": 1, "unit": "Prise", "name": "Salz", "note": null }
+          { "quantity": 2, "unit": "EL", "name": "Rübenkraut", "note": null },
+          { "quantity": 1, "unit": "EL", "name": "Johannisbeergelee", "note": null },
+          { "quantity": 1, "unit": "TL", "name": "Speisestärke", "note": null },
+          { "quantity": 100, "unit": "g", "name": "Sahne", "note": null },
+          { "quantity": 1, "unit": "Prise", "name": "Salz", "note": "zum Abschmecken" },
+          { "quantity": 1, "unit": "Prise", "name": "Pfeffer", "note": null }
         ]
       }
     ],
     "steps": [
-      { "text": "Rotweinessig, Wasser, Zwiebel, Möhre, Lorbeer, Pfefferkörner und Salz aufkochen und abkühlen lassen.", "references": [{ "word": "Rotweinessig", "groupName": "Beize", "ingredientName": "Rotweinessig" }, { "word": "Wasser", "groupName": "Beize", "ingredientName": "Wasser" }, { "word": "Zwiebel", "groupName": "Beize", "ingredientName": "Zwiebel" }, { "word": "Möhre", "groupName": "Beize", "ingredientName": "Möhre" }, { "word": "Pfefferkörner", "groupName": "Beize", "ingredientName": "Pfefferkörner" }, { "word": "Lorbeer", "groupName": "Beize", "ingredientName": "Lorbeerblätter" }], "times": [] },
-      { "text": "Rindfleisch in die Beize legen und 3 Tage kühl ziehen lassen, dabei gelegentlich wenden.", "references": [{ "word": "Rindfleisch", "groupName": "Braten", "ingredientName": "Rinderbraten" }], "times": [] },
-      { "text": "Fleisch abtropfen lassen und trocken tupfen, die Beize aufheben.", "references": [{ "word": "Fleisch", "groupName": "Braten", "ingredientName": "Rinderbraten" }], "times": [] },
-      { "text": "Fleisch in Öl rundum scharf anbraten.", "references": [{ "word": "Öl", "groupName": "Braten", "ingredientName": "Öl" }, { "word": "Fleisch", "groupName": "Braten", "ingredientName": "Rinderbraten" }], "times": [] },
-      { "text": "Tomatenmark zugeben, kurz mitrösten und mit der Beize auffüllen.", "references": [{ "word": "Tomatenmark", "groupName": "Braten", "ingredientName": "Tomatenmark" }], "times": [] },
-      { "text": "Zugedeckt bei kleiner Hitze etwa 2,5 Stunden schmoren, bis das Fleisch weich ist.", "references": [{ "word": "Fleisch", "groupName": "Braten", "ingredientName": "Rinderbraten" }], "times": [{ "phrase": "2,5 Stunden", "seconds": 9000 }] },
-      { "text": "Fleisch herausnehmen, Sauce mit Rosinen und Sahne binden, abschmecken und in Scheiben aufschneiden.", "references": [{ "word": "Rosinen", "groupName": "Braten", "ingredientName": "Rosinen" }, { "word": "Sahne", "groupName": "Braten", "ingredientName": "Sahne" }, { "word": "Fleisch", "groupName": "Braten", "ingredientName": "Rinderbraten" }], "times": [] }
+      { "text": "Für die Beize Zwiebel, Möhre und Knollensellerie schälen und grob würfeln.", "references": [{ "word": "Zwiebel", "groupName": "Beize", "ingredientName": "Zwiebel" }, { "word": "Möhre", "groupName": "Beize", "ingredientName": "Möhre" }, { "word": "Knollensellerie", "groupName": "Beize", "ingredientName": "Knollensellerie" }], "times": [] },
+      { "text": "Rotweinessig, Rotwein und Wasser mit dem Gemüse, Lorbeerblättern, Wacholderbeeren, Pfefferkörnern, Piment, Nelken, Zucker und Salz aufkochen und vollständig abkühlen lassen.", "references": [{ "word": "Rotweinessig", "groupName": "Beize", "ingredientName": "Rotweinessig" }, { "word": "Rotwein", "groupName": "Beize", "ingredientName": "Rotwein" }, { "word": "Wasser", "groupName": "Beize", "ingredientName": "Wasser" }, { "word": "Lorbeerblättern", "groupName": "Beize", "ingredientName": "Lorbeerblätter" }, { "word": "Wacholderbeeren", "groupName": "Beize", "ingredientName": "Wacholderbeeren" }, { "word": "Pfefferkörnern", "groupName": "Beize", "ingredientName": "Pfefferkörner" }, { "word": "Piment", "groupName": "Beize", "ingredientName": "Pimentkörner" }, { "word": "Nelken", "groupName": "Beize", "ingredientName": "Gewürznelken" }, { "word": "Zucker", "groupName": "Beize", "ingredientName": "Zucker" }, { "word": "Salz", "groupName": "Beize", "ingredientName": "Salz" }], "times": [] },
+      { "text": "Rinderbraten in eine enge Schüssel legen, mit der kalten Beize ganz bedecken und abgedeckt 3 bis 5 Tage im Kühlschrank ziehen lassen; täglich einmal wenden.", "references": [{ "word": "Rinderbraten", "groupName": "Braten", "ingredientName": "Rinderbraten" }], "times": [] },
+      { "text": "Fleisch aus der Beize heben, gut abtropfen lassen und mit Küchenpapier trocken tupfen. Die Beize durch ein Sieb gießen und das Gemüse auffangen.", "references": [{ "word": "Fleisch", "groupName": "Braten", "ingredientName": "Rinderbraten" }], "times": [] },
+      { "text": "Fleisch rundum mit Salz und Pfeffer würzen und dünn mit Mehl bestäuben.", "references": [{ "word": "Fleisch", "groupName": "Braten", "ingredientName": "Rinderbraten" }, { "word": "Salz", "groupName": "Braten", "ingredientName": "Salz" }, { "word": "Pfeffer", "groupName": "Braten", "ingredientName": "Pfeffer" }, { "word": "Mehl", "groupName": "Braten", "ingredientName": "Mehl" }], "times": [] },
+      { "text": "Butterschmalz in einem Bräter stark erhitzen und das Fleisch darin von allen Seiten kräftig anbraten, dann herausnehmen.", "references": [{ "word": "Butterschmalz", "groupName": "Braten", "ingredientName": "Butterschmalz" }, { "word": "Fleisch", "groupName": "Braten", "ingredientName": "Rinderbraten" }], "times": [] },
+      { "text": "Suppengrün putzen, würfeln und mit dem Gemüse aus der Beize im Bräter anrösten. Tomatenmark zugeben und 2 Minuten mitrösten, bis es leicht dunkel wird.", "references": [{ "word": "Suppengrün", "groupName": "Braten", "ingredientName": "Suppengrün" }, { "word": "Tomatenmark", "groupName": "Braten", "ingredientName": "Tomatenmark" }], "times": [{ "phrase": "2 Minuten", "seconds": 120 }] },
+      { "text": "Mit der Hälfte der Beize ablöschen, den Bratensatz mit einem Holzlöffel vom Boden lösen und alles einmal kräftig aufkochen lassen, damit ein Teil der Säure verdampft. Den Braten zurück in den Bräter legen; er sollte etwa zu einem Drittel in der Flüssigkeit liegen, sonst etwas Beize nachgießen. Den Deckel auflegen und das Fleisch bei kleiner Hitze auf dem Herd oder im Ofen bei 160 °C etwa 2,5 Stunden schmoren. Alle 30 Minuten wenden und mit dem Schmorfond übergießen, damit die Oberfläche nicht austrocknet. Verdampft zu viel Flüssigkeit, nach und nach Beize zugeben, aber nie so viel, dass der Braten darin schwimmt: Er soll schmoren, nicht kochen. Gegen Ende mit einer Fleischgabel prüfen, ob das Fleisch gar ist; sie muss sich ohne Widerstand hineinstechen und wieder herausziehen lassen. Ist es noch fest, weitere 20 bis 30 Minuten schmoren und erneut prüfen. Am Ende sollte der Fond kräftig braun sein und angenehm säuerlich duften; ist er zu sauer, mit einem Schuss Wasser mildern.", "references": [{ "word": "Fleisch", "groupName": "Braten", "ingredientName": "Rinderbraten" }], "times": [{ "phrase": "2,5 Stunden", "seconds": 9000 }, { "phrase": "30 Minuten", "seconds": 1800 }, { "phrase": "20 bis 30 Minuten", "seconds": 1200, "maxSeconds": 1800 }] },
+      { "text": "Den Braten herausnehmen, in Alufolie wickeln und 10 Minuten ruhen lassen.", "references": [], "times": [{ "phrase": "10 Minuten", "seconds": 600 }] },
+      { "text": "Den Schmorfond durch ein Sieb in einen Topf gießen und das Gemüse dabei gut ausdrücken.", "references": [], "times": [] },
+      { "text": "Soßenlebkuchen in den Fond bröseln, Rübenkraut und Johannisbeergelee einrühren und alles 10 Minuten leise köcheln lassen, bis sich der Lebkuchen aufgelöst hat.", "references": [{ "word": "Soßenlebkuchen", "groupName": "Sauce", "ingredientName": "Soßenlebkuchen" }, { "word": "Rübenkraut", "groupName": "Sauce", "ingredientName": "Rübenkraut" }, { "word": "Johannisbeergelee", "groupName": "Sauce", "ingredientName": "Johannisbeergelee" }], "times": [{ "phrase": "10 Minuten", "seconds": 600 }] },
+      { "text": "Rosinen zugeben und weitere 5 Minuten in der Sauce ziehen lassen.", "references": [{ "word": "Rosinen", "groupName": "Sauce", "ingredientName": "Rosinen" }], "times": [{ "phrase": "5 Minuten", "seconds": 300 }] },
+      { "text": "Speisestärke mit wenig kaltem Wasser glatt rühren, in die Sauce geben und einmal aufkochen.", "references": [{ "word": "Speisestärke", "groupName": "Sauce", "ingredientName": "Speisestärke" }], "times": [] },
+      { "text": "Sahne einrühren und die Sauce mit Salz, Pfeffer und einem Schuss Beize süßsauer abschmecken.", "references": [{ "word": "Sahne", "groupName": "Sauce", "ingredientName": "Sahne" }, { "word": "Salz", "groupName": "Sauce", "ingredientName": "Salz" }, { "word": "Pfeffer", "groupName": "Sauce", "ingredientName": "Pfeffer" }], "times": [] },
+      { "text": "Den Braten quer zur Faser in fingerdicke Scheiben schneiden, auf einer vorgewärmten Platte anrichten und mit der Sauce servieren; dazu passen Rotkohl und Klöße.", "references": [], "times": [] }
     ]
   },
   {

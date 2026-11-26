@@ -57,12 +57,12 @@
         "name": null,
         "ingredients": [
           { "quantity": 4, "unit": null, "name": "pork sausages", "note": null },
-          { "quantity": 4, "unit": "rasher", "name": "bacon", "note": null },
+          { "quantity": 4, "unit": "rashers", "name": "bacon", "note": null },
           { "quantity": 2, "unit": null, "name": "eggs", "note": null },
           { "quantity": 1, "unit": "tin", "name": "baked beans", "note": null },
           { "quantity": 2, "unit": null, "name": "tomatoes", "note": "halved" },
           { "quantity": 150, "unit": "g", "name": "mushrooms", "note": "sliced" },
-          { "quantity": 2, "unit": "slice", "name": "bread", "note": "for toast" },
+          { "quantity": 2, "unit": "slices", "name": "bread", "note": "for toast" },
           { "quantity": 1, "unit": "tbsp", "name": "vegetable oil", "note": null },
           { "quantity": 1, "unit": "pinch", "name": "salt", "note": null },
           { "quantity": 1, "unit": "pinch", "name": "pepper", "note": null }
@@ -141,7 +141,7 @@
       {
         "name": "Fish",
         "ingredients": [
-          { "quantity": 2, "unit": "fillet", "name": "white fish", "note": "such as cod or haddock" },
+          { "quantity": 2, "unit": "fillets", "name": "white fish", "note": "such as cod or haddock" },
           { "quantity": 100, "unit": "g", "name": "plain flour", "note": null },
           { "quantity": 1, "unit": "tsp", "name": "baking powder", "note": null },
           { "quantity": 150, "unit": "ml", "name": "cold beer", "note": null },
@@ -169,30 +169,65 @@
     "tags": ["classic", "meat", "stew"],
     "ingredientGroups": [
       {
-        "name": null,
+        "name": "Marinade",
         "ingredients": [
-          { "quantity": 800, "unit": "g", "name": "stewing beef", "note": "cubed" },
-          { "quantity": 2, "unit": "tbsp", "name": "plain flour", "note": null },
-          { "quantity": 2, "unit": "tbsp", "name": "vegetable oil", "note": null },
-          { "quantity": 1, "unit": null, "name": "onion", "note": "chopped" },
-          { "quantity": 2, "unit": null, "name": "carrots", "note": "chopped" },
-          { "quantity": 2, "unit": "stick", "name": "celery", "note": null },
           { "quantity": 500, "unit": "ml", "name": "brown ale", "note": null },
-          { "quantity": 300, "unit": "ml", "name": "beef stock", "note": null },
-          { "quantity": 1, "unit": "tbsp", "name": "tomato puree", "note": null },
+          { "quantity": 1, "unit": "tbsp", "name": "malt vinegar", "note": null },
+          { "quantity": 2, "unit": "tbsp", "name": "Worcestershire sauce", "note": null },
+          { "quantity": 3, "unit": "cloves", "name": "garlic", "note": "crushed" },
+          { "quantity": 1, "unit": null, "name": "onion", "note": "sliced" },
           { "quantity": 2, "unit": null, "name": "bay leaves", "note": null },
+          { "quantity": 4, "unit": "sprigs", "name": "thyme", "note": null },
+          { "quantity": 1, "unit": "sprig", "name": "rosemary", "note": null },
+          { "quantity": 1, "unit": "tsp", "name": "black peppercorns", "note": null },
+          { "quantity": 4, "unit": null, "name": "juniper berries", "note": "lightly crushed" },
+          { "quantity": 1, "unit": "tbsp", "name": "brown sugar", "note": null },
+          { "quantity": 1, "unit": "tsp", "name": "English mustard", "note": null },
+          { "quantity": 1, "unit": "tsp", "name": "salt", "note": null }
+        ]
+      },
+      {
+        "name": "Stew",
+        "ingredients": [
+          { "quantity": 1, "unit": "kg", "name": "stewing beef", "note": "chuck, in 4 cm cubes" },
+          { "quantity": 3, "unit": "tbsp", "name": "plain flour", "note": null },
+          { "quantity": 3, "unit": "tbsp", "name": "vegetable oil", "note": null },
+          { "quantity": 150, "unit": "g", "name": "smoked bacon lardons", "note": null },
+          { "quantity": 3, "unit": null, "name": "carrots", "note": "in chunks" },
+          { "quantity": 2, "unit": "sticks", "name": "celery", "note": "sliced" },
+          { "quantity": 1, "unit": "tbsp", "name": "tomato puree", "note": null },
+          { "quantity": 300, "unit": "ml", "name": "beef stock", "note": null }
+        ]
+      },
+      {
+        "name": "To finish",
+        "ingredients": [
+          { "quantity": 30, "unit": "g", "name": "butter", "note": null },
+          { "quantity": 250, "unit": "g", "name": "cremini mushrooms", "note": "halved" },
+          { "quantity": 200, "unit": "g", "name": "pearl onions", "note": "peeled" },
+          { "quantity": 1, "unit": "tbsp", "name": "red currant jelly", "note": null },
+          { "quantity": 1, "unit": "bunch", "name": "flat-leaf parsley", "note": "chopped" },
           { "quantity": 1, "unit": "pinch", "name": "salt", "note": null },
           { "quantity": 1, "unit": "pinch", "name": "pepper", "note": null }
         ]
       }
     ],
     "steps": [
-      { "text": "Toss the beef in the flour and brown in batches in hot oil, then set aside.", "references": [{ "word": "beef", "groupName": null, "ingredientName": "stewing beef" }, { "word": "flour", "groupName": null, "ingredientName": "plain flour" }, { "word": "oil", "groupName": null, "ingredientName": "vegetable oil" }], "times": [] },
-      { "text": "Fry the onion, carrots and celery in the same pot until softened.", "references": [{ "word": "onion", "groupName": null, "ingredientName": "onion" }, { "word": "carrots", "groupName": null, "ingredientName": "carrots" }, { "word": "celery", "groupName": null, "ingredientName": "celery" }], "times": [] },
-      { "text": "Return the beef to the pot and stir in the tomato puree.", "references": [{ "word": "beef", "groupName": null, "ingredientName": "stewing beef" }, { "word": "tomato puree", "groupName": null, "ingredientName": "tomato puree" }], "times": [] },
-      { "text": "Pour in the ale and stock, add the bay leaves, and bring to a simmer.", "references": [{ "word": "ale", "groupName": null, "ingredientName": "brown ale" }, { "word": "stock", "groupName": null, "ingredientName": "beef stock" }, { "word": "bay leaves", "groupName": null, "ingredientName": "bay leaves" }], "times": [] },
-      { "text": "Cover and cook on low heat for 2 hours, stirring occasionally, until the beef is tender.", "references": [], "times": [{ "phrase": "2 hours", "seconds": 7200 }] },
-      { "text": "Season with salt and pepper before serving.", "references": [], "times": [] }
+      { "text": "For the marinade, whisk the brown ale with the malt vinegar, Worcestershire sauce, brown sugar, mustard and salt until the sugar dissolves.", "references": [{ "word": "brown ale", "groupName": "Marinade", "ingredientName": "brown ale" }, { "word": "malt vinegar", "groupName": "Marinade", "ingredientName": "malt vinegar" }, { "word": "Worcestershire sauce", "groupName": "Marinade", "ingredientName": "Worcestershire sauce" }, { "word": "brown sugar", "groupName": "Marinade", "ingredientName": "brown sugar" }, { "word": "mustard", "groupName": "Marinade", "ingredientName": "English mustard" }, { "word": "salt", "groupName": "Marinade", "ingredientName": "salt" }], "times": [] },
+      { "text": "Add the garlic, onion, bay leaves, thyme, rosemary, peppercorns and juniper berries.", "references": [{ "word": "garlic", "groupName": "Marinade", "ingredientName": "garlic" }, { "word": "onion", "groupName": "Marinade", "ingredientName": "onion" }, { "word": "bay leaves", "groupName": "Marinade", "ingredientName": "bay leaves" }, { "word": "thyme", "groupName": "Marinade", "ingredientName": "thyme" }, { "word": "rosemary", "groupName": "Marinade", "ingredientName": "rosemary" }, { "word": "peppercorns", "groupName": "Marinade", "ingredientName": "black peppercorns" }, { "word": "juniper berries", "groupName": "Marinade", "ingredientName": "juniper berries" }], "times": [] },
+      { "text": "Put the beef in a bowl, pour over the marinade, cover and leave in the fridge overnight, turning the pieces once.", "references": [{ "word": "beef", "groupName": "Stew", "ingredientName": "stewing beef" }], "times": [] },
+      { "text": "Lift the beef out, pat it dry with paper towels and strain the marinade, keeping the liquid and the aromatics apart.", "references": [{ "word": "beef", "groupName": "Stew", "ingredientName": "stewing beef" }], "times": [] },
+      { "text": "Toss the beef in the flour until every piece is lightly coated.", "references": [{ "word": "beef", "groupName": "Stew", "ingredientName": "stewing beef" }, { "word": "flour", "groupName": "Stew", "ingredientName": "plain flour" }], "times": [] },
+      { "text": "Heat the oil in a Dutch oven and brown the beef in batches over high heat, then set it aside.", "references": [{ "word": "oil", "groupName": "Stew", "ingredientName": "vegetable oil" }, { "word": "beef", "groupName": "Stew", "ingredientName": "stewing beef" }], "times": [] },
+      { "text": "Fry the bacon lardons in the same pot for 5 minutes until crisp.", "references": [{ "word": "bacon lardons", "groupName": "Stew", "ingredientName": "smoked bacon lardons" }], "times": [{ "phrase": "5 minutes", "seconds": 300 }] },
+      { "text": "Add the carrots, celery and the strained aromatics and cook for 8 minutes until they start to color, then stir in the tomato puree.", "references": [{ "word": "carrots", "groupName": "Stew", "ingredientName": "carrots" }, { "word": "celery", "groupName": "Stew", "ingredientName": "celery" }, { "word": "tomato puree", "groupName": "Stew", "ingredientName": "tomato puree" }], "times": [{ "phrase": "8 minutes", "seconds": 480 }] },
+      { "text": "Return the beef and any juices to the pot.", "references": [{ "word": "beef", "groupName": "Stew", "ingredientName": "stewing beef" }], "times": [] },
+      { "text": "Pour the marinade over the beef, scraping up every browned bit from the bottom of the pot with a wooden spoon, and bring it to a gentle boil so the alcohol cooks off. Add the stock until the meat is just covered, then lay a sheet of parchment paper on the surface and put the lid on. Braise in the oven at 150 °C for about 2 hours, checking every 30 minutes: give the stew a careful stir, push any pieces that have surfaced back under the liquid and top up with a splash of stock or water if it has reduced below the meat. Keep the heat low enough that the liquid only trembles; a hard boil toughens the beef and turns the ale bitter. The stew is ready when a cube of beef breaks apart under the gentle pressure of a spoon. If it still resists, give it another 20 to 30 minutes and test again. The sauce should coat the back of a spoon; if it is too thin, leave the lid off for the last half hour so it can reduce.", "references": [{ "word": "beef", "groupName": "Stew", "ingredientName": "stewing beef" }, { "word": "stock", "groupName": "Stew", "ingredientName": "beef stock" }], "times": [{ "phrase": "2 hours", "seconds": 7200 }, { "phrase": "30 minutes", "seconds": 1800 }, { "phrase": "20 to 30 minutes", "seconds": 1200, "maxSeconds": 1800 }] },
+      { "text": "Shortly before the stew is done, melt the butter in a skillet and fry the mushrooms and pearl onions for 10 minutes until golden.", "references": [{ "word": "butter", "groupName": "To finish", "ingredientName": "butter" }, { "word": "mushrooms", "groupName": "To finish", "ingredientName": "cremini mushrooms" }, { "word": "pearl onions", "groupName": "To finish", "ingredientName": "pearl onions" }], "times": [{ "phrase": "10 minutes", "seconds": 600 }] },
+      { "text": "Stir the mushrooms and onions into the stew with the red currant jelly.", "references": [{ "word": "mushrooms", "groupName": "To finish", "ingredientName": "cremini mushrooms" }, { "word": "onions", "groupName": "To finish", "ingredientName": "pearl onions" }, { "word": "red currant jelly", "groupName": "To finish", "ingredientName": "red currant jelly" }], "times": [] },
+      { "text": "Simmer uncovered for 10 minutes so the flavors come together.", "references": [], "times": [{ "phrase": "10 minutes", "seconds": 600 }] },
+      { "text": "Season with salt and pepper and fish out the bay leaves and thyme stalks.", "references": [{ "word": "salt", "groupName": "To finish", "ingredientName": "salt" }, { "word": "pepper", "groupName": "To finish", "ingredientName": "pepper" }], "times": [] },
+      { "text": "Scatter over the parsley and serve with mashed potatoes or crusty bread.", "references": [{ "word": "parsley", "groupName": "To finish", "ingredientName": "flat-leaf parsley" }], "times": [] }
     ]
   },
   {
@@ -352,7 +387,7 @@
           { "quantity": 1, "unit": "tsp", "name": "curry powder", "note": null },
           { "quantity": 30, "unit": "g", "name": "sultanas", "note": null },
           { "quantity": 1, "unit": "pinch", "name": "salt", "note": null },
-          { "quantity": 8, "unit": "slice", "name": "bread", "note": null }
+          { "quantity": 8, "unit": "slices", "name": "bread", "note": null }
         ]
       }
     ],

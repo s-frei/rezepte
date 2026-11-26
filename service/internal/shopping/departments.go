@@ -35,7 +35,7 @@ var words = map[Department]string{
 		"salat, spinat, brokkoli, blumenkohl, zucchini, aubergine, pilz, champignon, lauch, sellerie, petersilie, basilikum, ingwer, " +
 		"avocado, beere, erdbeere, traube, kürbis, radieschen, kohl, fenchel, schalotte, " +
 		"onion, garlic, potato, tomato, cucumber, bell pepper, carrot, lemon, lime, apple, pear, banana, lettuce, spinach, broccoli, " +
-		"schote, cauliflower, eggplant, mushroom, leek, celery, parsley, basil, ginger, dill, thyme, rosemary, chive, schnittlauch, thymian, rosmarin, minze, mint, pumpkin, cabbage, shallot, herb, scallion, cilantro",
+		"schote, cauliflower, eggplant, mushroom, leek, celery, parsley, basil, ginger, dill, thyme, rosemary, chive, schnittlauch, thymian, rosmarin, minze, mint, pumpkin, cabbage, shallot, herb, scallion, cilantro, suppengrün",
 	Bakery: "brot, toastbrot, brötchen, baguette, croissant, brezel, tortilla, " +
 		"bread, bun, roll, bagel, pita",
 	Chilled: "milch, sahne, butter, joghurt, quark, käse, mozzarella, parmesan, frischkäse, schmand, ei, eier, margarine, skyr, " +
@@ -43,12 +43,13 @@ var words = map[Department]string{
 		"mascarpone, crème fraîche, schlagsahne, buttermilch, cheddar, gouda, emmentaler, ricotta, butterschmalz, schmalz, lard, pudding, sauerrahm, eigelb, eiweiß, egg yolk, egg white, puff pastry, blätterteig, hefeteig",
 	Meat: "fleisch, hackfleisch, hähnchen, huhn, rind, schwein, schinken, speck, wurst, salami, lachs, fisch, thunfisch, garnele, steak, " +
 		"beef, pork, chicken, ham, bacon, sausage, salmon, fish, shrimp, turkey, lamb, mince, " +
-		"schnitzel, braten, roulade, kotelett, filet, cutlet, chop, brät, sausage meat, meat, bratwurst",
+		"schnitzel, braten, roulade, kotelett, filet, cutlet, chop, brät, sausage meat, meat, bratwurst, lardons",
 	Pantry: "mehl, zucker, salz, öl, olivenöl, essig, nudel, pasta, reis, haferflocke, kapern, bohne, linse, kichererbse, honig, senf, " +
 		"lasagneplatte, ketchup, gewürz, zimt, backpulver, hefe, schokolade, nuss, mandel, brühe, passierte tomaten, dosentomaten, " +
 		"flour, sugar, salt, oil, olive oil, vinegar, noodle, rice, oat, caper, bean, lentil, chickpea, honey, mustard, spice, " +
 		"cinnamon, baking powder, yeast, chocolate, nut, almond, broth, stock, cereal, " +
-		"kokosmilch, coconut milk, pfeffer, pepper, black pepper, pfefferkörner, paprikapulver, curry powder, mustard powder, powder, pulver, muskat, kümmel, lorbeerblätter, bay leaf, bay leaves, nelke, vanille, vanilleschote, vanilla, speisestärke, cornstarch, tomatenmark, tomato puree, tomato paste, semmelbrösel, paniermehl, brösel, breadcrumb, sauce, soße, mayonnaise, mayo, chutney, macaroni, makkaroni, spaghetti, rosine, sultana, date, dattel, sage, salbei, oregano, worcestershire sauce",
+		"kokosmilch, coconut milk, pfeffer, pepper, black pepper, pfefferkörner, paprikapulver, curry powder, mustard powder, powder, pulver, muskat, kümmel, lorbeerblätter, bay leaf, bay leaves, nelke, vanille, vanilleschote, vanilla, speisestärke, cornstarch, tomatenmark, tomato puree, tomato paste, semmelbrösel, paniermehl, brösel, breadcrumb, sauce, soße, mayonnaise, mayo, chutney, macaroni, makkaroni, spaghetti, rosine, sultana, date, dattel, sage, salbei, oregano, worcestershire sauce, " +
+		"peppercorns, wacholderbeeren, juniper berries, piment, pimentkörner, lebkuchen, rübenkraut, gelee, jelly",
 	Frozen: "tiefkühl, eis, pommes, tk-gemüse, frozen, ice cream, fries",
 	Drinks: "wasser, saft, wein, bier, cola, limonade, kaffee, tee, sekt, " +
 		"water, juice, wine, beer, soda, coffee, tea, ale, brown ale",
