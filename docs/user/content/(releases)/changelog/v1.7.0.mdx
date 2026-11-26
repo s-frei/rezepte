@@ -1,0 +1,50 @@
+---
+title: "v1.7.0 — Print a recipe, or a whole cookbook"
+description: "Recipes print as a designed page and save as PDF files, admins export many at once as a cookbook, every photo keeps its dish in view wherever it is cropped, and planning a recipe shows what the week already holds."
+date: 2026-11-26
+upgrade: "Nothing breaks coming from 1.6.0; back up your data directory, then pull and start `ghcr.io/s-frei/rezepte:1.7.0`."
+---
+
+Upgrade as usual (see [Updates](/operations/updates)). A few things are worth knowing as the one who runs it:
+
+- **PDFs need a temp directory that can run programs.** On the first PDF, Rezepte unpacks Typst, which is part of the binary, into `TMPDIR` or `/tmp`. A tmpfs mounted with `noexec` turns PDFs off; the log says why (see [PDFs](/getting-started/configuration#pdfs)).
+- **Large exports take a while.** A cookbook of many recipes renders before its download starts, so a reverse proxy may need a longer read timeout, such as nginx's `proxy_read_timeout`.
+- **Your own PDF design is optional.** Set `REZEPTE_PDF_TEMPLATE_DIR` to a directory of Typst templates to replace the built-in one (see [Custom PDF templates](/operations/pdf-templates)).
+- **Exports move forward, not back.** A recipe export with a photo focus away from the center imports only into Rezepte 1.7.0 or later.
+
+## Print a recipe, or a whole cookbook
+
+**Print** in a recipe's "…" menu, or Ctrl+P (⌘P on a Mac), prints the recipe as a designed page at the servings you set. **Pass on** has a new **PDF** tab: pick a cookbook page in A4 or a card in A5, with or without the photo and a QR code, then download, print or share the file. See [Print or save as PDF](/guide/printing).
+
+<Screenshot name="recipe-pdf" caption="The PDF tab of Pass on" />
+
+Admins can tick recipes under **Settings → Import & export** and choose **As PDF**: one cookbook with a contents list, or one PDF per recipe in a zip. See [As PDF](/guide/import-export#as-pdf).
+
+## Every photo keeps its dish in view
+
+The recipe page, the cards, the meal plan and the shopping lists each crop a photo to their own shape. **Photo focus** in the editor lets you tap the part to keep, with previews of each place, and walks every photo of the recipe in one go. See [Choose what a photo shows](/guide/images#choose-what-a-photo-shows).
+
+<Screenshot name="image-focus" caption="Choosing the part of a photo every place keeps in view" />
+
+## Plan with the week in sight
+
+**Add to plan** on a recipe now shows the two weeks as a calendar with the meals each day already holds, and what waits on **Someday**. On the plans page every plan is a card; one that is empty this week names its next meal and opens that day. **Someday** has a **+** of its own. See [Meal plan](/guide/meal-plan).
+
+## API
+
+- PDFs: `POST /api/v1/pdf` renders one recipe for any member, or a cookbook (`book`) or a zip of PDFs (`zip`) for admins. `POST /api/v1/pdf/preview` answers a recipe PDF's first page as a PNG. Both take `recipes:read`. `GET /api/v1/settings` says in `pdf.available` whether this server makes PDFs.
+- Photo focus: `PATCH /api/v1/recipes/{id}/images/{imageId}` sets a photo's focus point. Images carry `focus`, `sizeBytes` and `createdAt`. Covers carry their focus wherever they appear: `coverFocus` on cards, `coverWidth`, `coverHeight` and `coverFocus` on the newest recipes and shopping entries, `photoWidth`, `photoHeight` and `photoFocus` on plan entries.
+- Meal plans: each plan in `GET /api/v1/meal-plans/week` says how many entries lie after the week (`later`) and which comes first (`next`).
+- Export and import: an export writes `imageFocus` for a photo off-center, and an import applies it.
+
+The [API reference](/api/reference) lists every endpoint.
+
+## Also in this release
+
+- **Improved:** The overview lists the newest recipes first by default, so an edit no longer moves a recipe to the top. **Recently changed** stays a choice under **Sort by**.
+- **Improved:** The demo's Sauerbraten and Beef and Ale Stew come with fuller ingredients and steps.
+- **Improved:** The share image's preview tilts less as the image grows taller.
+- **Improved:** The docs' start page shows Rezepte in a short film.
+- **Fixed:** A click on the overview while cards glide into place is no longer lost.
+- **Fixed:** A portrait cover photo shows from its center on a computer, not from its top.
+- **Fixed:** The page of a setup link that no longer works shows once, whole, instead of moving "Back to sign-in" away under your click.

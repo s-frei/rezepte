@@ -4,6 +4,8 @@ description: Pass recipes with their photos to another Rezepte
 audience: admin
 ---
 
+import { NewIn } from '@/components/new-in';
+
 Move recipes with their photos from one Rezepte to another, in **Settings → Import & export** (admins only). To take a single recipe from a website or copied text, see [Importing a recipe](/guide/importing).
 
 <Callout type="warn" title="Not a backup">
@@ -19,7 +21,7 @@ Move recipes with their photos from one Rezepte to another, in **Settings → Im
 
 The file holds one folder per recipe, with its text and photos.
 
-## As PDF
+## As PDF<NewIn release="v1.7.0" />
 
 Choose **As PDF** beside **Export .zip** to print the ticked recipes or keep them as files.
 
@@ -28,7 +30,7 @@ Choose **As PDF** beside **Export .zip** to print the ticked recipes or keep the
 3. Pick **As**: **One PDF** (a cookbook with a contents list) or **One per recipe (.zip)**.
 4. Set **Format**, **Photo**, **Footer** and **Servings**, then choose **Create PDF**.
 
-The recipes follow the order of the list. **As in recipe** keeps each recipe's own servings; **Adjust** scales every recipe to one number. The options are the ones in [Print or save a recipe as PDF](/guide/printing). A PDF carries no import data: to move recipes to another Rezepte, use **Export .zip**.
+The recipes follow the order of the list. **As in recipe** keeps each recipe's own servings; **Adjust** scales every recipe to one number. The options are the ones in [Print or save as PDF](/guide/printing). A PDF carries no import data: to move recipes to another Rezepte, use **Export .zip**.
 
 ## Import
 

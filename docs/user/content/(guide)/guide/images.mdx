@@ -1,8 +1,10 @@
 ---
 title: Photos
-description: Upload, reorder and remove recipe photos
+description: Upload, reorder, focus and remove recipe photos
 new: v1.4.0
 ---
+
+import { NewIn } from '@/components/new-in';
 
 Add, order and remove a recipe's photos in its editor. Whoever may edit a recipe may change its photos; see [Editing rights](/guide/editing-rights).
 
@@ -20,7 +22,7 @@ In the editor's "Photos" section, click the add tile to pick files, or drop imag
 
 The first photo is the cover. To pick another, open the ⋯ menu on that photo and choose "Make cover".
 
-## Choose what a photo shows
+## Choose what a photo shows<NewIn release="v1.7.0" />
 
 Rezepte crops photos to fit: the recipe page, the recipe cards, the meal plan and shopping lists each show a different shape. If a photo's dish gets cut off, mark the part to keep:
 
