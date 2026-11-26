@@ -1,0 +1,106 @@
+---
+title: Print and PDF
+description: The Typst renderer and the built-in templates that turn recipes into PDFs
+---
+
+The service renders recipes as PDFs with Typst: "Kochbuch" (layout B, A4) or "Karte" (layout C, A5), with or without the cover photo and the footer (QR code and credit), one recipe or a cookbook. `service/internal/pdf` holds the `data.json` contract, the renderer, the fonts and the built-in Typst templates.
+
+<Callout type="warn" title="Traps">
+
+- A Typst error in a template surfaces only as the error string (`typst: exit status 1: <stderr>`); the work dir is already gone, so reproduce with `prepare` into a temp dir and run `typst compile` by hand ([PDF pipeline](#pdf-pipeline)).
+- The OS temp dir is shared: every Rezepte process of one user (other worktrees, a dev server, tests through `typstbin.Path`) sweeps `rezepte-typst-*` at startup, so a starting instance can remove a running one's binary dir. Renders self-heal, but a typst run in flight at that moment can fail once.
+- The server's QR code is bare, its view box the modules alone: the band's 3 mm gaps and the page margin are its quiet zone. A template that sets it against other ink must leave four modules of white around it. Typst reads the mascot from the SVG's data URI and ignores CSS `clip-path`; the mascot PNG is round already.
+- In Typst markup, `#metadata(v) <label>` with a space leaves a space in the text; test labels are written `#metadata(v)<label>`, or step text gets double spaces.
+- A Typst heading keeps its own default size under `show heading: it => it.body`; the title is sized by a `show heading: set text(...)`, never by styling the heading's body, or the contents list inherits the title's size.
+- In Typst a bare tag (`#metadata(v)<label>`) followed by spacing reports the position after the spacing, and a `context` reports the position of what follows it, so footer placement read from `here()` never converges. Position markers sit in a zero-height block of their own (`column-end`), and the footer measures from `<body-end>`, not from `here()` ([Footer band and pagination](#footer-band-and-pagination)).
+- A Typst block's `inset` repeats on every page the block breaks across: the space between the card's list and its method is a weak `v`, or every continuation page starts 3.5 mm low (`TestContinuationStartsAtTop`).
+- The built-in templates are embedded in the Go binary: a running demo renders the old `lib.typ` until it is restarted.
+- In Typst a tag inside a paragraph reports the paragraph's origin, not the spot after the text before it, so `#n#metadata(v)<label>` never tells where `n` ends. A test that reads where inline content sits puts the tag in a `box` with it, which reports the box's own position (`<step-number>`, `TestStepNumbersHang`).
+- jsQR misreads round dots with gaps between them at 400 and 600 dpi; the dots are a module wide, touching their neighbors, which decodes at 300 to 600 dpi. A failed decode at 200 dpi of a 22 mm code is the module size against the raster, not the style: check a phone or a blurred render before calling a code broken.
+
+</Callout>
+
+## How it works
+
+### Long list first
+
+**A4 sets a long list above a short method, measured in Typst.** `recipe()` in `lib.typ` measures the rail and the steps beside it unbroken (`overhang`); a list that runs on more than `list-first` (about six rows) below the steps goes first. Paella's 31 rows beside four short steps go first; Rinderrouladen and Sauerbraten stay beside (`TestIngredientsFirst`). Then the list takes the full width under its heading, in three balanced columns over a hairline, and the steps follow at the reading measure; beside the steps the rail would leave a hole under them, and past half a page the footer could not keep the last two steps. The card always sets its list above the steps.
+
+**The QR code is drawn by the server.** `qr.go` (`rsc.io/qr`) draws it at level H: a round dot a module wide per dark module, rounded eyes for the three finders, all in pure black ink (so an office driver prints it with black toner alone rather than as a misregistering CMY+K composite; `TestQRStyle`), and a white rounded hole of 9 × 9 modules in the center holding the mascot (`templates/mascot.png`, a copy of `assets/brand/lockups/rezepte-favicon-192.png`, which the book's title page uses too), which level H's error correction covers. `TestQRStyle` checks the SVG against the encoder's modules for a short and an 83-character URL and reads level H back from the format bits; `TestQRMascotCopy` holds the mascot byte-equal to the brand file. A long URL takes a larger version, so its modules are finer: still read at 160 px, not at 96 px.
+
+### PDF pipeline
+
+**`pdf.Renderer` turns a `Data` into a file.** `Render(ctx, data, photos)` returns a `Result` (`Path`, `ContentType`) that the handler serves and then `Close`s; `Preview` is the same render of page 1 of a single recipe into `out.png` (`previewArgs`), through the same work dir, sandbox, semaphore and cleanup. It gets the binary from `typstbin.Path`, waits for a slot of a semaphore (`maxParallel`, `max(1, NumCPU/2)` from main), then renders under a timeout of 30 s for a single recipe and 30 s plus 1 s per recipe, at most 10 min, for book and zip.
+
+**The work dir holds `fonts/` beside the typst root.** `Render` copies the embedded fonts into `pdf-*/fonts/` once per render (zip sub-renders share it) and renders single and book in `pdf-*/root/`, zip's recipes in `pdf-*/<i>/`. `prepare` fills a root: it copies one whole template tree (the built-in `templates/` or an operator's, never merged), writes `data.json` (templates read it with `json("data.json")`, never `--input`), copies each cover from the `photos` map to its `photo.path`, and with the footer on writes `qr/<i>.svg` per recipe and sets `qr`; with the footer off `qr` is null. Tests reuse `prepare` to run `typst eval` themselves.
+
+**Typst runs sandboxed.** The call is `typst compile --root <dir> --font-path <fonts> --ignore-system-fonts --package-path <dir>/packages --package-cache-path <dir>/.cache`, with only `HOME=<dir>` and a dead proxy (`127.0.0.1:9`) in its environment: no system fonts, nothing outside the work dir, and a `@preview` import fails within milliseconds instead of downloading. `fonts/` is a sibling of every `--root`, so a template reads nothing outside its own tree, font files included.
+
+**Bundles pick the tree.** `single` renders `recipe.typ`, `book` renders `book.typ`. `zip` renders each recipe as its own `single` Data in a subdirectory, stores the PDF uncompressed in `out.zip` under `FileName(title, labels.recipeFallback, taken)` and removes the subdirectory at once. `FileName` strips characters that are invalid on common file systems, cuts at 120 bytes on a rune boundary, and numbers duplicates case-insensitively (` (2)`), since macOS and Windows would overwrite `Flammkuchen.pdf` with `flammkuchen.pdf`.
+
+**Fonts are static TTFs** (OFL, licenses beside them in `service/internal/pdf/fonts/`): Literata Regular, Italic, Medium, SemiBold and Bold from the googlefonts/literata 3.103 release (default optical size), and Karla Regular, Medium, SemiBold and Bold from googlefonts/karla. Static, not variable: Typst picks weights from static faces reliably. Not the frontend's woff2, which Typst cannot read.
+
+### Cleanup
+
+**Every way out of a render removes its dir.** `Render` creates `pdf-*` in the data dir with `os.MkdirTemp`, and the very next statement defers its removal, which is skipped only when the `Result` takes ownership. `Result.Close` removes it after the response. Success, a Typst error, a canceled request and a timeout all leave nothing, and tests assert each case.
+
+**No Typst process outlives its request.** Typst runs in its own process group (`Setpgid`). `cmd.Cancel` sends SIGKILL to the group when the context ends, and `WaitDelay` (2 s) bounds the wait for its pipes. `TestCancelStopsProcess` checks that the pid is gone.
+
+**The startup sweep is the safety net only**, for `kill -9`, OOM or power loss. `pdf.SweepTemp(dataDir)` removes every `pdf-*`, beside `transfer.SweepTemp`. `typstbin.SweepStale(os.TempDir())` removes every `rezepte-typst-*` dir of another version.
+
+### Templates
+
+**The Typst templates are the only design.** `templates/recipe.typ` (one recipe, page or card) and `templates/book.typ` (title page, clickable contents from `outline()`, each recipe on a new page) both call `recipe()` in `lib.typ`, which composes `head`, then `stacked-body` (the list above the steps: the card, or A4's long list) or `side-body` (A4's rail), then `foot`. Check a design change by rendering the fixtures as PNGs (`typst compile --format png` on a `prepare`d dir).
+
+**The book's title page looks intentional with and without photos.** With photos, up to three covers fill the page down to the title block at its foot (`TestBookCollageFillsThePage`); without, the mascot stands as a seal over the title in the upper third (`TestBookTitlePlacement`, A4 and A5). A short structure rule, the count and the date follow. `instance.product` signs the foot over a hairline only when `instance.attribution` is on, as in the recipe footer (`TestBookSignatureNeedsAttribution`), and it is not the title already, so a book titled "Rezepte" never says it twice (`TestBookSignatureOnlyWhenNotTheTitle`).
+
+**The contents double as a menu.** On A4 the list keeps the steps' solo measure, `measure-alone`, left-aligned, so the leaders stay short enough to follow to the folio (`TestContentsMeasure`). Each entry sets its title, dotted leaders and the folio on one baseline, and under the title the servings and total time as the card's meta set a little larger (`facts` and `meta-line` in `lib.typ`), so no new data field is needed. An entry finds its recipe with `recipe-at`, the same lookup the page header uses (`TestContentsShowServingsAndTime`, whose book fixture gives each recipe its own facts). The list stands a third down the free space of its page, so a short contents never floats at the top of an empty sheet, and a long one starts at the top and runs on (`TestContentsPlacement`).
+
+**The sheet is made for a binder.** `geometry(card)` in `lib.typ` holds the page's numbers: a wide left margin as the punching gutter (no mirroring, home binders are one-sided), the content width, `cue` (one gap from the content to the running head's baseline and to the foot hint's cap height, so the two mirror each other across a page break), the QR size, the gap above the footer band, the photo's height and the type sizes per format. Beside `geometry()`, named values hold the A4 measure and rail (`measure-alone`, `rail`, `rail-gap`). Three rules only: `hairline` (facts row, card list rule, footer rule, and dotted the contents' leaders), `structure` (the card head's underline) and `rail-rule` (A4's ingredient rail), an ink rule lighter than the structure so it never outweighs the title from a distance.
+
+**Two colors exist for paper only, as named values in `lib.typ`, not app tokens.** `rule`, the hairlines' color, is a tint dark enough that an office laser prints it solid instead of dithering it into dots. `text-ink` is a neutral near-black (R = G = B) for the small text, the steps, the ingredient rows and the footer's values, which drivers print with black toner alone, so small Karla stays sharp on a color device; display type, the facts' values, the contents and the structure rules keep the warm `ink`. `TestPrintColors` reads both from the PDF's content streams. Amounts in step text print in `amount`, a dark brown that stays dark gray on a mono printer.
+
+**The steps hang their numbers.** Each number is right-aligned in a column of its own with a fixed gap before the text (`num-w`, `num-gap` in `geometry()`), so "9" and "12" share a right edge and the text edge never moves (`TestStepNumbersHang`). An ingredient named in a step is SemiBold and its amount regular in `amount`: bold and a medium amount turned a step dense with references into spots.
+
+**One quantity and unit column per recipe.** `ingredient-columns` measures the widest quantity (bold) and unit (regular) across every group of the recipe, each plus its gap, and `recipe()` adds them to `g` (`qw`, `uw`), so every group, in the rail or in columns, shares one vertical for its units and one for its names, and a list of short units has no hole before the names (`TestIngredientColumnsPerRecipe`).
+
+**Line heights are CSS-style line boxes.** `lh(h)` turns a `line-height` into Typst `top-edge`/`bottom-edge` from each font's ascender and descender, with zero leading and zero block spacing, so every gap is an explicit value. A step number's `top-edge` is the absolute distance to the text's first baseline, so number and text share it.
+
+**Ingredient names hyphenate, and nothing is clipped.** An ingredient's name is the one text that hyphenates: `hyphenate: true` in the cell of `group` in `lib.typ`, by the recipe's language, with the note set `hyphenate: false`, since Typst would split a short word ("gele-sen"). A word that hyphenation cannot fit breaks between any two letters: `fit` in `lib.typ`, which inserts zero-width spaces into a word only when `measure` at the cell's width comes back clamped to that width (an overflowing line). `TestIngredientNameHyphenates` (Paella's "Artischockenherzen, geviertelt" in three columns), `TestLongIngredientNameIsNeverClipped` hold it.
+
+**User text is data, never markup.** Every user string is placed as `text(v)` or `[#v]`; nothing is `eval`ed, so a title such as `#set text(red) $x$` prints as typed (`TestMarkupIsLiteral`).
+
+**Groups keep together up to 12 rows.** Quantities use tabular lining figures. An ingredient group of up to 12 rows never splits; a longer one flows on and repeats its name with `labels.continued` in a repeated grid header. The group's `<group-start>` marker rides in its first row, so a group moved whole to the next page does not read as continued there.
+
+**Columns of groups balance by their set height.** `balance` in `lib.typ` measures each group at the column's width and finds the lowest height at which a column-major fill takes the columns, each as full as it gets; a group over 12 rows may be cut once between rows, its second part repeating the heading with `labels.continued`. The card and the A4 list-first layout share it. Typst's `columns()` would fill the first column instead of balancing, and counting rows misjudges groups whose notes wrap.
+
+**Servings printed at another count say so.** When a recipe's `servings.value` differs from `servings.original`, A4's facts row sets `labels.scaledFrom` small and muted under the value and the card's meta adds `labels.scaledFromShort` in parentheses, each with `{n}` replaced by the recipe's own servings; the client keeps `{n}` in both labels for that (`TestScaledFromNote`). A sheet filed later then still tells that its amounts are for another count.
+
+**The source prints as `source.display`**, which `buildClientRecipe` sets to the name, else the host of the URL (`host` drops `www.`), so the built-in and custom templates print the same; the schema describes it. The band's caption shows the host of the QR target (`host` in `lib.typ`), so no data field carries the instance's host. `labels` carry only what a template prints: the folio "x / y" needs none.
+
+### Footer band and pagination
+
+**The footer band is a constant height at the foot of the recipe's last page.** `foot-band` draws a hairline, 3 mm, then one bottom-aligned row: the source and "Added by" lines left, "Open recipe" and the host right, then the QR code, 3 mm apart. Every last line sets `bottom-edge: "baseline"`, so the text's baseline, the QR ink's bottom and the content's bottom edge are one line. A credit line is cut with "…" to the width its grid cell leaves (`fill-line`), a caption line to `caption-max`. With the footer off the band is the hairline and the source line; with no source either there is no band. `foot` puts it after `v(1fr)`, so one page or five, it ends on the content's bottom edge.
+
+**The QR code is bare, and the page gives its quiet zone.** The SVG's view box is the modules alone, so the image is the ink at `g.qr` square, its right edge on the content's right edge. The 3 mm gaps above and beside it and the page margins below and right are the quiet zone: four modules are 2 to 3 mm at these sizes (a URL of up to 24 bytes, version 3, is the edge at 3.03 mm).
+
+**The footer keeps with the last two steps.** The last step's unbreakable block holds room below itself for the gap and the band and, beside A4's rail, for the list where it runs on below the steps (the difference of their unbroken heights, at most `list-first`, see `side-body`). The second-to-last step is `sticky`, so the footer's page always holds the last two steps. When the room does not fit, both move on with the band. The band then backs up into the room, from `<body-end>` to the lower `<column-end>` on that page. With the list running on below up to three steps there is no room: the first step is sticky, and of three the second as well (as the second-to-last), so the room would carry the whole method, and with it the list beside it, off the list's page (R3); the band follows the list.
+
+**The card's method moves on whole when it fits a page.** A zero-height `<method-start>` marker before the card's steps, after the weak space below the list, gives the space left on the page; the method (steps plus the footer's room) measured at the card's width either fits there, or fits a page and becomes one unbreakable block, or flows. The marker, not `here()`, keeps the decision stable. The first step is `sticky`, so with the sticky heading the first two steps never part. A book applies the same per recipe; each recipe still starts on a new page, with no right-hand forcing.
+
+**Page furniture is read from markers, never from the body's flow.** The page header finds the recipe a page belongs to from the last `<recipe-page>` on or before it; from that recipe's second page on it prints "`<title> (cont.)`" with `labels.continued`, left on the content edge. The page footer prints `labels.nextPage` on every page before that recipe's `<recipe-end>` page. A book's header also prints the folio "x / y" from page 2 (the contents) on, continuous over the book, which is the number the contents list shows. Header and footer have a fixed height, so none of this moves the body and the layout converges.
+
+**Pagination tests.** `<step>` labels carry each step's page, position and long flag. `checkPagination` in `templates_test.go` asserts the rules every recipe keeps: the last two steps share the footer's page, the method's first page holds two steps and, on A4, the method starts on the recipe's first page (`<recipe-page>`). The page-count tests hold real recipes from `testdata/` to their pages: Rinderrouladen one page on A4 and A5, Sauerbraten three on A4 with photo and footer, as its seventh step does not fit page 1 and the last two steps with the band do not fit page 2.
+
+**Templates expose test labels.** `metadata` elements, each named after what it marks (`grep '#metadata' lib.typ`), let `templates_test.go` check content with `typst eval 'query(<label>)…' --in`, since Typst's SVG output draws glyphs as paths and holds no text. A query that prints any warning fails, which is how a layout that does not converge shows (Typst only warns). The layout markers `<recipe-page>`, `<recipe-end>`, `<group-start>`, `<column-end>`, `<body-end>` and `<method-start>` steer the layout itself; tests read some of them too.
+
+## Why it is this way
+
+The PDF is typeset by Typst rather than by a headless browser: Typst is one static binary that ships inside the Go binary, starts in milliseconds and needs no cgo, while a browser would add hundreds of megabytes and a process to manage.
+
+`rsc.io/qr` encodes the footer QR code: a small, pure-Go, dependency-free encoder. A hand-rolled encoder (Reed-Solomon, masking, version selection) would be real work for no gain, and Typst QR packages would need a bundled package tree inside every template.
+
+## Limits
+
+- Beside A4's rail, a method of one or two long steps next to a list that runs on past the page (but not so far past the method that the list goes first) leaves the footer to follow the list, without the last steps.
+- The footer always keeps the last two steps (R6); no recipe was found where keeping one would save a page.
